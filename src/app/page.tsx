@@ -1,102 +1,179 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen flex flex-col">
+      <header className="bg-gradient-to-r from-purple-600 to-indigo-700 py-6">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-white">VinařstvíQR</h1>
+            <nav className="space-x-4">
+              <Link 
+                href="/register" 
+                className="text-white hover:text-indigo-200 transition"
+              >
+                Registrace
+              </Link>
+              <Link 
+                href="/login" 
+                className="bg-white text-indigo-700 px-4 py-2 rounded-md font-medium hover:bg-indigo-50 transition"
+              >
+                Přihlášení
+              </Link>
+            </nav>
+          </div>
         </div>
+      </header>
+
+      <main className="flex-grow container mx-auto px-4 py-12">
+        <section className="mb-16 text-center">
+          <h2 className="text-4xl font-bold mb-6">QR kódy pro vinařství</h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Jednoduchý a efektivní způsob, jak splnit legislativní požadavky 
+            pro označování vín QR kódy s výživovými údaji a složením.
+          </p>
+        </section>
+
+        <section className="grid md:grid-cols-2 gap-16 mb-16">
+          <div className="flex flex-col justify-center">
+            <h3 className="text-2xl font-bold mb-4">Proč používat naši službu?</h3>
+            <ul className="space-y-4">
+              <li className="flex items-start">
+                <svg className="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Splníte legislativní požadavky pro označování vín QR kódy</span>
+              </li>
+              <li className="flex items-start">
+                <svg className="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Jednoduchá správa všech vašich vín a jejich údajů</span>
+              </li>
+              <li className="flex items-start">
+                <svg className="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Profesionální vzhled stránek s údaji o víně</span>
+              </li>
+              <li className="flex items-start">
+                <svg className="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Snadné generování QR kódů pro tisk na etikety</span>
+              </li>
+            </ul>
+          </div>
+          <div className="flex items-center justify-center">
+            <div className="bg-gray-100 p-6 rounded-lg shadow-lg w-full max-w-md">
+              <div className="mb-4 bg-white p-4 rounded border border-gray-200">
+                <div className="w-64 h-64 mx-auto bg-gray-200 flex items-center justify-center">
+                  <span className="text-gray-500">Ukázka QR kódu</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h4 className="font-bold">Výživové údaje (na 100 ml)</h4>
+                <div className="flex justify-between">
+                  <span>Energetická hodnota</span>
+                  <span>310 kJ / 74 kcal</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tuky</span>
+                  <span>0 g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sacharidy</span>
+                  <span>3.7 g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Bílkoviny</span>
+                  <span>0.2 g</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sůl</span>
+                  <span>0 g</span>
+                </div>
+                <h4 className="font-bold mt-4">Složení</h4>
+                <p className="text-sm">
+                  Hrozny, antioxidant: oxid siřičitý
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="text-center mb-16">
+          <h3 className="text-2xl font-bold mb-6">Jak to funguje?</h3>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <div className="bg-indigo-100 w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center">
+                <span className="text-indigo-700 text-xl font-bold">1</span>
+              </div>
+              <h4 className="font-bold mb-2">Registrujte se</h4>
+              <p className="text-gray-600">
+                Vytvořte si účet pro vaše vinařství
+              </p>
+            </div>
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <div className="bg-indigo-100 w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center">
+                <span className="text-indigo-700 text-xl font-bold">2</span>
+              </div>
+              <h4 className="font-bold mb-2">Zadejte údaje o víně</h4>
+              <p className="text-gray-600">
+                Vyplňte výživové údaje a další informace
+              </p>
+            </div>
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <div className="bg-indigo-100 w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center">
+                <span className="text-indigo-700 text-xl font-bold">3</span>
+              </div>
+              <h4 className="font-bold mb-2">Stáhněte QR kód</h4>
+              <p className="text-gray-600">
+                Umístěte vygenerovaný QR kód na etiketu
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="text-center">
+          <h3 className="text-2xl font-bold mb-6">Začněte ještě dnes</h3>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link 
+              href="/register" 
+              className="bg-indigo-600 text-white px-6 py-3 rounded-md font-medium hover:bg-indigo-700 transition"
+            >
+              Registrovat vinařství
+            </Link>
+            <Link 
+              href="/login" 
+              className="bg-white text-indigo-600 border border-indigo-600 px-6 py-3 rounded-md font-medium hover:bg-indigo-50 transition"
+            >
+              Přihlásit se
+            </Link>
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      <footer className="bg-gray-800 text-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-8">
+            <div>
+              <h3 className="text-xl font-bold mb-4">VinařstvíQR</h3>
+              <p className="mb-4">
+                Pomáháme vinařům splnit legislativní požadavky pro označování vín QR kódy s výživovými údaji a složením.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-bold mb-4">Kontakt</h4>
+              <p>Email: info@vinarstviqr.cz</p>
+              <p>Telefon: +420 123 456 789</p>
+            </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-gray-700 text-center text-gray-400">
+            <p>&copy; {new Date().getFullYear()} VinařstvíQR. Všechna práva vyhrazena.</p>
+          </div>
+        </div>
       </footer>
     </div>
   );

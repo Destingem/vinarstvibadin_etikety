@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Winery {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  slug          String         @unique
+  email         String         @unique
+  passwordHash  String
+  passwordSalt  String
+  address       String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  wines         Wine[]
+}
+
+model Wine {
+  id                String   @id @default(uuid())
+  name              String
+  vintage           Int?
+  batch             String?
+  alcoholContent    Float?
+  energyValueKJ     Float?
+  energyValueKcal   Float?
+  fat               Float?   @default(0)
+  saturatedFat      Float?   @default(0)
+  carbs             Float?   @default(0)
+  sugars            Float?   @default(0)
+  protein           Float?   @default(0)
+  salt              Float?   @default(0)
+  ingredients       String?
+  additionalInfo    String?
+  allergens         String?
+  wineRegion        String?
+  wineSubregion     String?
+  wineVillage       String?
+  wineTract         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  wineryId          String
+  winery            Winery   @relation(fields: [wineryId], references: [id])
+
+  @@unique([wineryId, name, vintage, batch])
+}

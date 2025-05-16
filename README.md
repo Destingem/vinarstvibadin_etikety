@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VinařstvíQR - Systém pro generování QR kódů pro etikety vín
 
-## Getting Started
+Systém pro jednoduché a efektivní splnění legislativních požadavků na označování vín QR kódy s výživovými údaji a složením.
 
-First, run the development server:
+## O projektu
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+VinařstvíQR je webová aplikace, která umožňuje vinařstvím vytvářet a spravovat QR kódy pro etikety vín. Od roku 2023 je v EU povinné uvádět na etiketách vín výživové údaje a seznam složek, které mohou být poskytnuty prostřednictvím QR kódu.
+
+### Hlavní funkce
+
+- Registrace a přihlášení vinařství
+- Správa vín a jejich údajů
+- Automatické generování QR kódů
+- Veřejně dostupné stránky s informacemi o víně
+- Splnění legislativních požadavků EU
+
+## Technologie
+
+- [Next.js](https://nextjs.org/) 15.x - React framework
+- [TypeScript](https://www.typescriptlang.org/) - Typový systém
+- [Prisma](https://www.prisma.io/) - ORM pro práci s databází
+- [PostgreSQL](https://www.postgresql.org/) - Databázový systém
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [React Hook Form](https://react-hook-form.com/) - Správa formulářů
+- [Zod](https://zod.dev/) - Validace dat
+- [QRCode](https://www.npmjs.com/package/qrcode) - Generování QR kódů
+
+## Požadavky
+
+- Node.js 18.x nebo novější
+- PostgreSQL 14.x nebo novější
+- Yarn nebo npm
+
+## Instalace
+
+1. Klonujte repozitář:
+   ```bash
+   git clone https://github.com/vase-uzivatelske-jmeno/vinarstvibadin_etikety.git
+   cd vinarstvibadin_etikety
+   ```
+
+2. Nainstalujte závislosti:
+   ```bash
+   yarn install
+   # nebo
+   npm install
+   ```
+
+3. Vytvořte soubor `.env` s připojením k databázi:
+   ```
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/wine_qr_codes?schema=public"
+   JWT_SECRET="vas-tajny-klic-zde"
+   NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+   ```
+
+4. Inicializujte databázi:
+   ```bash
+   yarn db:migrate
+   # nebo
+   npm run db:migrate
+   ```
+
+5. (Volitelně) Naplňte databázi testovacími daty:
+   ```bash
+   yarn db:seed
+   # nebo
+   npm run db:seed
+   ```
+
+6. Spusťte vývojový server:
+   ```bash
+   yarn dev
+   # nebo
+   npm run dev
+   ```
+
+7. Otevřete [http://localhost:3000](http://localhost:3000) ve vašem prohlížeči.
+
+## Struktura projektu
+
+```
+/
+├── prisma/             # Prisma schema a migrace
+├── public/             # Statické soubory
+└── src/
+    ├── app/            # Next.js App Router
+    │   ├── api/        # API routes
+    │   ├── dashboard/  # Dashboard pages
+    │   ├── [winery]/   # Veřejné stránky s informacemi o víně
+    │   └── ...
+    ├── components/     # React komponenty
+    ├── lib/            # Sdílené knihovny a utility
+    └── types/          # TypeScript typy
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Legislativní požadavky
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Od 8. prosince 2023 je v EU povinné uvádět na etiketách vín výživové údaje a seznam složek. Tyto informace mohou být poskytnuty prostřednictvím QR kódu.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Požadované informace v QR kódu
 
-## Learn More
+1. **Výživové údaje (na 100 ml)**:
+   - Energetická hodnota (kJ/kcal)
+   - Množství tuků, nasycených mastných kyselin, sacharidů, cukrů, bílkovin a soli
 
-To learn more about Next.js, take a look at the following resources:
+2. **Seznam složek**:
+   - Musí začínat slovem "Složení:"
+   - Obsahuje hrozny, antioxidanty (např. oxid siřičitý), regulátory kyselosti a další
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Další povinné údaje**:
+   - Přesná identifikace vína (název, ročník, šarže, obsah alkoholu)
+   - Informace o plniči/výrobci
+   - Odkaz na vinařskou oblast, podoblast, obec a trať
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Licence
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Tento projekt je licencován pod MIT licencí - viz soubor [LICENSE](LICENSE) pro detaily.
