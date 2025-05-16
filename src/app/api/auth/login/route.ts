@@ -41,16 +41,22 @@ export async function POST(request: NextRequest) {
       let session;
       try {
         console.log("Attempting to create session with methods:", {
-          createEmailPasswordSession: typeof account.createEmailPasswordSession === 'function',
-          createEmailSession: typeof account.createEmailSession === 'function'
+          createEmailPasswordSession: typeof (account as any).createEmailPasswordSession === 'function',
+          createEmailSession: typeof (account as any).createEmailSession === 'function',
+          createSession: typeof (account as any).createSession === 'function'
         });
         
-        if (typeof account.createEmailPasswordSession === 'function') {
-          session = await account.createEmailPasswordSession(email, password);
+        // Try different methods based on what's available
+        // Using type assertions to avoid TypeScript errors
+        if (typeof (account as any).createEmailPasswordSession === 'function') {
+          session = await (account as any).createEmailPasswordSession(email, password);
           console.log("Created email-password session");
-        } else if (typeof account.createEmailSession === 'function') {
-          session = await account.createEmailSession(email, password);
+        } else if (typeof (account as any).createEmailSession === 'function') {
+          session = await (account as any).createEmailSession(email, password);
           console.log("Created email session");
+        } else if (typeof (account as any).createSession === 'function') {
+          session = await (account as any).createSession('email', email, password);
+          console.log("Created session with email provider");
         } else {
           throw new Error('No compatible login method found');
         }
@@ -93,7 +99,9 @@ export async function POST(request: NextRequest) {
       console.log("Login successful for user:", userId);
       
       // Generate a slug from the email username if needed
-      const slug = user.prefs?.slug || createSlug(user.name || email.split('@')[0]);
+      // Type assertion to avoid TypeScript errors
+      const prefs = user.prefs as { slug?: string } || {};
+      const slug = prefs.slug || createSlug(user.name || email.split('@')[0]);
       
       // Return success response with token and user data
       return NextResponse.json({
@@ -107,8 +115,11 @@ export async function POST(request: NextRequest) {
         token: token,
         sessionId: session.$id
       });
-    } catch (authError) {
-      console.error('Auth error:', authError);
+    } catch (error) {
+      console.error('Auth error:', error);
+      
+      // Type assertion for error handling
+      const authError = error as { code?: number; message?: string };
       
       // Better error handling
       if (authError.code === 401) {

@@ -33,13 +33,13 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     };
     
     // Register the event listener (if supported by browser)
-    if (typeof window !== 'undefined' && window.fetch && 'addEventListener' in window) {
+    if (typeof window !== 'undefined' && typeof window.fetch === 'function' && 'addEventListener' in window) {
       window.addEventListener('fetch', handleFetch as EventListener);
     }
     
     // Cleanup
     return () => {
-      if (typeof window !== 'undefined' && window.fetch && 'removeEventListener' in window) {
+      if (typeof window !== 'undefined' && typeof window.fetch === 'function' && 'removeEventListener' in window) {
         window.removeEventListener('fetch', handleFetch as EventListener);
       }
     };

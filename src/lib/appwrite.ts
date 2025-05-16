@@ -70,7 +70,7 @@ export async function getWineryByEmail(email: string): Promise<Winery | null> {
     );
 
     if (response.documents.length > 0) {
-      return response.documents[0] as Winery;
+      return response.documents[0] as unknown as Winery;
     }
     return null;
   } catch (error) {
@@ -88,7 +88,7 @@ export async function getWineryBySlug(slug: string): Promise<Winery | null> {
     );
 
     if (response.documents.length > 0) {
-      return response.documents[0] as Winery;
+      return response.documents[0] as unknown as Winery;
     }
     return null;
   } catch (error) {
@@ -104,7 +104,7 @@ export async function getWineryById(id: string): Promise<Winery | null> {
       WINERIES_COLLECTION_ID,
       id
     );
-    return winery as Winery;
+    return winery as unknown as Winery;
   } catch (error) {
     console.error('Error getting winery by ID:', error);
     return null;
@@ -128,7 +128,7 @@ export async function createWinery(winery: Winery): Promise<Winery | null> {
         updatedAt: new Date().toISOString()
       }
     );
-    return newWinery as Winery;
+    return newWinery as unknown as Winery;
   } catch (error) {
     console.error('Error creating winery:', error);
     return null;
@@ -146,7 +146,7 @@ export async function updateWinery(id: string, data: Partial<Winery>): Promise<W
         updatedAt: new Date().toISOString()
       }
     );
-    return updatedWinery as Winery;
+    return updatedWinery as unknown as Winery;
   } catch (error) {
     console.error('Error updating winery:', error);
     return null;
@@ -161,7 +161,7 @@ export async function getWineById(id: string): Promise<Wine | null> {
       WINES_COLLECTION_ID,
       id
     );
-    return wine as Wine;
+    return wine as unknown as Wine;
   } catch (error) {
     console.error('Error getting wine by ID:', error);
     return null;
@@ -175,7 +175,7 @@ export async function getWinesByWineryId(wineryId: string): Promise<Wine[]> {
       WINES_COLLECTION_ID,
       [Query.equal('wineryId', wineryId)]
     );
-    return response.documents as Wine[];
+    return response.documents as unknown as Wine[];
   } catch (error) {
     console.error('Error getting wines by winery ID:', error);
     return [];
@@ -213,7 +213,7 @@ export async function createWine(wine: Wine): Promise<Wine | null> {
         updatedAt: new Date().toISOString()
       }
     );
-    return newWine as Wine;
+    return newWine as unknown as Wine;
   } catch (error) {
     console.error('Error creating wine:', error);
     return null;
@@ -231,7 +231,7 @@ export async function updateWine(id: string, data: Partial<Wine>): Promise<Wine 
         updatedAt: new Date().toISOString()
       }
     );
-    return updatedWine as Wine;
+    return updatedWine as unknown as Wine;
   } catch (error) {
     console.error('Error updating wine:', error);
     return null;

@@ -1,21 +1,13 @@
-import { compare, hash } from 'bcrypt';
+// This file is kept for reference but is not currently used.
+// Appwrite authentication is used instead.
+// The bcrypt dependency has been removed to fix build errors.
+
 import { sign, verify } from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { AuthResponse } from '@/types';
 import prisma from './prisma';
 
-const SALT_ROUNDS = 10;
-
-export async function hashPassword(password: string): Promise<string> {
-  return hash(password, SALT_ROUNDS);
-}
-
-export async function comparePasswords(
-  password: string,
-  hashedPassword: string
-): Promise<boolean> {
-  return compare(password, hashedPassword);
-}
+// Password hashing functions that used bcrypt have been removed
 
 export function generateToken(userId: string): string {
   const jwtSecret = process.env.JWT_SECRET;
@@ -44,6 +36,7 @@ export function verifyToken(token: string): { userId: string } | null {
 }
 
 export async function getAuthToken(): Promise<string | undefined> {
+  // In Next.js 15, cookies() might return a Promise, so we need to await it
   const cookieStore = await cookies();
   return cookieStore.get('auth-token')?.value;
 }

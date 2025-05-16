@@ -20,13 +20,17 @@ const adminClient = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
   .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
 
-// Set API key for admin operations
+// Set API key for admin operations using SDK v17+ method
 if (process.env.APPWRITE_KEY) {
-  // @ts-ignore - Method might change between SDK versions
-  if (typeof adminClient.setKey === 'function') {
-    adminClient.setKey(process.env.APPWRITE_KEY);
-  } else if (typeof adminClient.setApiKey === 'function') {
-    adminClient.setApiKey(process.env.APPWRITE_KEY);
+  // Use type assertion to avoid TypeScript errors
+  const client = adminClient as any;
+  
+  // Check if setApiKey exists on the client
+  if (typeof client.setApiKey === 'function') {
+    client.setApiKey(process.env.APPWRITE_KEY);
+  } else {
+    console.warn('Appwrite SDK method setApiKey not available - API key not set');
+    console.warn('This may cause some server-side operations to fail');
   }
 }
 

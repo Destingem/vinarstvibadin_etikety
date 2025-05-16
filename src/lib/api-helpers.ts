@@ -27,8 +27,9 @@ export async function authFetch(
   const headers = options.headers || {};
   
   // Add Authorization header with token
-  const updatedHeaders = {
-    ...headers,
+  // Use type assertion to allow string indexing
+  const updatedHeaders: Record<string, string> = {
+    ...headers as Record<string, string>,
     'Authorization': `Bearer ${token}`
   };
   

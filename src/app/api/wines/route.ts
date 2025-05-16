@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
 import { z } from 'zod';
 import { createWine, getWinesByUserId, Query, adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
+import { Wine } from '@/lib/appwrite';
 
 // Schema for creating/updating wine 
 // This matches exactly the Appwrite collection attributes
@@ -85,7 +86,8 @@ export async function GET(request: NextRequest) {
         queries
       );
     
-    const wines = response.documents as Wine[];
+    // Convert documents to Wine type using unknown as an intermediate step to satisfy TypeScript
+    const wines = response.documents as unknown as Wine[];
     const totalCount = response.total;
     const totalPages = Math.ceil(totalCount / limit);
     

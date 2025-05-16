@@ -8,10 +8,12 @@ import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
 
 interface Wine {
-  id: string; // This will be $id from Appwrite, but kept as 'id' for backward compatibility
+  id?: string; // For backward compatibility
+  $id?: string; // For Appwrite's document ID format
   name: string;
   vintage?: number | null;
   batch?: string | null;
+  [key: string]: any; // Allow other properties
 }
 
 interface QRCodeData {
@@ -261,7 +263,7 @@ export default function QRCodesPage() {
                         </a>
                         
                         <Link
-                          href={`/dashboard/wines/${qrCodeData.wine.id}`}
+                          href={`/dashboard/wines/${qrCodeData.wine.id || qrCodeData.wine.$id}`}
                           className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                           <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
