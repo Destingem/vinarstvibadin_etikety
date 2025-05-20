@@ -400,9 +400,10 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       
       const data = await response.json();
       
-      // If we have a logo URL or file ID that wasn't processed by the server, 
+      // If we have a logo URL or file ID that wasn't processed by the server,
+      // or if the server provided logoFileId indicating we need to do client-side embedding,
       // we need to add it to the QR code client-side using canvas
-      if ((qrOptions.logoUrl || qrOptions.logoFileId) && !data.options.logoUrl && !data.options.logoFileId) {
+      if ((qrOptions.logoUrl || qrOptions.logoFileId) && (!data.options.logoUrl || data.logoFileId)) {
         // Create a QR code with logo client-side
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -454,9 +455,11 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           // Use logoUrl first if available, otherwise try to get a preview URL from logoFileId
           if (qrOptions.logoUrl) {
             logoImg.src = qrOptions.logoUrl;
-          } else if (qrOptions.logoFileId) {
+          } else if (qrOptions.logoFileId || data.logoFileId) {
             try {
-              const previewUrl = getFilePreview(qrOptions.logoFileId);
+              // Use either the options logoFileId or the one returned from the server
+              const fileId = qrOptions.logoFileId || data.logoFileId;
+              const previewUrl = getFilePreview(fileId);
               logoImg.src = previewUrl;
             } catch (err) {
               setError('Nepodařilo se načíst logo ze storage');

@@ -60,7 +60,7 @@ export async function generateQRCode(url: string, options: QRCodeOptions = {}): 
     });
     
     // If no logo is provided, return the QR code as is
-    if (!mergedOptions.logoUrl) {
+    if (!mergedOptions.logoUrl && !mergedOptions.logoFileId) {
       return dataUrl;
     }
     
@@ -73,18 +73,32 @@ export async function generateQRCode(url: string, options: QRCodeOptions = {}): 
 }
 
 /**
+ * Checks if code is running in a browser environment
+ */
+function isBrowser(): boolean {
+  return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
+/**
  * Embeds a logo in a QR code
  * @param qrCodeDataUrl The data URL of the QR code
  * @param options Options for embedding the logo
  * @returns A promise that resolves to a data URL containing the QR code with embedded logo
  */
 async function embedLogoInQRCode(qrCodeDataUrl: string, options: QRCodeOptions): Promise<string> {
+  // If no logo URL or file ID provided, return the QR code as is
+  if (!options.logoUrl && !options.logoFileId) {
+    return qrCodeDataUrl;
+  }
+  
+  // If we're on the server, we can't use canvas - return the QR code without a logo
+  if (!isBrowser()) {
+    console.log('Embedding logo skipped - running in server environment');
+    return qrCodeDataUrl;
+  }
+  
+  // Client-side logo embedding using canvas
   return new Promise((resolve, reject) => {
-    // If no logo URL or file ID provided, return the QR code as is
-    if (!options.logoUrl && !options.logoFileId) {
-      return resolve(qrCodeDataUrl);
-    }
-    
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     

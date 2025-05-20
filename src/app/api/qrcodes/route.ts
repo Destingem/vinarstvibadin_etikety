@@ -136,6 +136,8 @@ export async function GET(request: NextRequest) {
           batch: wine.batch,
         },
         options: qrCodeOptions,
+        // Include information needed for client-side logo embedding if we have a logoFileId
+        logoFileId: qrCodeOptions.logoFileId,
       });
     } catch (error: any) {
       console.error('Error fetching wine or generating QR code:', error);
