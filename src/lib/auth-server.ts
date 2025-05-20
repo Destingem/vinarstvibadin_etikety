@@ -54,10 +54,64 @@ export async function createUser(email: string, password: string, name: string, 
 }
 
 // Update user preferences
-export async function updateUserPrefs(prefs: Record<string, any>, userId?: string) {
+export async function updateUserPrefs(prefs: Record<string, any>, userId: string) {
   try {
-    // Update preferences
-    return await serverAccount.updatePrefs(prefs);
+    console.log(`Updating preferences for user ${userId}`);
+    
+    // Ensure the prefs key is included with a value
+    if (!prefs) {
+      throw new Error('Preferences object cannot be null or undefined');
+    }
+    
+    // Limit the size of string values to prevent API errors
+    // For QR presets, we need to process the JSON string to remove large data URLs
+    if (prefs.qrPresets) {
+      try {
+        const presets = JSON.parse(prefs.qrPresets);
+        
+        // Process each preset to remove large data URLs
+        for (const preset of presets) {
+          if (preset.options && preset.options.logoUrl) {
+            // If the logo URL is too large (data URL), replace with a placeholder
+            if (preset.options.logoUrl.length > 5000) {
+              console.log(`Replacing large logo URL in preset ${preset.name} with placeholder`);
+              // Store the fact that a logo was used, but not the actual data URL
+              preset.options.logoUrl = '[LOGO_DATA_URL_TOO_LARGE]';
+              preset.options.hasLogo = true;
+            }
+          }
+        }
+        
+        // Update the prefs with the modified presets
+        prefs.qrPresets = JSON.stringify(presets);
+      } catch (parseError) {
+        console.error('Error processing QR presets:', parseError);
+      }
+    }
+    
+    // Construct the request body in the format expected by Appwrite
+    const requestBody = { prefs };
+    
+    // Use direct API call with the Appwrite key
+    const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}/prefs`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+        'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
+      },
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error updating preferences: ${response.status}`, errorText);
+      throw new Error(`Failed to update preferences: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Preference update successful');
+    return result;
   } catch (error) {
     console.error('Error updating user prefs:', error);
     throw error;

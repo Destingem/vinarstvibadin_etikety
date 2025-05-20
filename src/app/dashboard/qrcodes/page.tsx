@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
+import QRCodeCustomizer from '@/components/QRCodeCustomizer';
+import { QRCodeOptions } from '@/lib/qr-code';
 
 interface Wine {
   id?: string; // For backward compatibility
@@ -20,6 +22,7 @@ interface QRCodeData {
   qrCode: string;
   url: string;
   wine: Wine;
+  options?: QRCodeOptions;
 }
 
 export default function QRCodesPage() {
@@ -55,7 +58,21 @@ export default function QRCodesPage() {
     fetchWines();
   }, [token]);
   
-  // Generate QR code when wine is selected
+  // Handle QR code customization
+  const handleQRCodeGenerated = (qrCodeDataUrl: string, options: QRCodeOptions) => {
+    if (!selectedWineId || !qrCodeData) return;
+    
+    // Update the QR code data with new generated code
+    setQrCodeData({
+      ...qrCodeData,
+      qrCode: qrCodeDataUrl,
+      options
+    });
+    
+    setLoading(false);
+  };
+  
+  // Generate initial QR code when wine is selected
   useEffect(() => {
     if (!selectedWineId || !token) {
       setQrCodeData(null);
@@ -204,89 +221,100 @@ export default function QRCodesPage() {
             
             {qrCodeData && !loading && (
               <div className="mt-6">
-                <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-                  <div className="flex flex-col md:flex-row md:items-start gap-6">
-                    <div className="flex-shrink-0 w-64 h-64 bg-white flex items-center justify-center p-2 rounded border border-gray-200 mx-auto md:mx-0">
-                      <Image
-                        src={qrCodeData.qrCode}
-                        alt={`QR kód pro víno ${qrCodeData.wine.name}`}
-                        width={250}
-                        height={250}
-                        className="max-w-full max-h-full"
-                      />
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="md:col-span-1">
+                    <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+                      <div className="flex flex-col items-center">
+                        <div className="flex-shrink-0 w-64 h-64 bg-white flex items-center justify-center p-2 rounded border border-gray-200 mx-auto">
+                          <Image
+                            src={qrCodeData.qrCode}
+                            alt={`QR kód pro víno ${qrCodeData.wine.name}`}
+                            width={250}
+                            height={250}
+                            className="max-w-full max-h-full"
+                          />
+                        </div>
+                        
+                        <div className="w-full mt-4">
+                          <h4 className="text-lg font-medium text-gray-900 mb-2 text-center">
+                            {qrCodeData.wine.name}
+                            {qrCodeData.wine.vintage ? ` (${qrCodeData.wine.vintage})` : ''}
+                            {qrCodeData.wine.batch ? ` - ${qrCodeData.wine.batch}` : ''}
+                          </h4>
+                          
+                          <div className="mt-4">
+                            <p className="text-sm font-medium text-gray-500">
+                              QR kód URL:
+                            </p>
+                            <a
+                              href={qrCodeData.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-indigo-600 hover:text-indigo-900 break-all"
+                            >
+                              {qrCodeData.url}
+                            </a>
+                          </div>
+                          
+                          <div className="mt-6 flex flex-wrap gap-3 justify-center">
+                            <button
+                              type="button"
+                              onClick={handleDownload}
+                              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                              Stáhnout QR kód
+                            </button>
+                            
+                            <a
+                              href={qrCodeData.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                              </svg>
+                              Otevřít odkaz
+                            </a>
+                            
+                            <Link
+                              href={`/dashboard/wines/${qrCodeData.wine.id || qrCodeData.wine.$id}`}
+                              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                                <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+                              </svg>
+                              Upravit víno
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="flex-1">
-                      <h4 className="text-lg font-medium text-gray-900 mb-2">
-                        {qrCodeData.wine.name}
-                        {qrCodeData.wine.vintage ? ` (${qrCodeData.wine.vintage})` : ''}
-                        {qrCodeData.wine.batch ? ` - ${qrCodeData.wine.batch}` : ''}
+                    <div className="mt-6 bg-white p-4 rounded-lg border border-gray-200">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">
+                        Návod k použití
                       </h4>
-                      
-                      <div className="mt-4">
-                        <p className="text-sm font-medium text-gray-500">
-                          QR kód URL:
-                        </p>
-                        <a
-                          href={qrCodeData.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-indigo-600 hover:text-indigo-900 break-all"
-                        >
-                          {qrCodeData.url}
-                        </a>
-                      </div>
-                      
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={handleDownload}
-                          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                          <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                          Stáhnout QR kód
-                        </button>
-                        
-                        <a
-                          href={qrCodeData.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                          <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                            <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                          </svg>
-                          Otevřít odkaz
-                        </a>
-                        
-                        <Link
-                          href={`/dashboard/wines/${qrCodeData.wine.id || qrCodeData.wine.$id}`}
-                          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                        >
-                          <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                            <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                          </svg>
-                          Upravit víno
-                        </Link>
-                      </div>
+                      <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+                        <li>Stáhněte QR kód kliknutím na tlačítko "Stáhnout QR kód"</li>
+                        <li>Umístěte QR kód na etiketu vašeho vína</li>
+                        <li>Doporučujeme používat QR kód o velikosti alespoň 2 cm x 2 cm pro snadné naskenování</li>
+                        <li>Otestujte QR kód mobilním telefonem před finálním tiskem etiket</li>
+                      </ul>
                     </div>
                   </div>
-                </div>
-                
-                <div className="mt-6 bg-white p-4 rounded-lg border border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">
-                    Návod k použití
-                  </h4>
-                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
-                    <li>Stáhněte QR kód kliknutím na tlačítko "Stáhnout QR kód"</li>
-                    <li>Umístěte QR kód na etiketu vašeho vína</li>
-                    <li>Doporučujeme používat QR kód o velikosti alespoň 2 cm x 2 cm pro snadné naskenování</li>
-                    <li>Otestujte QR kód mobilním telefonem před finálním tiskem etiket</li>
-                  </ul>
+                  
+                  <div className="md:col-span-1">
+                    <QRCodeCustomizer 
+                      wineId={selectedWineId || ''} 
+                      onQRCodeGenerated={handleQRCodeGenerated}
+                    />
+                  </div>
                 </div>
               </div>
             )}
