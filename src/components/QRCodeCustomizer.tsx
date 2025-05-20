@@ -105,16 +105,14 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     
     // Handle logo from different sources based on what's available
     if (preset.hasStoredLogo && preset.options.logoFileId) {
-      // If the preset uses a stored logo, get the preview URL
-      setLogoFileId(preset.options.logoFileId);
-      try {
-        const previewUrl = getFilePreview(preset.options.logoFileId);
-        setLogoUrl(previewUrl);
-      } catch (err) {
-        console.error('Error loading logo from storage:', err);
-        setLogoUrl('');
-        setError('Failed to load logo from storage. Please re-upload your logo.');
-      }
+      // If the preset uses a stored logo, create a proxy URL
+      const fileId = preset.options.logoFileId;
+      setLogoFileId(fileId);
+      
+      // Use our proxy API instead of direct Appwrite URLs
+      const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(fileId)}`;
+      console.log(`Using proxy URL for preset logo: ${proxyUrl}`);
+      setLogoUrl(proxyUrl);
     } else if (preset.options.logoUrl === '[LOGO_DATA_URL_TOO_LARGE]') {
       // If the preset had a logo but it was too large to save, inform the user
       setLogoUrl('');
@@ -283,9 +281,14 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       // Upload the logo to Appwrite Storage
       const uploadResult = await uploadLogo(file);
       
-      // Store the file ID and preview URL
+      // Store the file ID
       setLogoFileId(uploadResult.fileId);
-      setLogoUrl(uploadResult.url);
+      
+      // Create a proxy URL for the logo
+      const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(uploadResult.fileId)}`;
+      setLogoUrl(proxyUrl);
+      
+      console.log(`Logo uploaded, using proxy URL: ${proxyUrl}`);
       
       // Automatically generate a QR code with the new logo
       const options: QRCodeOptions = {
@@ -296,7 +299,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           light: lightColor,
         },
         logoFileId: uploadResult.fileId,
-        logoUrl: uploadResult.url,
+        logoUrl: proxyUrl,
         logoSize,
         logoBackgroundColor,
         errorCorrectionLevel: 'H', // Set higher error correction for logo
@@ -400,10 +403,9 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       
       const data = await response.json();
       
-      // If we have a logo URL or file ID that wasn't processed by the server,
-      // or if the server provided logoFileId indicating we need to do client-side embedding,
-      // we need to add it to the QR code client-side using canvas
-      if ((qrOptions.logoUrl || qrOptions.logoFileId) && (!data.options.logoUrl || data.logoFileId)) {
+      // If we have a logo, we should always do client-side embedding now that we have the proxy
+      // This ensures consistent handling of logos through our proxy API
+      if (qrOptions.logoUrl || qrOptions.logoFileId || data.logoFileId) {
         // Create a QR code with logo client-side
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -466,7 +468,12 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           
           // Use logoUrl first if available, otherwise try to get a preview URL from logoFileId
           if (qrOptions.logoUrl) {
-            console.log(`Using direct logo URL: ${qrOptions.logoUrl.substring(0, 50)}...`);
+            // Check if this is a data URL (for backward compatibility) or a proxy URL
+            if (qrOptions.logoUrl.startsWith('data:')) {
+              console.log(`Using data URL for logo`);
+            } else {
+              console.log(`Using proxy URL: ${qrOptions.logoUrl}`);
+            }
             logoImg.src = qrOptions.logoUrl;
           } else if (qrOptions.logoFileId || data.logoFileId) {
             try {
