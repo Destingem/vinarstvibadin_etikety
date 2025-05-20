@@ -135,6 +135,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error duplicating wine:', error);
+    
+    // Check if this is a network error, which might be a false positive
+    if (error instanceof Error && error.message.includes('backend read error')) {
+      // This might be a network glitch or request cancellation
+      return NextResponse.json(
+        { message: 'Síťová chyba při kopírování vína. Zkuste to znovu.' },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
       { message: 'Nastala chyba při kopírování vína' },
       { status: 500 }
