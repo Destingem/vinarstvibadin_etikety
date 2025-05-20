@@ -35,6 +35,7 @@ export default function QRCodesPage() {
   const [qrCodeData, setQrCodeData] = useState<QRCodeData | null>(null);
   const [wines, setWines] = useState<Wine[]>([]);
   const [selectedWineId, setSelectedWineId] = useState<string | null>(wineId);
+  const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   
   // Fetch wines list
   useEffect(() => {
@@ -138,9 +139,9 @@ export default function QRCodesPage() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">QR kódy</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">QR kódy pro etikety</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Vygenerujte QR kódy pro vaše vína, které můžete použít na etiketách.
+            Jednoduše vyberte víno ze seznamu a stáhněte QR kód pro své etikety.
           </p>
         </div>
       </div>
@@ -149,7 +150,7 @@ export default function QRCodesPage() {
         <div className="bg-white shadow sm:rounded-lg overflow-hidden">
           <div className="px-4 py-5 sm:p-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Generování QR kódu
+              Vyberte víno pro generování QR kódu
             </h3>
             
             {error && (
@@ -174,18 +175,15 @@ export default function QRCodesPage() {
             
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
               <div className="sm:col-span-6">
-                <label htmlFor="wine" className="block text-sm font-medium text-gray-700">
-                  Vyberte víno pro generování QR kódu
-                </label>
                 <div className="mt-1">
                   <select
                     id="wine"
                     name="wine"
                     value={selectedWineId || ''}
                     onChange={handleWineChange}
-                    className="max-w-lg block focus:ring-indigo-500 focus:border-indigo-500 w-full shadow-sm sm:max-w-xs sm:text-sm border-gray-300 rounded-md"
+                    className="block w-full focus:ring-indigo-500 focus:border-indigo-500 shadow-sm text-sm border-gray-300 rounded-md"
                   >
-                    <option value="">-- Vyberte víno --</option>
+                    <option value="">-- Vyberte víno ze seznamu --</option>
                     {wines.map((wine) => (
                       <option key={wine.$id} value={wine.$id}>
                         {wine.name}
@@ -310,10 +308,22 @@ export default function QRCodesPage() {
                   </div>
                   
                   <div className="md:col-span-1">
-                    <QRCodeCustomizer 
-                      wineId={selectedWineId || ''} 
-                      onQRCodeGenerated={handleQRCodeGenerated}
-                    />
+                    <div className="mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomizer(prevState => !prevState)}
+                        className="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        {showCustomizer ? 'Skrýt nastavení QR kódu' : 'Zobrazit nastavení QR kódu'}
+                      </button>
+                    </div>
+                    
+                    {showCustomizer && (
+                      <QRCodeCustomizer 
+                        wineId={selectedWineId || ''} 
+                        onQRCodeGenerated={handleQRCodeGenerated}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
