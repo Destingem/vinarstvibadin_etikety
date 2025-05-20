@@ -457,21 +457,37 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
             }
           };
           
-          logoImg.onerror = () => {
-            setError('Nepodařilo se načíst logo');
+          logoImg.onerror = (err) => {
+            console.error('Logo load error:', err);
+            console.log('Attempted to load logo from:', logoImg.src);
+            setError('Nepodařilo se načíst logo. Zkontrolujte konzoli pro detaily.');
             setIsGenerating(false);
           };
           
           // Use logoUrl first if available, otherwise try to get a preview URL from logoFileId
           if (qrOptions.logoUrl) {
+            console.log(`Using direct logo URL: ${qrOptions.logoUrl.substring(0, 50)}...`);
             logoImg.src = qrOptions.logoUrl;
           } else if (qrOptions.logoFileId || data.logoFileId) {
             try {
               // Use either the options logoFileId or the one returned from the server
               const fileId = qrOptions.logoFileId || data.logoFileId;
-              const previewUrl = getFilePreview(fileId);
-              logoImg.src = previewUrl;
+              console.log(`Attempting to get preview URL for file ID: ${fileId}`);
+              
+              // Add a small delay to let the browser prepare
+              setTimeout(() => {
+                try {
+                  const previewUrl = getFilePreview(fileId);
+                  console.log(`Retrieved preview URL: ${previewUrl}`);
+                  logoImg.src = previewUrl;
+                } catch (innerErr) {
+                  console.error('Error getting file preview in delayed execution:', innerErr);
+                  setError('Nepodařilo se načíst logo ze storage (delayed)');
+                  setIsGenerating(false);
+                }
+              }, 100);
             } catch (err) {
+              console.error('Error getting file preview:', err);
               setError('Nepodařilo se načíst logo ze storage');
               setIsGenerating(false);
             }

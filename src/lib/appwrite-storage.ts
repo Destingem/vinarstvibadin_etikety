@@ -55,7 +55,9 @@ export const isServer = () => typeof window === 'undefined';
  * Get the appropriate storage instance based on environment
  */
 export const getStorage = () => {
-  return isServer() ? serverStorage : clientStorage;
+  const storage = isServer() ? serverStorage : clientStorage;
+  console.log(`Using ${isServer() ? 'server-side' : 'client-side'} storage instance`);
+  return storage;
 };
 
 /**
@@ -102,21 +104,40 @@ export async function uploadLogo(file: File, fileId?: string): Promise<UploadRes
  */
 export function getFilePreview(fileId: string): string {
   try {
+    if (!fileId) {
+      throw new Error('File ID is required');
+    }
+    
+    console.log(`Getting preview for file ID: ${fileId}`);
     const storage = getStorage();
     
-    // Get the preview URL
-    const previewUrl = storage.getFilePreview(
-      LOGOS_BUCKET_ID,
-      fileId,
-      2000, // width
-      2000, // height
-      'center', // gravity
-      100 // quality
-    ).toString();
+    // Use the view URL instead of preview for better CORS support
+    // The view endpoint often has better CORS handling
+    let fileUrl;
+    
+    try {
+      fileUrl = storage.getFileView(
+        LOGOS_BUCKET_ID,
+        fileId
+      ).toString();
+    } catch (viewError) {
+      console.warn('Error with getFileView, falling back to getFilePreview:', viewError);
+      // Fall back to preview if view fails
+      fileUrl = storage.getFilePreview(
+        LOGOS_BUCKET_ID,
+        fileId,
+        2000, // width
+        2000, // height
+        'center', // gravity
+        100 // quality
+      ).toString();
+    }
     
     // Add a cache-busting parameter to help with CORS issues
     const cacheBuster = `?cb=${Date.now()}`;
-    return `${previewUrl}${cacheBuster}`;
+    const finalUrl = `${fileUrl}${cacheBuster}`;
+    console.log(`Generated file URL: ${finalUrl}`);
+    return finalUrl;
   } catch (error) {
     console.error('Error getting file preview:', error);
     throw new Error(`Failed to get file preview: ${error instanceof Error ? error.message : 'Unknown error'}`);

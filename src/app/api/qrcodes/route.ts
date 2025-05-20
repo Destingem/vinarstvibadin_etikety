@@ -112,15 +112,13 @@ export async function GET(request: NextRequest) {
       // Generate QR code URL - use winerySlug directly from the wine object
       const qrCodeUrl = createWineQRCodeUrl(wine.winerySlug || 'unknown', wine.$id);
       
-      // If logoFileId is provided, get the preview URL
+      // If logoFileId is provided, note it but don't try to use it on the server
+      // Client-side rendering will handle the logo embedding
       if (qrCodeOptions.logoFileId) {
-        try {
-          const previewUrl = getFilePreview(qrCodeOptions.logoFileId);
-          qrCodeOptions.logoUrl = previewUrl;
-        } catch (error) {
-          console.error('Error getting logo preview:', error);
-          // Continue without the logo if there's an error
-        }
+        console.log(`Logo file ID provided: ${qrCodeOptions.logoFileId}`);
+        // Don't try to get the preview URL on the server - let the client handle it
+        // Just flag that we have a logo file ID
+        qrCodeOptions.hasStoredLogo = true;
       }
       
       // Generate QR code with options
