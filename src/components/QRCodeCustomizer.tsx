@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
 import { QRCodeOptions, QRCodePreset } from '@/lib/qr-code';
-import { uploadLogo, getFilePreview } from '@/lib/appwrite-storage';
+import { uploadLogo } from '@/lib/appwrite-storage';
 
 interface QRCodeCustomizerProps {
   wineId: string;
@@ -35,21 +35,22 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
   
   // Load presets on mount
   useEffect(() => {
     fetchPresets();
   }, [token]);
   
-  // Generate QR code when options change
+  // Generate QR code when wine changes
   useEffect(() => {
     if (wineId) {
       generateQRCode();
     }
   }, [wineId]); // Only regenerate when wine changes, not when options change
   
-  // Fetch saved presets
+  /**
+   * Fetch saved presets from the API
+   */
   const fetchPresets = async () => {
     if (!token) return;
     
@@ -75,7 +76,9 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     }
   };
   
-  // Apply selected preset
+  /**
+   * Apply a selected preset to the QR code
+   */
   const applyPreset = async (presetId: string) => {
     setSelectedPresetId(presetId);
     
@@ -103,16 +106,36 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     setDarkColor(preset.options.color?.dark || '#000000');
     setLightColor(preset.options.color?.light || '#ffffff');
     
-    // Handle logo from different sources based on what's available
+    // Handle logo from different sources
     if (preset.hasStoredLogo && preset.options.logoFileId) {
-      // If the preset uses a stored logo, create a proxy URL
+      // If the preset uses a stored logo, download it from Appwrite
       const fileId = preset.options.logoFileId;
       setLogoFileId(fileId);
       
-      // Use our proxy API instead of direct Appwrite URLs
-      const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(fileId)}`;
-      console.log(`Using proxy URL for preset logo: ${proxyUrl}`);
-      setLogoUrl(proxyUrl);
+      console.log(`Downloading preset logo to server...`);
+      setIsGenerating(true);
+      
+      try {
+        const downloadResponse = await fetch(`/api/logos/download?fileId=${encodeURIComponent(fileId)}`);
+        
+        if (!downloadResponse.ok) {
+          throw new Error(`Failed to download logo: ${downloadResponse.status}`);
+        }
+        
+        const downloadData = await downloadResponse.json();
+        const publicUrl = downloadData.url;
+        
+        console.log(`Preset logo downloaded, using public URL: ${publicUrl}`);
+        setLogoUrl(publicUrl);
+      } catch (downloadError) {
+        console.error('Error downloading preset logo:', downloadError);
+        // Fallback to proxy URL if download fails
+        const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(fileId)}`;
+        console.log(`Fallback to proxy URL for preset: ${proxyUrl}`);
+        setLogoUrl(proxyUrl);
+      } finally {
+        setIsGenerating(false);
+      }
     } else if (preset.options.logoUrl === '[LOGO_DATA_URL_TOO_LARGE]') {
       // If the preset had a logo but it was too large to save, inform the user
       setLogoUrl('');
@@ -157,7 +180,9 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     generateQRCode(optionsToUse);
   };
   
-  // Save current options as a preset
+  /**
+   * Save current options as a preset
+   */
   const savePreset = async () => {
     if (!token) return;
     if (!presetName.trim()) {
@@ -227,7 +252,9 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     }
   };
   
-  // Delete preset
+  /**
+   * Delete a preset
+   */
   const deletePreset = async () => {
     if (!token || !selectedPresetId) return;
     
@@ -261,8 +288,10 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       setError(err.message || 'Nastala chyba při mazání presetu');
     }
   };
-
-  // Handle logo file upload
+  
+  /**
+   * Handle logo file upload
+   */
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -273,7 +302,6 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       return;
     }
     
-    setLogoFile(file);
     setIsUploading(true);
     setError(null); // Clear any previous errors
     
@@ -284,11 +312,28 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       // Store the file ID
       setLogoFileId(uploadResult.fileId);
       
-      // Create a proxy URL for the logo
-      const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(uploadResult.fileId)}`;
-      setLogoUrl(proxyUrl);
+      // Download the logo to our server's public directory
+      console.log(`Downloading logo to server via API...`);
       
-      console.log(`Logo uploaded, using proxy URL: ${proxyUrl}`);
+      try {
+        const downloadResponse = await fetch(`/api/logos/download?fileId=${encodeURIComponent(uploadResult.fileId)}`);
+        
+        if (!downloadResponse.ok) {
+          throw new Error(`Failed to download logo: ${downloadResponse.status}`);
+        }
+        
+        const downloadData = await downloadResponse.json();
+        const publicUrl = downloadData.url;
+        
+        console.log(`Logo downloaded to server, using public URL: ${publicUrl}`);
+        setLogoUrl(publicUrl);
+      } catch (downloadError) {
+        console.error('Error downloading logo to server:', downloadError);
+        // Fallback to proxy URL if download fails
+        const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(uploadResult.fileId)}`;
+        console.log(`Fallback to proxy URL: ${proxyUrl}`);
+        setLogoUrl(proxyUrl);
+      }
       
       // Automatically generate a QR code with the new logo
       const options: QRCodeOptions = {
@@ -299,7 +344,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           light: lightColor,
         },
         logoFileId: uploadResult.fileId,
-        logoUrl: proxyUrl,
+        logoUrl,
         logoSize,
         logoBackgroundColor,
         errorCorrectionLevel: 'H', // Set higher error correction for logo
@@ -345,7 +390,10 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     }
   };
   
-  // Generate QR code with current options
+  /**
+   * Generates a QR code with current options
+   * Uses client-side logo embedding and server-side image download
+   */
   const generateQRCode = async (options?: QRCodeOptions) => {
     if (!token || !wineId) return;
     
@@ -385,16 +433,12 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
         params.append('logoFileId', qrOptions.logoFileId);
       }
       
-      // If logoUrl is a data URL, it's too big for URL parameters
-      // We'll need to pass it client-side only
-      let urlToFetch = `/api/qrcodes?${params.toString()}`;
-      
-      // Remove logoUrl from params to avoid huge URLs
-      if (qrOptions.logoUrl && !qrOptions.logoUrl.startsWith('https://')) {
+      // Remove logoUrl from params to avoid huge URLs if it's a data URL
+      if (qrOptions.logoUrl && qrOptions.logoUrl.startsWith('data:')) {
         params.delete('logoUrl');
-        urlToFetch = `/api/qrcodes?${params.toString()}`;
       }
       
+      const urlToFetch = `/api/qrcodes?${params.toString()}`;
       const response = await authFetch(urlToFetch, token);
       
       if (!response.ok) {
@@ -403,8 +447,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       
       const data = await response.json();
       
-      // If we have a logo, we should always do client-side embedding now that we have the proxy
-      // This ensures consistent handling of logos through our proxy API
+      // If we have a logo, do client-side embedding
       if (qrOptions.logoUrl || qrOptions.logoFileId || data.logoFileId) {
         // Create a QR code with logo client-side
         const canvas = document.createElement('canvas');
@@ -414,8 +457,10 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           throw new Error('Failed to get canvas context');
         }
         
+        // Load the QR code image
         const qrCodeImg = new Image();
         qrCodeImg.crossOrigin = 'anonymous';
+        
         qrCodeImg.onload = () => {
           // Set canvas size to match QR code
           canvas.width = qrCodeImg.width;
@@ -427,6 +472,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           // Load logo
           const logoImg = new Image();
           logoImg.crossOrigin = 'anonymous';
+          
           logoImg.onload = () => {
             // Calculate logo size (as percentage of QR code size)
             const logoSizePixels = Math.min(50, qrOptions.logoSize || 20) / 100 * qrCodeImg.width;
@@ -455,88 +501,75 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
               // If we can't generate with logo due to CORS, use the original QR code
               setError('Nelze vložit logo kvůli omezení CORS. Použit QR kód bez loga.');
               onQRCodeGenerated(data.qrCode, qrOptions);
-              setIsGenerating(false);
             }
+            
+            setIsGenerating(false);
           };
           
           logoImg.onerror = (err) => {
             console.error('Logo load error:', err);
-            console.log('Attempted to load logo from:', logoImg.src);
-            setError('Nepodařilo se načíst logo. Zkontrolujte konzoli pro detaily.');
+            setError('Nepodařilo se načíst logo. Použit QR kód bez loga.');
+            onQRCodeGenerated(data.qrCode, qrOptions);
             setIsGenerating(false);
           };
           
-          // Use logoUrl first if available, otherwise try to get a preview URL from logoFileId
+          // Determine logo source with proper priority
           if (qrOptions.logoUrl) {
-            // Check if this is a data URL (for backward compatibility) or a proxy URL
             if (qrOptions.logoUrl.startsWith('data:')) {
-              console.log(`Using data URL for logo`);
+              // Data URL (backward compatibility)
+              console.log('Using data URL for logo');
+              logoImg.src = qrOptions.logoUrl;
+            } else if (qrOptions.logoUrl.startsWith('/logos/')) {
+              // Public URL
+              console.log(`Using public URL for logo: ${qrOptions.logoUrl}`);
+              logoImg.src = qrOptions.logoUrl;
             } else {
-              console.log(`Using proxy URL: ${qrOptions.logoUrl}`);
+              // Proxy or other URL
+              console.log(`Using provided URL: ${qrOptions.logoUrl}`);
+              logoImg.src = qrOptions.logoUrl;
             }
-            logoImg.src = qrOptions.logoUrl;
           } else if (qrOptions.logoFileId || data.logoFileId) {
-            try {
-              // Use either the options logoFileId or the one returned from the server
-              const fileId = qrOptions.logoFileId || data.logoFileId;
-              console.log(`Attempting to get preview URL for file ID: ${fileId}`);
-              
-              // Use our proxy API to avoid CORS issues
-              const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(fileId)}`;
-              
-              console.log(`Using proxy URL: ${proxyUrl}`);
-              
-              // Try multiple approaches to load the image
-              setTimeout(() => {
-                try {
-                  // Use the proxy API approach
-                  console.log(`Setting image source to proxy URL`);
-                  logoImg.src = proxyUrl;
-                  
-                  // Add event listener to handle successful loading
-                  logoImg.onload = () => {
-                    console.log(`Logo loaded successfully using proxy URL`);
-                    
-                    try {
-                      // Get the final data URL from the canvas
-                      const finalQrCodeWithLogo = canvas.toDataURL();
-                      
-                      // Send the QR code back to parent component
-                      onQRCodeGenerated(finalQrCodeWithLogo, qrOptions);
-                    } catch (canvasErr) {
-                      console.error('Error generating QR code with logo:', canvasErr);
-                      // If we can't generate with logo due to CORS, use the original QR code
-                      setError('Nelze vložit logo do QR kódu. Použit QR kód bez loga.');
-                      onQRCodeGenerated(data.qrCode, qrOptions);
-                    }
-                  };
-                } catch (innerErr) {
-                  console.error('Error setting proxy URL:', innerErr);
-                  setError('Nepodařilo se načíst logo pomocí proxy API');
-                  setIsGenerating(false);
+            const fileId = qrOptions.logoFileId || data.logoFileId;
+            console.log(`Attempting to load logo for file ID: ${fileId}`);
+            
+            // Try to download the logo to the public directory
+            fetch(`/api/logos/download?fileId=${encodeURIComponent(fileId)}`)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`Failed to download logo: ${response.status}`);
                 }
-              }, 100);
-            } catch (err) {
-              console.error('Error getting file preview:', err);
-              setError('Nepodařilo se načíst logo ze storage');
-              setIsGenerating(false);
-            }
+                return response.json();
+              })
+              .then(data => {
+                console.log(`Logo downloaded, using public URL: ${data.url}`);
+                logoImg.src = data.url;
+              })
+              .catch(error => {
+                console.error('Error downloading logo, falling back to proxy:', error);
+                // Fall back to proxy URL if download fails
+                const proxyUrl = `/api/logo-proxy?fileId=${encodeURIComponent(fileId)}`;
+                console.log(`Using proxy URL: ${proxyUrl}`);
+                logoImg.src = proxyUrl;
+              });
           }
         };
         
         qrCodeImg.onerror = () => {
+          console.error('Failed to load QR code image');
           setError('Nepodařilo se načíst QR kód');
           setIsGenerating(false);
         };
         
+        // Set QR code image source
         qrCodeImg.src = data.qrCode;
       } else {
-        // Send the server-generated QR code back to parent component
+        // If no logo, use the server-generated QR code directly
         onQRCodeGenerated(data.qrCode, data.options);
+        setIsGenerating(false);
       }
     } catch (err: any) {
+      console.error('Error generating QR code:', err);
       setError(err.message || 'Nastala chyba při generování QR kódu');
-    } finally {
       setIsGenerating(false);
     }
   };
