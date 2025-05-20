@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken, getUserById, updateUserPrefs } from '@/lib/auth-server';
 import { generateQRCode, createWineQRCodeUrl, QRCodeOptions, QRCodePreset } from '@/lib/qr-code';
-import { getWineById, adminDatabases, DB_ID, ID } from '@/lib/appwrite-client';
-import { getFilePreview } from '@/lib/appwrite-storage';
+import { getWineById } from '@/lib/appwrite-client';
 
 // Supported HTTP methods
 export async function GET(request: NextRequest) {
@@ -33,7 +32,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const wineId = searchParams.get('wineId');
     const presetId = searchParams.get('presetId');
-    const logoFileId = searchParams.get('logoFileId');
     
     if (!wineId) {
       return NextResponse.json(
@@ -86,9 +84,6 @@ export async function GET(request: NextRequest) {
         const margin = searchParams.get('margin');
         const darkColor = searchParams.get('darkColor');
         const lightColor = searchParams.get('lightColor');
-        const logoUrl = searchParams.get('logoUrl');
-        const logoSize = searchParams.get('logoSize');
-        const logoBackgroundColor = searchParams.get('logoBackgroundColor');
         const errorCorrectionLevel = searchParams.get('errorCorrectionLevel');
         
         // Build options object from query parameters
@@ -100,10 +95,6 @@ export async function GET(request: NextRequest) {
             light: lightColor || '#ffffff',
           };
         }
-        if (logoUrl) qrCodeOptions.logoUrl = logoUrl;
-        if (logoFileId) qrCodeOptions.logoFileId = logoFileId;
-        if (logoSize) qrCodeOptions.logoSize = parseInt(logoSize);
-        if (logoBackgroundColor) qrCodeOptions.logoBackgroundColor = logoBackgroundColor;
         if (errorCorrectionLevel && ['L', 'M', 'Q', 'H'].includes(errorCorrectionLevel)) {
           qrCodeOptions.errorCorrectionLevel = errorCorrectionLevel as 'L' | 'M' | 'Q' | 'H';
         }
@@ -111,15 +102,6 @@ export async function GET(request: NextRequest) {
       
       // Generate QR code URL - use winerySlug directly from the wine object
       const qrCodeUrl = createWineQRCodeUrl(wine.winerySlug || 'unknown', wine.$id);
-      
-      // If logoFileId is provided, note it but don't try to use it on the server
-      // Client-side rendering will handle the logo embedding
-      if (qrCodeOptions.logoFileId) {
-        console.log(`Logo file ID provided: ${qrCodeOptions.logoFileId}`);
-        // Don't try to get the preview URL on the server - let the client handle it
-        // Just flag that we have a logo file ID
-        qrCodeOptions.hasStoredLogo = true;
-      }
       
       // Generate QR code with options
       const qrCodeDataUrl = await generateQRCode(qrCodeUrl, qrCodeOptions);
@@ -135,8 +117,6 @@ export async function GET(request: NextRequest) {
           batch: wine.batch,
         },
         options: qrCodeOptions,
-        // Include information needed for client-side logo embedding if we have a logoFileId
-        logoFileId: qrCodeOptions.logoFileId,
       });
       
       // Add CORS headers to help with image embedding
@@ -237,11 +217,6 @@ export async function POST(request: NextRequest) {
     if (action === 'save') {
       // Add or update preset
       const existingIndex = presets.findIndex((p) => p.id === preset.id);
-      
-      // Set hasStoredLogo flag if logoFileId is present
-      if (preset.options && preset.options.logoFileId) {
-        preset.hasStoredLogo = true;
-      }
       
       if (existingIndex >= 0) {
         // Update existing preset
