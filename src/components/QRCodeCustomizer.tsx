@@ -474,15 +474,38 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
               const fileId = qrOptions.logoFileId || data.logoFileId;
               console.log(`Attempting to get preview URL for file ID: ${fileId}`);
               
-              // Add a small delay to let the browser prepare
+              // Create a direct public URL (this approach may work better with CORS)
+              const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+              const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vinarstviqr';
+              const directUrl = `${endpoint}/storage/buckets/${encodeURIComponent('logos')}/files/${encodeURIComponent(fileId)}/view?project=${encodeURIComponent(projectId)}`;
+              
+              console.log(`Created direct URL: ${directUrl}`);
+              
+              // Try multiple approaches to load the image
               setTimeout(() => {
                 try {
-                  const previewUrl = getFilePreview(fileId);
-                  console.log(`Retrieved preview URL: ${previewUrl}`);
-                  logoImg.src = previewUrl;
+                  // First try the direct URL approach
+                  console.log(`Setting image source to direct URL`);
+                  logoImg.src = directUrl;
+                  
+                  // Set a fallback in case the direct URL fails
+                  setTimeout(() => {
+                    if (!logoImg.complete || logoImg.naturalWidth === 0) {
+                      console.log(`Direct URL failed, trying SDK approach`);
+                      try {
+                        const previewUrl = getFilePreview(fileId);
+                        console.log(`Retrieved preview URL: ${previewUrl}`);
+                        logoImg.src = previewUrl;
+                      } catch (innerErr) {
+                        console.error('Error getting file preview in delayed execution:', innerErr);
+                        setError('Nepodařilo se načíst logo ze storage (delayed)');
+                        setIsGenerating(false);
+                      }
+                    }
+                  }, 500);
                 } catch (innerErr) {
-                  console.error('Error getting file preview in delayed execution:', innerErr);
-                  setError('Nepodařilo se načíst logo ze storage (delayed)');
+                  console.error('Error setting direct URL:', innerErr);
+                  setError('Nepodařilo se načíst logo pomocí přímého URL');
                   setIsGenerating(false);
                 }
               }, 100);

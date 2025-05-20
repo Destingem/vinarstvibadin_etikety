@@ -116,25 +116,41 @@ export function getFilePreview(fileId: string): string {
     let fileUrl;
     
     try {
-      fileUrl = storage.getFileView(
+      // Try to get the direct download URL first
+      fileUrl = storage.getFileDownload(
         LOGOS_BUCKET_ID,
         fileId
       ).toString();
-    } catch (viewError) {
-      console.warn('Error with getFileView, falling back to getFilePreview:', viewError);
-      // Fall back to preview if view fails
-      fileUrl = storage.getFilePreview(
-        LOGOS_BUCKET_ID,
-        fileId,
-        2000, // width
-        2000, // height
-        'center', // gravity
-        100 // quality
-      ).toString();
+      console.log(`Generated download URL: ${fileUrl}`);
+    } catch (downloadError) {
+      console.warn('Error with getFileDownload, falling back to getFileView:', downloadError);
+      
+      try {
+        fileUrl = storage.getFileView(
+          LOGOS_BUCKET_ID,
+          fileId
+        ).toString();
+        console.log(`Generated view URL: ${fileUrl}`);
+      } catch (viewError) {
+        console.warn('Error with getFileView, falling back to getFilePreview:', viewError);
+        // Fall back to preview if view fails
+        fileUrl = storage.getFilePreview(
+          LOGOS_BUCKET_ID,
+          fileId,
+          2000, // width
+          2000, // height
+          'center', // gravity
+          100 // quality
+        ).toString();
+        console.log(`Generated preview URL: ${fileUrl}`);
+      }
     }
     
+    // Check if the URL already has query parameters
+    const hasParams = fileUrl.includes('?');
+    
     // Add a cache-busting parameter to help with CORS issues
-    const cacheBuster = `?cb=${Date.now()}`;
+    const cacheBuster = hasParams ? `&cb=${Date.now()}` : `?cb=${Date.now()}`;
     const finalUrl = `${fileUrl}${cacheBuster}`;
     console.log(`Generated file URL: ${finalUrl}`);
     return finalUrl;
