@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
 import { QRCodeOptions, QRCodePreset } from '@/lib/qr-code';
+import { uploadLogo, getFilePreview } from '@/lib/appwrite-storage';
 
 interface QRCodeCustomizerProps {
   wineId: string;
@@ -19,6 +20,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   const [darkColor, setDarkColor] = useState<string>('#000000');
   const [lightColor, setLightColor] = useState<string>('#ffffff');
   const [logoUrl, setLogoUrl] = useState<string>('');
+  const [logoFileId, setLogoFileId] = useState<string>('');
   const [logoSize, setLogoSize] = useState<number>(20);
   const [logoBackgroundColor, setLogoBackgroundColor] = useState<string>('#ffffff');
   const [errorCorrectionLevel, setErrorCorrectionLevel] = useState<'L' | 'M' | 'Q' | 'H'>('M');
@@ -30,6 +32,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   
   // UI states
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -73,7 +76,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   };
   
   // Apply selected preset
-  const applyPreset = (presetId: string) => {
+  const applyPreset = async (presetId: string) => {
     setSelectedPresetId(presetId);
     
     if (!presetId) {
@@ -83,6 +86,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       setDarkColor('#000000');
       setLightColor('#ffffff');
       setLogoUrl('');
+      setLogoFileId('');
       setLogoSize(20);
       setLogoBackgroundColor('#ffffff');
       setErrorCorrectionLevel('M');
@@ -99,17 +103,31 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     setDarkColor(preset.options.color?.dark || '#000000');
     setLightColor(preset.options.color?.light || '#ffffff');
     
-    // Check if the logo URL is a placeholder for a large data URL
-    if (preset.options.logoUrl === '[LOGO_DATA_URL_TOO_LARGE]') {
-      // If the preset had a logo but it was too large to save, inform the user
-      if (preset.options.hasLogo) {
+    // Handle logo from different sources based on what's available
+    if (preset.hasStoredLogo && preset.options.logoFileId) {
+      // If the preset uses a stored logo, get the preview URL
+      setLogoFileId(preset.options.logoFileId);
+      try {
+        const previewUrl = getFilePreview(preset.options.logoFileId);
+        setLogoUrl(previewUrl);
+      } catch (err) {
+        console.error('Error loading logo from storage:', err);
         setLogoUrl('');
-        setError('Logo from this preset was too large to save. Please re-upload your logo.');
-      } else {
-        setLogoUrl('');
+        setError('Failed to load logo from storage. Please re-upload your logo.');
       }
+    } else if (preset.options.logoUrl === '[LOGO_DATA_URL_TOO_LARGE]') {
+      // If the preset had a logo but it was too large to save, inform the user
+      setLogoUrl('');
+      setLogoFileId('');
+      setError('Logo from this preset was too large to save. Please re-upload your logo.');
+    } else if (preset.options.logoUrl) {
+      // Use the original data URL if available (for backwards compatibility)
+      setLogoUrl(preset.options.logoUrl);
+      setLogoFileId('');
     } else {
-      setLogoUrl(preset.options.logoUrl || '');
+      // No logo
+      setLogoUrl('');
+      setLogoFileId('');
     }
     
     setLogoSize(preset.options.logoSize || 20);
@@ -118,8 +136,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     setPresetName(preset.name);
     
     // Generate QR code with the preset options
-    // Don't pass the actual preset.options directly as it might have the placeholder
-    const optionsToUse = {
+    const optionsToUse: QRCodeOptions = {
       width: preset.options.width || 300,
       margin: preset.options.margin || 4,
       color: {
@@ -131,8 +148,11 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       errorCorrectionLevel: preset.options.errorCorrectionLevel || 'M',
     };
     
-    // Only include logoUrl if it's not the placeholder
-    if (preset.options.logoUrl && preset.options.logoUrl !== '[LOGO_DATA_URL_TOO_LARGE]') {
+    // Include logo information
+    if (preset.hasStoredLogo && preset.options.logoFileId) {
+      optionsToUse.logoFileId = preset.options.logoFileId;
+      optionsToUse.logoUrl = logoUrl; // Use the URL we just fetched
+    } else if (preset.options.logoUrl && preset.options.logoUrl !== '[LOGO_DATA_URL_TOO_LARGE]') {
       optionsToUse.logoUrl = preset.options.logoUrl;
     }
     
@@ -154,11 +174,21 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
         dark: darkColor,
         light: lightColor,
       },
-      logoUrl,
       logoSize,
       logoBackgroundColor,
       errorCorrectionLevel,
     };
+    
+    // Set logo information, prioritizing file ID if available
+    const hasStoredLogo = !!logoFileId;
+    
+    if (logoFileId) {
+      // If we have a file ID, use that instead of the URL
+      presetOptions.logoFileId = logoFileId;
+    } else if (logoUrl) {
+      // For backwards compatibility and small data URLs
+      presetOptions.logoUrl = logoUrl;
+    }
     
     const presetId = selectedPresetId || `preset_${Date.now()}`;
     
@@ -166,6 +196,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       id: presetId,
       name: presetName,
       options: presetOptions,
+      hasStoredLogo,
     };
     
     try {
@@ -234,7 +265,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   };
 
   // Handle logo file upload
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -245,11 +276,16 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     }
     
     setLogoFile(file);
+    setIsUploading(true);
+    setError(null); // Clear any previous errors
     
-    // Create a data URL from the file
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLogoUrl(reader.result as string);
+    try {
+      // Upload the logo to Appwrite Storage
+      const uploadResult = await uploadLogo(file);
+      
+      // Store the file ID and preview URL
+      setLogoFileId(uploadResult.fileId);
+      setLogoUrl(uploadResult.url);
       
       // Automatically generate a QR code with the new logo
       const options: QRCodeOptions = {
@@ -259,15 +295,51 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           dark: darkColor,
           light: lightColor,
         },
-        logoUrl: reader.result as string,
+        logoFileId: uploadResult.fileId,
+        logoUrl: uploadResult.url,
         logoSize,
         logoBackgroundColor,
         errorCorrectionLevel: 'H', // Set higher error correction for logo
       };
       
+      // Show success message
+      setSuccessMessage('Logo bylo úspěšně nahráno');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+      
       generateQRCode(options);
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error('Error uploading logo:', err);
+      setError(`Chyba při nahrávání loga: ${err.message || 'Neznámá chyba'}`);
+      
+      // If upload fails, use traditional data URL method as fallback
+      const reader = new FileReader();
+      reader.onload = () => {
+        setLogoUrl(reader.result as string);
+        
+        // Automatically generate a QR code with the new logo
+        const options: QRCodeOptions = {
+          width,
+          margin,
+          color: {
+            dark: darkColor,
+            light: lightColor,
+          },
+          logoUrl: reader.result as string,
+          logoSize,
+          logoBackgroundColor,
+          errorCorrectionLevel: 'H', // Set higher error correction for logo
+        };
+        
+        generateQRCode(options);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploading(false);
+    }
   };
   
   // Generate QR code with current options
@@ -287,6 +359,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           light: lightColor,
         },
         logoUrl,
+        logoFileId,
         logoSize,
         logoBackgroundColor,
         errorCorrectionLevel,
@@ -304,12 +377,17 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
         errorCorrectionLevel: qrOptions.errorCorrectionLevel || '',
       });
       
+      // If we have a logoFileId, include it in the parameters
+      if (qrOptions.logoFileId) {
+        params.append('logoFileId', qrOptions.logoFileId);
+      }
+      
       // If logoUrl is a data URL, it's too big for URL parameters
       // We'll need to pass it client-side only
       let urlToFetch = `/api/qrcodes?${params.toString()}`;
       
       // Remove logoUrl from params to avoid huge URLs
-      if (qrOptions.logoUrl) {
+      if (qrOptions.logoUrl && !qrOptions.logoUrl.startsWith('https://')) {
         params.delete('logoUrl');
         urlToFetch = `/api/qrcodes?${params.toString()}`;
       }
@@ -322,9 +400,9 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       
       const data = await response.json();
       
-      // If we have a logo URL that wasn't passed to the server, we need to add it 
-      // to the QR code client-side using canvas
-      if (qrOptions.logoUrl && !data.options.logoUrl) {
+      // If we have a logo URL or file ID that wasn't processed by the server, 
+      // we need to add it to the QR code client-side using canvas
+      if ((qrOptions.logoUrl || qrOptions.logoFileId) && !data.options.logoUrl && !data.options.logoFileId) {
         // Create a QR code with logo client-side
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -373,7 +451,18 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
             setIsGenerating(false);
           };
           
-          logoImg.src = qrOptions.logoUrl as string;
+          // Use logoUrl first if available, otherwise try to get a preview URL from logoFileId
+          if (qrOptions.logoUrl) {
+            logoImg.src = qrOptions.logoUrl;
+          } else if (qrOptions.logoFileId) {
+            try {
+              const previewUrl = getFilePreview(qrOptions.logoFileId);
+              logoImg.src = previewUrl;
+            } catch (err) {
+              setError('Nepodařilo se načíst logo ze storage');
+              setIsGenerating(false);
+            }
+          }
         };
         
         qrCodeImg.onerror = () => {
@@ -628,9 +717,24 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
                     name="logo"
                     accept="image/*"
                     onChange={handleLogoUpload}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    disabled={isUploading}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 disabled:opacity-50"
                   />
+                  {isUploading && (
+                    <div className="mt-2 flex items-center text-sm text-indigo-600">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Nahrávám logo...
+                    </div>
+                  )}
                 </div>
+                {logoFileId && (
+                  <p className="mt-1 text-xs text-green-600">
+                    Logo je uloženo v Appwrite Storage (ID: {logoFileId.substring(0, 8)}...)
+                  </p>
+                )}
                 <p className="mt-1 text-xs text-gray-500">
                   Pro nejlepší výsledky použijte čtvercový PNG obrázek s průhledným pozadím
                 </p>

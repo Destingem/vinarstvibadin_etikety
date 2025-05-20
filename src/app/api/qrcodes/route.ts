@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken, getUserById, updateUserPrefs } from '@/lib/auth-server';
 import { generateQRCode, createWineQRCodeUrl, QRCodeOptions, QRCodePreset } from '@/lib/qr-code';
 import { getWineById, adminDatabases, DB_ID, ID } from '@/lib/appwrite-client';
+import { getFilePreview } from '@/lib/appwrite-storage';
 
 // Supported HTTP methods
 export async function GET(request: NextRequest) {
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const wineId = searchParams.get('wineId');
     const presetId = searchParams.get('presetId');
+    const logoFileId = searchParams.get('logoFileId');
     
     if (!wineId) {
       return NextResponse.json(
@@ -99,6 +101,7 @@ export async function GET(request: NextRequest) {
           };
         }
         if (logoUrl) qrCodeOptions.logoUrl = logoUrl;
+        if (logoFileId) qrCodeOptions.logoFileId = logoFileId;
         if (logoSize) qrCodeOptions.logoSize = parseInt(logoSize);
         if (logoBackgroundColor) qrCodeOptions.logoBackgroundColor = logoBackgroundColor;
         if (errorCorrectionLevel && ['L', 'M', 'Q', 'H'].includes(errorCorrectionLevel)) {
@@ -108,6 +111,17 @@ export async function GET(request: NextRequest) {
       
       // Generate QR code URL - use winerySlug directly from the wine object
       const qrCodeUrl = createWineQRCodeUrl(wine.winerySlug || 'unknown', wine.$id);
+      
+      // If logoFileId is provided, get the preview URL
+      if (qrCodeOptions.logoFileId) {
+        try {
+          const previewUrl = getFilePreview(qrCodeOptions.logoFileId);
+          qrCodeOptions.logoUrl = previewUrl;
+        } catch (error) {
+          console.error('Error getting logo preview:', error);
+          // Continue without the logo if there's an error
+        }
+      }
       
       // Generate QR code with options
       const qrCodeDataUrl = await generateQRCode(qrCodeUrl, qrCodeOptions);
@@ -214,6 +228,11 @@ export async function POST(request: NextRequest) {
     if (action === 'save') {
       // Add or update preset
       const existingIndex = presets.findIndex((p) => p.id === preset.id);
+      
+      // Set hasStoredLogo flag if logoFileId is present
+      if (preset.options && preset.options.logoFileId) {
+        preset.hasStoredLogo = true;
+      }
       
       if (existingIndex >= 0) {
         // Update existing preset

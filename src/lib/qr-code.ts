@@ -8,6 +8,7 @@ export interface QRCodeOptions {
     light?: string;
   };
   logoUrl?: string; // URL or data URL of the logo to embed in the QR code
+  logoFileId?: string; // Appwrite Storage file ID for the logo
   logoSize?: number; // Size of the logo as a percentage of the QR code size (1-50)
   logoBackgroundColor?: string; // Background color for the logo area
   borderRadius?: number; // Border radius for the QR code squares in pixels
@@ -18,6 +19,7 @@ export interface QRCodePreset {
   id: string;
   name: string;
   options: QRCodeOptions;
+  hasStoredLogo?: boolean; // Indicates if the preset uses a logo stored in Appwrite Storage
 }
 
 /**
@@ -78,7 +80,8 @@ export async function generateQRCode(url: string, options: QRCodeOptions = {}): 
  */
 async function embedLogoInQRCode(qrCodeDataUrl: string, options: QRCodeOptions): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (!options.logoUrl) {
+    // If no logo URL or file ID provided, return the QR code as is
+    if (!options.logoUrl && !options.logoFileId) {
       return resolve(qrCodeDataUrl);
     }
     
@@ -125,7 +128,8 @@ async function embedLogoInQRCode(qrCodeDataUrl: string, options: QRCodeOptions):
         reject(new Error('Failed to load logo'));
       };
       
-      logoImg.src = options.logoUrl;
+      // Set the source to either the logo URL or the file URL (whichever is provided)
+      logoImg.src = options.logoUrl || '';
     };
     
     qrCodeImg.onerror = () => {
