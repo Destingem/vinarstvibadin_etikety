@@ -67,30 +67,47 @@ export async function updateUserPrefs(prefs: Record<string, any>, userId?: strin
 // Get user by ID
 export async function getUserById(userId: string) {
   try {
-    // In Appwrite SDK v17, account.get() gets the current user without params
-    console.warn('getUserById: This method may not work as expected with Appwrite SDK v17');
-    const accountAny = serverAccount as any;
+    console.log('getUserById: Attempting to get user data for ID:', userId);
     
+    // Use Appwrite REST API directly with the API key for full access
     try {
-      // Try to use the SDK v17+ approach (no params)
-      if (typeof serverAccount.get === 'function') {
-        return await serverAccount.get();
-      } 
-      // Fallback to trying with userId parameter (older SDK versions)
-      else if (typeof accountAny.get === 'function') {
-        return await accountAny.get(userId);
-      } else {
-        // If both approaches fail, return a minimal user object
+      // Direct API call using fetch
+      const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
+        headers: {
+          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+          'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('getUserById: Successfully fetched user data from API');
+        
+        // Return the user data in the expected format
         return {
-          $id: userId,
-          email: 'unknown@example.com',
-          name: `User-${userId.substring(0, 8)}`,
-          prefs: {}
+          $id: userData.$id,
+          email: userData.email,
+          name: userData.name, // This is the full company name from Appwrite
+          prefs: userData.prefs || {}
         };
+      } else {
+        console.error('getUserById: API call failed:', await response.text());
+        throw new Error('Failed to fetch user data from API');
       }
-    } catch (methodError) {
-      console.error('Error with account.get method:', methodError);
-      // Return a minimal user object as fallback
+    } catch (apiError) {
+      console.error('getUserById: Error with direct API call:', apiError);
+      
+      // Try SDK method as fallback
+      try {
+        if (typeof serverAccount.get === 'function') {
+          console.log('getUserById: Trying serverAccount.get() as fallback');
+          return await serverAccount.get();
+        }
+      } catch (sdkError) {
+        console.error('getUserById: SDK fallback also failed:', sdkError);
+      }
+      
+      // Return a minimal user object if all methods fail
       return {
         $id: userId,
         email: 'unknown@example.com',

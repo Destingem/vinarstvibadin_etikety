@@ -54,8 +54,9 @@ export async function authFetch(
             .join(' ');
         }
         
-        // Add user data header for API use with formatted name
-        updatedHeaders['X-User-Data'] = JSON.stringify({
+        // Add user data header for API use with formatted name - but encode it to avoid non-ASCII issues
+        // Headers must contain only ISO-8859-1 characters
+        const userData = {
           name: displayName, // Use formatted name
           id: user.id,
           email: user.email,
@@ -65,7 +66,10 @@ export async function authFetch(
             .replace(/[\u0300-\u036f]/g, '')
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/(^-|-$)/g, '')
-        });
+        };
+        
+        // Use encodeURIComponent to ensure only ASCII characters are in the header
+        updatedHeaders['X-User-Data'] = encodeURIComponent(JSON.stringify(userData));
       }
     }
   } catch (e) {

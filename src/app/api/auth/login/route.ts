@@ -86,9 +86,31 @@ export async function POST(request: NextRequest) {
       // Appwrite will have set the session cookie, so the user will be authenticated
       console.log("Skipping user data fetch due to permission issues");
       
-      const user = {
+      // Try to get the real user data from Appwrite
+      let userData;
+      try {
+        // Get user using the admin client with API key for full access
+        const userResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
+          headers: {
+            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+            'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
+          }
+        });
+        
+        if (userResponse.ok) {
+          userData = await userResponse.json();
+          console.log("Successfully fetched user data from Appwrite API");
+        } else {
+          console.error("Failed to fetch user data from Appwrite API:", await userResponse.text());
+        }
+      } catch (userError) {
+        console.error("Error fetching user data:", userError);
+      }
+      
+      // Use the fetched data or fallback to basic info
+      const user = userData || {
         $id: userId,
-        name: email.split('@')[0], // Use part of the email as a fallback name
+        name: email.split('@')[0], // Fallback to email username if API call failed
         email: email,
         prefs: {} // Empty prefs
       };
@@ -98,17 +120,18 @@ export async function POST(request: NextRequest) {
       
       console.log("Login successful for user:", userId);
       
-      // Generate a slug from the email username if needed
+      // Generate a slug from the company name
       // Type assertion to avoid TypeScript errors
       const prefs = user.prefs as { slug?: string } || {};
-      const slug = prefs.slug || createSlug(user.name || email.split('@')[0]);
+      // Create slug from user's full name (company name), not from email
+      const slug = prefs.slug || createSlug(user.name);
       
       // Return success response with token and user data
       return NextResponse.json({
         message: 'Přihlášení úspěšné',
         user: {
           id: user.$id,
-          name: user.name || email.split('@')[0],
+          name: user.name,
           email: user.email,
           slug: slug
         },

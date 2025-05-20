@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
+import { verifyJwtToken, createSlug } from '@/lib/auth-server';
 import { z } from 'zod';
 import { createWine, getWinesByUserId, Query, adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
 import { Wine } from '@/lib/appwrite';
@@ -147,38 +147,52 @@ export async function POST(request: NextRequest) {
     
     // Check if we have user data in the token
     try {
-      // First try to get from headers
+      // First try to get from headers (now with decoding because we encode it on the client)
       const userDataHeader = request.headers.get('X-User-Data');
       if (userDataHeader) {
-        const userData = JSON.parse(userDataHeader);
-        userName = userData.name || '';
-        userSlug = userData.slug || '';
+        try {
+          // Decode the URL-encoded header
+          const decodedHeader = decodeURIComponent(userDataHeader);
+          const userData = JSON.parse(decodedHeader);
+          userName = userData.name || '';
+          userSlug = userData.slug || '';
+        } catch (e) {
+          console.error('Error parsing user data header:', e);
+        }
       }
       
-      // If no name from headers, we need an alternative approach
+      // If no name from headers, we need to fetch it from the API
       if (!userName && userId) {
         try {
-          // Try to get user info from a user endpoint if available
-          // Note: For now, we'll use a custom implementation instead of direct Appwrite calls
+          // Try to get user info from the /api/auth/me endpoint
+          const response = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
           
-          // Set a default name based on the user ID
-          userName = `User ${userId.substring(0, 6)}`;
+          if (response.ok) {
+            const userData = await response.json();
+            userName = userData.user?.name || '';
+            userSlug = userData.user?.slug || '';
+          }
           
-          // Create a fallback slug
+          // If we still don't have a name or slug, fall back to default values
+          if (!userName) {
+            userName = `User ${userId.substring(0, 6)}`;
+          }
+          
+          // Create a fallback slug if needed
           if (!userSlug) {
-            // Use the user's name or ID for the slug
+            // Always create slug from winery name, not from email or ID
             userSlug = userName.toLowerCase()
               .normalize('NFD')
               .replace(/[\u0300-\u036f]/g, '')
               .replace(/[^a-z0-9]+/g, '-')
               .replace(/(^-|-$)/g, '');
           }
-          
-          // You could add a check here for a custom user database if needed
-          // For example, check if the user exists in a separate Appwrite collection
-          
         } catch (userError) {
-          console.error('Error generating user data fallback:', userError);
+          console.error('Error fetching user data:', userError);
           
           // Use default values if everything fails
           userName = 'Winery';
@@ -199,6 +213,28 @@ export async function POST(request: NextRequest) {
         { message: 'Neplatné údaje', errors: result.error.format() },
         { status: 400 }
       );
+    }
+    
+    // Make sure userName and userSlug are using the full winery name
+    if (!userName || !userSlug) {
+      try {
+        // Fetch directly from the API
+        const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
+          headers: {
+            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+            'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
+          }
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          userName = userData.name;
+          userSlug = createSlug(userData.name);
+          console.log("Retrieved winery data from API for wine creation:", { name: userName, slug: userSlug });
+        }
+      } catch (error) {
+        console.error("Failed to fetch winery data from API:", error);
+      }
     }
     
     // Create new wine in Appwrite

@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { account, databases, DB_ID, WINES_COLLECTION_ID, ID, getWineById } from '@/lib/appwrite-client';
+import { databases, DB_ID, WINES_COLLECTION_ID, ID, getWineById, adminDatabases } from '@/lib/appwrite-client';
+import { verifyJwtToken } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the session from the client
-    try {
-      await account.get();
-    } catch (error) {
+    // Get the JWT token from the Authorization header
+    const authHeader = request.headers.get('Authorization');
+    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+    
+    if (!token) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
     
-    // Get the current user
-    const user = await account.get();
-    const userId = user.$id;
+    // Verify the token
+    let verifiedToken;
+    try {
+      verifiedToken = verifyJwtToken(token);
+    } catch (error) {
+      return NextResponse.json(
+        { message: 'Neplatný token' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = verifiedToken.userId;
     
     // Get the wine ID from the request body
     const body = await request.json();
@@ -46,9 +57,46 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create a new wine based on the original
+    // Make sure we have the winery information from the original wine
+    let wineryName = wine.wineryName;
+    let winerySlug = wine.winerySlug;
+    
+    // If for some reason the original wine doesn't have these, fetch them
+    if (!wineryName || !winerySlug) {
+      try {
+        // Fetch the user data directly from the API
+        const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
+          headers: {
+            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+            'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
+          }
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          wineryName = userData.name;
+          
+          // Use the createSlug function from appwrite-client
+          const createSlug = (text: string): string => {
+            return text
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, '');
+          };
+          
+          winerySlug = createSlug(userData.name);
+          console.log("Retrieved winery data from API for wine duplication:", { name: wineryName, slug: winerySlug });
+        }
+      } catch (error) {
+        console.error("Failed to fetch winery data from API for duplication:", error);
+      }
+    }
+    
+    // Create a new wine based on the original, using adminDatabases for server-side access
     const now = new Date().toISOString();
-    const newWine = await databases.createDocument(
+    const newWine = await adminDatabases.createDocument(
       DB_ID,
       WINES_COLLECTION_ID,
       ID.unique(),
@@ -74,7 +122,10 @@ export async function POST(request: NextRequest) {
         wineVillage: wine.wineVillage,
         wineTract: wine.wineTract,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        // Ensure we copy the winery information to the new wine
+        wineryName: wineryName,
+        winerySlug: winerySlug
       }
     );
     

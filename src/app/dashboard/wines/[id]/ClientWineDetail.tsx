@@ -128,7 +128,7 @@ export default function ClientWineDetail({ wineId }: { wineId: string }) {
             )}
           </div>
         </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4">
+        <div className="mt-4 flex gap-2 flex-wrap md:mt-0 md:ml-4">
           <Link
             href={`/dashboard/wines/${wine.$id}/edit`}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -138,7 +138,7 @@ export default function ClientWineDetail({ wineId }: { wineId: string }) {
           <DuplicateWineButton wineId={wine.$id} wineName={wine.name} />
           <Link
             href={`/dashboard/qrcodes?wineId=${wine.$id}`}
-            className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Zobrazit QR kód
           </Link>
