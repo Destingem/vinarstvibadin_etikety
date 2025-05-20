@@ -63,26 +63,11 @@ export async function updateUserPrefs(prefs: Record<string, any>, userId: string
       throw new Error('Preferences object cannot be null or undefined');
     }
     
-    // Limit the size of string values to prevent API errors
-    // For QR presets, we need to process the JSON string to remove large data URLs
+    // Process preferences before saving
     if (prefs.qrPresets) {
       try {
+        // Parse and re-stringify to ensure valid JSON
         const presets = JSON.parse(prefs.qrPresets);
-        
-        // Process each preset to remove large data URLs
-        for (const preset of presets) {
-          if (preset.options && preset.options.logoUrl) {
-            // If the logo URL is too large (data URL), replace with a placeholder
-            if (preset.options.logoUrl.length > 5000) {
-              console.log(`Replacing large logo URL in preset ${preset.name} with placeholder`);
-              // Store the fact that a logo was used, but not the actual data URL
-              preset.options.logoUrl = '[LOGO_DATA_URL_TOO_LARGE]';
-              preset.options.hasLogo = true;
-            }
-          }
-        }
-        
-        // Update the prefs with the modified presets
         prefs.qrPresets = JSON.stringify(presets);
       } catch (parseError) {
         console.error('Error processing QR presets:', parseError);

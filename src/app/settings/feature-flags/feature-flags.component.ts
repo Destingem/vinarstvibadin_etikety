@@ -9,7 +9,7 @@ export class FeatureFlagsComponent {
     {
       name: 'Enable advanced QR code options',
       enabled: false,
-      description: 'Enable advanced QR code customization options like colors and logos.',
+      description: 'Enable advanced QR code customization options like colors and margins.',
     }
   ];
 
