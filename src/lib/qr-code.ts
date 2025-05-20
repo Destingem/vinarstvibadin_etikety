@@ -107,6 +107,7 @@ async function embedLogoInQRCode(qrCodeDataUrl: string, options: QRCodeOptions):
     }
     
     const qrCodeImg = new Image();
+    qrCodeImg.crossOrigin = 'anonymous';
     qrCodeImg.onload = () => {
       // Set canvas size to match QR code
       canvas.width = qrCodeImg.width;
@@ -117,6 +118,7 @@ async function embedLogoInQRCode(qrCodeDataUrl: string, options: QRCodeOptions):
       
       // Load logo
       const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
       logoImg.onload = () => {
         // Calculate logo size (as percentage of QR code size)
         const logoSize = Math.min(50, options.logoSize || 20) / 100 * qrCodeImg.width;

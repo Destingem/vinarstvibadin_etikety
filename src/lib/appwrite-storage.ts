@@ -104,7 +104,8 @@ export function getFilePreview(fileId: string): string {
   try {
     const storage = getStorage();
     
-    return storage.getFilePreview(
+    // Get the preview URL
+    const previewUrl = storage.getFilePreview(
       LOGOS_BUCKET_ID,
       fileId,
       2000, // width
@@ -112,6 +113,10 @@ export function getFilePreview(fileId: string): string {
       'center', // gravity
       100 // quality
     ).toString();
+    
+    // Add a cache-busting parameter to help with CORS issues
+    const cacheBuster = `?cb=${Date.now()}`;
+    return `${previewUrl}${cacheBuster}`;
   } catch (error) {
     console.error('Error getting file preview:', error);
     throw new Error(`Failed to get file preview: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -127,10 +132,15 @@ export function getFileDownloadURL(fileId: string): string {
   try {
     const storage = getStorage();
     
-    return storage.getFileDownload(
+    // Get the download URL
+    const downloadUrl = storage.getFileDownload(
       LOGOS_BUCKET_ID,
       fileId
     ).toString();
+    
+    // Add a cache-busting parameter to help with CORS issues
+    const cacheBuster = `?cb=${Date.now()}`;
+    return `${downloadUrl}${cacheBuster}`;
   } catch (error) {
     console.error('Error getting file download URL:', error);
     throw new Error(`Failed to get file download URL: ${error instanceof Error ? error.message : 'Unknown error'}`);

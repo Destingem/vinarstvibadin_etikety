@@ -126,7 +126,8 @@ export async function GET(request: NextRequest) {
       // Generate QR code with options
       const qrCodeDataUrl = await generateQRCode(qrCodeUrl, qrCodeOptions);
       
-      return NextResponse.json({
+      // Create response with CORS headers and cache control
+      const response = NextResponse.json({
         qrCode: qrCodeDataUrl,
         url: qrCodeUrl,
         wine: {
@@ -139,6 +140,14 @@ export async function GET(request: NextRequest) {
         // Include information needed for client-side logo embedding if we have a logoFileId
         logoFileId: qrCodeOptions.logoFileId,
       });
+      
+      // Add CORS headers to help with image embedding
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      
+      return response;
     } catch (error: any) {
       console.error('Error fetching wine or generating QR code:', error);
       

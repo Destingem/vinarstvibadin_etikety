@@ -413,6 +413,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
         }
         
         const qrCodeImg = new Image();
+        qrCodeImg.crossOrigin = 'anonymous';
         qrCodeImg.onload = () => {
           // Set canvas size to match QR code
           canvas.width = qrCodeImg.width;
@@ -423,6 +424,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
           
           // Load logo
           const logoImg = new Image();
+          logoImg.crossOrigin = 'anonymous';
           logoImg.onload = () => {
             // Calculate logo size (as percentage of QR code size)
             const logoSizePixels = Math.min(50, qrOptions.logoSize || 20) / 100 * qrCodeImg.width;
@@ -440,11 +442,19 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
             // Draw logo on canvas
             ctx.drawImage(logoImg, logoX, logoY, logoSizePixels, logoSizePixels);
             
-            // Get the final data URL
-            const finalQrCodeWithLogo = canvas.toDataURL();
-            
-            // Send the QR code back to parent component
-            onQRCodeGenerated(finalQrCodeWithLogo, qrOptions);
+            try {
+              // Get the final data URL
+              const finalQrCodeWithLogo = canvas.toDataURL();
+              
+              // Send the QR code back to parent component
+              onQRCodeGenerated(finalQrCodeWithLogo, qrOptions);
+            } catch (error) {
+              console.error('Error generating QR code with logo:', error);
+              // If we can't generate with logo due to CORS, use the original QR code
+              setError('Nelze vložit logo kvůli omezení CORS. Použit QR kód bez loga.');
+              onQRCodeGenerated(data.qrCode, qrOptions);
+              setIsGenerating(false);
+            }
           };
           
           logoImg.onerror = () => {
