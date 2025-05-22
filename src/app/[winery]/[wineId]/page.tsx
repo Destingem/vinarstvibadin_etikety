@@ -3,6 +3,8 @@ import { Metadata, ResolvingMetadata } from 'next';
 // Import Appwrite utility functions 
 import { getWineById, getWineryBySlug, Wine, Winery } from '@/lib/appwrite';
 import { adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
+// Import the analytics tracker component
+import AnalyticsTracker from './analytics-integration';
 
 // Type aliases for our wine display
 type WineryInfo = {
@@ -249,6 +251,16 @@ export default async function WinePage({ params }: { params: Promise<{ winery: s
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Analytics tracking component - client-side only */}
+      <AnalyticsTracker
+        wineId={wine.$id}
+        wineName={wine.name}
+        wineryId={wine.winery.$id}
+        wineryName={wine.winery.name}
+        winerySlug={wine.winery.slug}
+        wineBatch={wine.batch}
+        wineVintage={wine.vintage}
+      />
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-black mb-2">

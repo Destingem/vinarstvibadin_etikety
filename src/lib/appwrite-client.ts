@@ -20,18 +20,29 @@ const adminClient = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
   .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
 
-// Set API key for admin operations using SDK v17+ method
+// Set API key for admin operations
 if (process.env.APPWRITE_KEY) {
-  // Use type assertion to avoid TypeScript errors
-  const client = adminClient as any;
-  
-  // Check if setApiKey exists on the client
-  if (typeof client.setApiKey === 'function') {
-    client.setApiKey(process.env.APPWRITE_KEY);
-  } else {
-    console.warn('Appwrite SDK method setApiKey not available - API key not set');
-    console.warn('This may cause some server-side operations to fail');
+  try {
+    // Different versions of the Appwrite SDK use different methods to set the API key
+    // First try the newer method
+    if (typeof (adminClient as any).setKey === 'function') {
+      (adminClient as any).setKey(process.env.APPWRITE_KEY);
+    } 
+    // Then try the older method
+    else if (typeof (adminClient as any).setApiKey === 'function') {
+      (adminClient as any).setApiKey(process.env.APPWRITE_KEY);
+    }
+    // If none of these methods work, warn the user
+    else {
+      console.warn('WARNING: Could not set Appwrite API key - no compatible method found');
+      console.warn('This will cause issues with analytics and other admin operations');
+    }
+  } catch (error) {
+    console.error('Error setting Appwrite API key:', error);
   }
+} else {
+  console.warn('WARNING: APPWRITE_KEY environment variable not set');
+  console.warn('This will cause issues with analytics and other admin operations');
 }
 
 // Export admin services
@@ -42,6 +53,7 @@ export { ID, Query };
 
 // Appwrite constants
 export const DB_ID = 'wine_db';
+export const ANALYTICS_DB_ID = 'analytics';
 export const WINES_COLLECTION_ID = '6827655800216265c9fc';
 
 // Helper functions

@@ -188,6 +188,47 @@ export function verifyJwtToken(token: string) {
   return verify(token, jwtSecret) as { userId: string };
 }
 
+// Get current authenticated user from JWT token in cookies
+export async function getServerUser() {
+  try {
+    // Get the cookie from the request
+    const cookies = require('next/headers').cookies;
+    const cookieStore = cookies();
+    const authCookie = cookieStore.get('auth_token');
+    
+    if (!authCookie) {
+      console.warn('No auth cookie found for getServerUser');
+      return null;
+    }
+    
+    // Verify the token
+    const { userId } = verifyJwtToken(authCookie.value);
+    
+    if (!userId) {
+      console.warn('Invalid token in getServerUser');
+      return null;
+    }
+    
+    // Get user data
+    const user = await getUserById(userId);
+    
+    if (!user) {
+      console.warn('User not found in getServerUser');
+      return null;
+    }
+    
+    return {
+      id: user.$id,
+      email: user.email,
+      name: user.name,
+      preferences: user.prefs || {}
+    };
+  } catch (error) {
+    console.error('Error in getServerUser:', error);
+    return null;
+  }
+}
+
 // Login user - SERVER SIDE VERSION
 // This is only meant to be used in client components, not in API routes
 export async function loginUser(email: string, password: string) {
