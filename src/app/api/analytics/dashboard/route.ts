@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     // Try to get real analytics data
     try {
       // Check if we have any daily stats (the most essential data)
-      let dailyStats = [];
+      let dailyStats: any[] = [];
       
       try {
         dailyStats = await AnalyticsService.getDailyScanStats(
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       // If we have real data, try to build the complete dashboard
       if (dailyStats.length > 0) {
         // Get previous period stats for trend calculation
-        let previousDailyStats = [];
+        let previousDailyStats: any[] = [];
         try {
           previousDailyStats = await AnalyticsService.getDailyScanStats(
             userId, 
@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
         }));
         
         // Try to get additional statistics
-        let topRegions = [];
-        let languages = [];
-        let timeDistribution = [];
-        let topWines = [];
+        let topRegions: any[] = [];
+        let languages: any[] = [];
+        let timeDistribution: any[] = [];
+        let topWines: any[] = [];
         
         try {
           topRegions = await AnalyticsService.getRegionalStats(userId, startDate, endDate);

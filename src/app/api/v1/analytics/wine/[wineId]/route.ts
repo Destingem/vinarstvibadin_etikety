@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withApiAuth } from '@/lib/api-middleware';
-import { getWineAnalytics } from '@/lib/analytics-service';
+import { getWineAnalytics } from '@/lib/analytics-api';
 import { adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
 
 // GET /api/v1/analytics/wine/[wineId] - Get analytics for a specific wine
 export async function GET(
   request: NextRequest,
-  { params }: { params: { wineId: string } }
+  { params }: { params: Promise<{ wineId: string }> }
 ) {
   return withApiAuth(request, async (req, ctx) => {
     try {
-      const wineId = params.wineId;
+      const { wineId } = await params;
       
       // Get the wine from the database to check ownership
       try {

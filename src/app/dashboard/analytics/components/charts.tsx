@@ -85,7 +85,7 @@ export function TimeSeriesChart({
       .attr('transform', `translate(0,${chartHeight})`)
       .call(d3.axisBottom(xScale).ticks(6).tickFormat(d => {
         // Format as "DD.MM" with optional time in 24hr format if needed
-        return d3.timeFormat('%d.%m')(d);
+        return d3.timeFormat('%d.%m')(d as Date);
       }))
       .attr('color', '#000')
       .append('text')

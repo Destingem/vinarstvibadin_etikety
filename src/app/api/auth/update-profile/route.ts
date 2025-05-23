@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyJwtToken, getUserById, updateUserPrefs, createSlug } from '@/lib/auth-server';
-import { Client, Account, Users } from 'appwrite';
+import { Client, Account } from 'appwrite';
 
 // Schema for profile update validation
 const profileUpdateSchema = z.object({
@@ -71,36 +71,26 @@ export async function POST(request: NextRequest) {
         nameUpdateTried = true;
         
         try {
-          // Try to update the user name directly using admin SDK
-          const users = new Users(client);
+          // Use direct API call to update the user name
+          const updateResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${user.$id}/name`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+              'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
+            },
+            body: JSON.stringify({ 
+              name: name 
+            }),
+          });
           
-          // Check if the updateName method is available
-          if (typeof users.updateName === 'function') {
-            await users.updateName(user.$id, name);
-            console.log('Name updated successfully via admin SDK');
+          if (updateResponse.ok) {
+            console.log('Name updated successfully via direct API call');
             nameUpdated = true;
           } else {
-            // If updateName is not available, try direct API call
-            const updateResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${user.$id}/name`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-                'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
-              },
-              body: JSON.stringify({ 
-                name: name 
-              }),
-            });
-            
-            if (updateResponse.ok) {
-              console.log('Name updated successfully via direct API call');
-              nameUpdated = true;
-            } else {
-              const errorText = await updateResponse.text();
-              console.error(`Failed to update name directly: ${updateResponse.status}`, errorText);
-              // Will fall back to preferences method
-            }
+            const errorText = await updateResponse.text();
+            console.error(`Failed to update name directly: ${updateResponse.status}`, errorText);
+            // Will fall back to preferences method
           }
         } catch (directUpdateError) {
           console.error('Error updating name directly:', directUpdateError);

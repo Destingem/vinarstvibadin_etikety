@@ -1,6 +1,7 @@
 import { ID, Query } from 'appwrite';
 import { adminDatabases, DB_ID } from '@/lib/appwrite-client';
-import { v4 as uuidv4 } from 'uuid';
+// Use crypto module instead of uuid
+// import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 
 // Define API key collection ID
@@ -8,6 +9,7 @@ export const API_KEYS_COLLECTION_ID = 'api_keys';
 
 // Interface for API key
 export interface ApiKey {
+  $id?: string;  // Appwrite document ID
   id: string;
   userId: string;
   name: string;
@@ -115,16 +117,20 @@ export async function validateApiKey(key: string): Promise<{ valid: boolean; use
     }
     
     // Update the last used timestamp
-    await adminDatabases.updateDocument(
-      DB_ID,
-      API_KEYS_COLLECTION_ID,
-      apiKey.$id,
-      {
-        lastUsedAt: new Date().toISOString()
-      }
-    );
+    if (apiKey.$id) {
+      await adminDatabases.updateDocument(
+        DB_ID,
+        API_KEYS_COLLECTION_ID,
+        apiKey.$id,
+        {
+          lastUsedAt: new Date().toISOString()
+        }
+      );
+    } else {
+      console.error('API key document is missing $id property');
+    }
     
-    return { valid: true, userId: apiKey.userId, keyId: apiKey.$id };
+    return { valid: true, userId: apiKey.userId, keyId: apiKey.$id || apiKey.id };
   } catch (error) {
     console.error('Error validating API key:', error);
     return { valid: false, userId: null, keyId: null };

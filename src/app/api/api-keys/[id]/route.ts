@@ -5,10 +5,10 @@ import { deleteApiKey, getApiKeysByUserId } from '@/lib/api-service';
 // DELETE /api/api-keys/[id] - Delete an API key
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const keyId = params.id;
+    const { id: keyId } = await params;
     
     // Get the token from the Authorization header
     const authHeader = request.headers.get('Authorization');

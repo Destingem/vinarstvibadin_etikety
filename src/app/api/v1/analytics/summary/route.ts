@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withApiAuth } from '@/lib/api-middleware';
-import { getAnalyticsSummary } from '@/lib/analytics-service';
+import { getAnalyticsSummary } from '@/lib/analytics-api';
 
 // GET /api/v1/analytics/summary - Get analytics summary for the authenticated user
 export async function GET(request: NextRequest) {

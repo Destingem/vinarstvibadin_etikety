@@ -19,7 +19,7 @@ function getDeviceType(userAgent: string): 'MOBILE' | 'TABLET' | 'DESKTOP' | 'UN
         return fallbackDeviceDetection(userAgent);
       }
       
-      if (deviceType === 'mobile' || deviceType === 'phone') return 'MOBILE';
+      if (deviceType === 'mobile') return 'MOBILE';
       if (deviceType === 'tablet') return 'TABLET';
       return 'DESKTOP';
     } catch (parserError) {

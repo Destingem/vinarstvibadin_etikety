@@ -6,11 +6,11 @@ import { generateQRCodeSVG } from '@/lib/qr-code';
 // GET /api/v1/qrcodes/wine/[wineId] - Generate QR code for a specific wine
 export async function GET(
   request: NextRequest,
-  { params }: { params: { wineId: string } }
+  { params }: { params: Promise<{ wineId: string }> }
 ) {
   return withApiAuth(request, async (req, ctx) => {
     try {
-      const wineId = params.wineId;
+      const { wineId } = await params;
       
       // Get the wine from the database to check ownership
       try {
@@ -38,7 +38,7 @@ export async function GET(
         const qrUrl = `${baseUrl}/${wine.winerySlug}/${wine.$id}`;
         
         // Generate QR code SVG
-        const qrSvg = generateQRCodeSVG(qrUrl, {
+        const qrSvg = await generateQRCodeSVG(qrUrl, {
           size,
           color: '#000000',
           backgroundColor: '#ffffff',

@@ -6,11 +6,11 @@ import { Wine } from '@/lib/appwrite';
 // GET /api/v1/wines/[id] - Get a specific wine by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withApiAuth(request, async (req, ctx) => {
     try {
-      const wineId = params.id;
+      const { id: wineId } = await params;
       
       // Get the wine from the database
       const wine = await adminDatabases.getDocument(
@@ -50,11 +50,11 @@ export async function GET(
 // PUT /api/v1/wines/[id] - Update a specific wine
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withApiAuth(request, async (req, ctx) => {
     try {
-      const wineId = params.id;
+      const { id: wineId } = await params;
       
       // Get the wine from the database to check ownership
       try {
@@ -130,11 +130,11 @@ export async function PUT(
 // DELETE /api/v1/wines/[id] - Delete a specific wine
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withApiAuth(request, async (req, ctx) => {
     try {
-      const wineId = params.id;
+      const { id: wineId } = await params;
       
       // Get the wine from the database to check ownership
       try {

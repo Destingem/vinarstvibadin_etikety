@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/prisma-client';
 import * as AnalyticsService from '@/lib/analytics-service';
 
 export async function GET(request: NextRequest) {

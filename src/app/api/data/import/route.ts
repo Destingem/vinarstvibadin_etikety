@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/prisma-client';
 import { z } from 'zod';
 
 // Schema for a single wine
 const wineSchema = z.object({
   name: z.string(),
-  variety: z.string().optional(),
-  vintage: z.string().optional(),
-  description: z.string().optional(),
-  fileUrl: z.string().optional(),
-  qrCode: z.string().optional()
+  vintage: z.string().optional(), // We'll parse this to Int during processing
+  batch: z.string().optional(),
+  description: z.string().optional() // Will be mapped to additionalInfo
 });
 
 // Schema for import validation
@@ -70,7 +68,7 @@ export async function POST(request: NextRequest) {
             where: {
               wineryId: wineryId,
               name: wine.name,
-              vintage: wine.vintage || ''
+              vintage: wine.vintage ? parseInt(wine.vintage) : null
             }
           });
           
@@ -83,11 +81,10 @@ export async function POST(request: NextRequest) {
           await prisma.wine.create({
             data: {
               name: wine.name,
-              variety: wine.variety || '',
-              vintage: wine.vintage || '',
-              description: wine.description || '',
-              fileUrl: wine.fileUrl || '',
-              qrCode: wine.qrCode || '',
+              vintage: wine.vintage ? parseInt(wine.vintage) : null,
+              batch: wine.batch || null,
+              // Add only properties that exist in the schema
+              additionalInfo: wine.description || '',
               wineryId: wineryId
             }
           });

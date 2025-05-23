@@ -170,14 +170,14 @@ export async function getTopWines(wineryId: string, startDate: string, endDate: 
     if (response.documents.length > 0) {
       // Parse the string array back to objects
       const rankingsArray = response.documents[0].rankings || [];
-      const parsedRankings = rankingsArray.map(item => {
+      const parsedRankings = rankingsArray.map((item: string) => {
         try {
           return JSON.parse(item);
         } catch (e) {
           console.error('Error parsing ranking item:', e);
           return null;
         }
-      }).filter(item => item !== null);
+      }).filter((item: any): item is any => item !== null);
       
       return parsedRankings;
     }

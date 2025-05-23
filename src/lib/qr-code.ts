@@ -74,3 +74,35 @@ export function createWineQRCodeUrl(winerySlug: string, wineId: string): string 
   // Use the etiketa.wine domain for the QR code
   return `https://etiketa.wine/${sanitizedSlug}/${sanitizedWineId}`;
 }
+
+/**
+ * Generates a QR code in SVG format
+ * @param url The URL to encode in the QR code
+ * @param options Options for the QR code generation
+ * @returns An SVG string containing the QR code
+ */
+export async function generateQRCodeSVG(url: string, options: { size?: number, color?: string, backgroundColor?: string } = {}): Promise<string> {
+  // Default options
+  const size = options.size || 300;
+  const color = options.color || '#000000';
+  const backgroundColor = options.backgroundColor || '#ffffff';
+  
+  try {
+    // Generate simple QR code in SVG format
+    const qrSvg = await QRCode.toString(url, {
+      type: 'svg',
+      width: size,
+      margin: 4,
+      color: {
+        dark: color,
+        light: backgroundColor
+      },
+      errorCorrectionLevel: 'M'
+    });
+    
+    return qrSvg;
+  } catch (error) {
+    console.error('Error generating QR code SVG:', error);
+    throw new Error('Failed to generate QR code SVG');
+  }
+}

@@ -85,6 +85,7 @@ interface AnalyticsSummary {
   languages: Array<{
     languageCode: string;
     languageName: string;
+    language?: string;
     scanCount: number;
     percentage: number;
   }>;
