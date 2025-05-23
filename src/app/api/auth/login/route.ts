@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       // Use the fetched data or fallback to basic info
       const user = userData || {
         $id: userId,
-        name: email.split('@')[0], // Fallback to email username if API call failed
+        name: "Vinařství", // Use a better default name instead of the email prefix
         email: email,
         prefs: {} // Empty prefs
       };
@@ -120,18 +120,21 @@ export async function POST(request: NextRequest) {
       
       console.log("Login successful for user:", userId);
       
-      // Generate a slug from the company name
-      // Type assertion to avoid TypeScript errors
-      const prefs = user.prefs as { slug?: string } || {};
-      // Create slug from user's full name (company name), not from email
-      const slug = prefs.slug || createSlug(user.name);
+      // Type assertion to avoid TypeScript errors and get preferences
+      const prefs = user.prefs as { slug?: string, displayName?: string } || {};
+      
+      // Get the name from preferences if available, otherwise use the Appwrite name
+      const displayName = prefs.displayName || user.name;
+      
+      // Create slug from the display name if no slug exists
+      const slug = prefs.slug || createSlug(displayName);
       
       // Return success response with token and user data
       return NextResponse.json({
         message: 'Přihlášení úspěšné',
         user: {
           id: user.$id,
-          name: user.name,
+          name: displayName,
           email: user.email,
           slug: slug
         },

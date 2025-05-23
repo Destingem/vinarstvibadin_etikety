@@ -34,11 +34,17 @@ export async function POST(request: NextRequest) {
       // Create user with Appwrite Auth
       const user = await createUser(email, password, name);
       
+      // Store the display name and slug in user preferences
+      await updateUserPrefs({
+        displayName: name,
+        slug: slug
+      }, user.$id);
+      
       return NextResponse.json(
         { 
           message: 'Registrace úspěšná', 
           userId: user.$id,
-          name: user.name,
+          name: name,
           email: user.email,
           slug: slug
         },
