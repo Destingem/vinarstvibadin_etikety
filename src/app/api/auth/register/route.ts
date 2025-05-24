@@ -31,14 +31,8 @@ export async function POST(request: NextRequest) {
     const slug = createSlug(name);
     
     try {
-      // Create user with Appwrite Auth
+      // Create user with Appwrite Auth (preferences now set in createUser)
       const user = await createUser(email, password, name);
-      
-      // Store the display name and slug in user preferences
-      await updateUserPrefs({
-        displayName: name,
-        slug: slug
-      }, user.$id);
       
       return NextResponse.json(
         { 

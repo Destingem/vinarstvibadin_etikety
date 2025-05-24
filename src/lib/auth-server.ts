@@ -34,16 +34,25 @@ export async function createUser(email: string, password: string, name: string, 
       name
     );
     
-    // If preferences are provided, we'll set them during creation
-    if (preferences && Object.keys(preferences).length > 0) {
-      try {
-        // Store preferences in the database rather than trying to update user prefs
-        // (which requires user authentication we don't have yet)
-        // We'll handle this after user is created and authenticated
-      } catch (prefsError) {
-        console.error('Warning: Could not set initial preferences:', prefsError);
-        // Continue anyway since the user is created
+    // Create a slug from the display name
+    const slug = createSlug(name);
+    
+    // Set up default preferences including displayName and slug
+    const defaultPrefs = {
+      displayName: name,
+      slug: slug,
+      ...preferences
+    };
+    
+    // Set the preferences for the new user
+    try {
+      if (user.$id) {
+        await updateUserPrefs(defaultPrefs, user.$id);
+        console.log('Successfully set initial preferences for new user');
       }
+    } catch (prefsError) {
+      console.error('Warning: Could not set initial preferences:', prefsError);
+      // Continue anyway since the user is created
     }
     
     return user;
@@ -122,12 +131,18 @@ export async function getUserById(userId: string) {
         const userData = await response.json();
         console.log('getUserById: Successfully fetched user data from API');
         
-        // Return the user data in the expected format
+        // Get preferences or set empty object if undefined
+        const prefs = userData.prefs || {};
+        
+        // Use displayName from preferences if available
+        const displayName = prefs.displayName || userData.name;
+        
+        // Return the user data with the correct name
         return {
           $id: userData.$id,
           email: userData.email,
-          name: userData.name, // This is the full company name from Appwrite
-          prefs: userData.prefs || {}
+          name: displayName, // Use the display name from preferences
+          prefs: prefs
         };
       } else {
         console.error('getUserById: API call failed:', await response.text());
@@ -150,7 +165,7 @@ export async function getUserById(userId: string) {
       return {
         $id: userId,
         email: 'unknown@example.com',
-        name: `User-${userId.substring(0, 8)}`,
+        name: 'Vinařství', // Better default name
         prefs: {}
       };
     }
@@ -160,7 +175,7 @@ export async function getUserById(userId: string) {
     return {
       $id: userId,
       email: 'unknown@example.com',
-      name: `User-${userId.substring(0, 8)}`,
+      name: 'Vinařství', // Better default name
       prefs: {}
     };
   }
@@ -304,14 +319,48 @@ export async function loginUser(email: string, password: string) {
 // we can't directly fetch user info with userId
 async function getUserByIdDirect(userId: string) {
   try {
-    console.warn('getUserByIdDirect: Creating placeholder user for Appwrite SDK v17');
+    console.log('getUserByIdDirect: Attempting to get user data from API');
     
-    // In SDK v17, we can only get the current user, not any user by ID
-    // Return a simplified user object based on the user ID
+    // Try to get the user data directly using the Appwrite API
+    try {
+      const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
+        headers: {
+          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+          'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('getUserByIdDirect: Successfully fetched user data');
+        
+        // Get preferences
+        const prefs = userData.prefs || {};
+        
+        // Use displayName from preferences if available
+        const displayName = prefs.displayName || userData.name;
+        
+        return {
+          $id: userData.$id,
+          email: userData.email,
+          name: displayName,
+          prefs: prefs
+        };
+      } else {
+        console.error('getUserByIdDirect: API call failed:', await response.text());
+        // Fall back to placeholder user
+      }
+    } catch (apiError) {
+      console.error('getUserByIdDirect: Error with API call:', apiError);
+      // Fall back to placeholder user
+    }
+    
+    // If API call fails, return a simplified user object
+    console.warn('getUserByIdDirect: Using placeholder user');
     return {
       $id: userId,
       email: `user-${userId.substring(0, 6)}@example.com`,
-      name: `User ${userId.substring(0, 6)}`, 
+      name: "Vinařství", 
       prefs: {}
     };
   } catch (error) {
@@ -319,7 +368,7 @@ async function getUserByIdDirect(userId: string) {
     return {
       $id: userId,
       email: 'unknown@example.com',
-      name: `User ${userId.substring(0, 6)}`,
+      name: "Vinařství",
       prefs: {}
     };
   }
