@@ -260,7 +260,22 @@ export default function ClientWinesPage() {
   }, [token]);
 
   if (loading) {
-    return <div className="text-center p-6">Loading wines...</div>;
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl text-center">
+            <div className="flex items-center justify-center space-x-3">
+              <svg className="animate-spin h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-lg font-medium text-gray-700">Načítám vína...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Calculate pagination for filtered wines
@@ -281,25 +296,28 @@ export default function ClientWinesPage() {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
+    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="sm:flex sm:items-center sm:justify-between mb-8">
         <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Vína</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            Správa vín
+          </h1>
+          <p className="mt-2 text-gray-600">
             Seznam všech vašich vín, pro která můžete generovat QR kódy
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center gap-2">
+        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center gap-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="relative inline-flex items-center px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           >
-            <svg className="-ml-1 mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
             </svg>
             Filtry
             {(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) && (
-              <span className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-medium text-indigo-700">
+              <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
                 {(filterVintage !== null ? 1 : 0) + (filterAlcohol !== null ? 1 : 0) + (filterBatch !== null ? 1 : 0) + (filterRegion !== null ? 1 : 0) + ((filterDateFrom !== null || filterDateTo !== null) ? 1 : 0)}
               </span>
             )}
@@ -307,29 +325,36 @@ export default function ClientWinesPage() {
           
           <button
             onClick={() => setShowBackupModal(!showBackupModal)}
-            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="inline-flex items-center px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50"
           >
-            <svg className="-ml-1 mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h1a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h1v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
             </svg>
-            Záloha a import
+            Import/Export
           </button>
           
           <Link
             href="/dashboard/wines/new"
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
+            className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-2.5 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30"
           >
-            <svg className="-ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            Přidat víno
+            <span className="flex items-center space-x-2">
+              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              <span>Přidat víno</span>
+              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </span>
           </Link>
         </div>
       </div>
       
       {/* Search box */}
       <div className="mt-6 mb-6">
-        <div className="w-full">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
               <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -342,13 +367,13 @@ export default function ClientWinesPage() {
               id="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full rounded-md border border-gray-300 pl-12 py-3 text-black focus:border-indigo-500 focus:ring-indigo-500 text-sm shadow-sm"
+              className="w-full pl-12 pr-12 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 text-gray-900"
               placeholder="Hledat podle názvu, ročníku nebo šarže..."
             />
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-gray-700"
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-red-600 transition-colors duration-200"
                 title="Vymazat hledání"
               >
                 <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -358,31 +383,45 @@ export default function ClientWinesPage() {
             )}
           </div>
           {filteredWines.length === 0 && (searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo) ? (
-            <p className="mt-2 text-xs font-medium text-red-600">
-              Žádné výsledky pro zadané filtry
+            <p className="mt-3 text-sm font-medium text-red-600 flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span>Žádné výsledky pro zadané filtry</span>
             </p>
           ) : (searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo) ? (
-            <p className="mt-2 text-xs font-medium text-indigo-600">
-              Nalezeno {filteredWines.length} výsledků
+            <p className="mt-3 text-sm font-medium text-green-600 flex items-center space-x-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+              </svg>
+              <span>Nalezeno {filteredWines.length} výsledků</span>
             </p>
           ) : null}
+          </div>
         </div>
       </div>
       
       {/* Collapsible Filters */}
       {showFilters && (
-        <div className="mb-6 bg-gray-50 rounded-lg border border-gray-200 p-4 shadow-sm transition-all duration-200 ease-in-out">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="mb-6 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-white/60 rounded-3xl"></div>
+          <div className="relative bg-white/70 backdrop-blur-xl p-6 rounded-3xl border border-blue-200/50 shadow-lg transition-all duration-300">
+            <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+              <div className="w-2 h-2 bg-blue-600 rounded-full mr-3"></div>
+              Pokročilé filtry
+            </h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Vintage filter */}
             <div>
-              <label htmlFor="vintage-filter" className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="vintage-filter" className="block text-sm font-medium text-gray-700 mb-2">
                 Ročník
               </label>
               <select
                 id="vintage-filter"
                 value={filterVintage ?? ''}
                 onChange={(e) => setFilterVintage(e.target.value ? parseInt(e.target.value) : null)}
-                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
               >
                 <option value="">Všechny ročníky</option>
                 {getUniqueVintages().map(vintage => (
@@ -393,14 +432,14 @@ export default function ClientWinesPage() {
             
             {/* Alcohol content filter */}
             <div>
-              <label htmlFor="alcohol-filter" className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="alcohol-filter" className="block text-sm font-medium text-gray-700 mb-2">
                 Obsah alkoholu
               </label>
               <select
                 id="alcohol-filter"
                 value={filterAlcohol ?? ''}
                 onChange={(e) => setFilterAlcohol(e.target.value ? parseFloat(e.target.value) : null)}
-                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
               >
                 <option value="">Všechny hodnoty</option>
                 {getUniqueAlcoholContents().map(content => (
@@ -411,14 +450,14 @@ export default function ClientWinesPage() {
             
             {/* Batch filter */}
             <div>
-              <label htmlFor="batch-filter" className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="batch-filter" className="block text-sm font-medium text-gray-700 mb-2">
                 Šarže
               </label>
               <select
                 id="batch-filter"
                 value={filterBatch ?? ''}
                 onChange={(e) => setFilterBatch(e.target.value || null)}
-                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
               >
                 <option value="">Všechny šarže</option>
                 {getUniqueBatches().map(batch => (
@@ -429,14 +468,14 @@ export default function ClientWinesPage() {
             
             {/* Region filter */}
             <div>
-              <label htmlFor="region-filter" className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="region-filter" className="block text-sm font-medium text-gray-700 mb-2">
                 Region
               </label>
               <select
                 id="region-filter"
                 value={filterRegion ?? ''}
                 onChange={(e) => setFilterRegion(e.target.value || null)}
-                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
               >
                 <option value="">Všechny regiony</option>
                 {getUniqueRegions().map(region => (
@@ -447,7 +486,7 @@ export default function ClientWinesPage() {
             
             {/* Date range from */}
             <div>
-              <label htmlFor="date-from-filter" className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="date-from-filter" className="block text-sm font-medium text-gray-700 mb-2">
                 Datum od
               </label>
               <input
@@ -455,14 +494,14 @@ export default function ClientWinesPage() {
                 id="date-from-filter"
                 value={filterDateFrom ?? ''}
                 onChange={(e) => setFilterDateFrom(e.target.value || null)}
-                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-3 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
                 max={filterDateTo || getDateRange().max}
               />
             </div>
             
             {/* Date range to */}
             <div>
-              <label htmlFor="date-to-filter" className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="date-to-filter" className="block text-sm font-medium text-gray-700 mb-2">
                 Datum do
               </label>
               <input
@@ -470,13 +509,15 @@ export default function ClientWinesPage() {
                 id="date-to-filter"
                 value={filterDateTo ?? ''}
                 onChange={(e) => setFilterDateTo(e.target.value || null)}
-                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-3 text-sm text-black focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
                 min={filterDateFrom || getDateRange().min}
               />
             </div>
             
+            </div>
+            
             {/* Reset button */}
-            <div className="flex items-end">
+            <div className="mt-6 flex justify-end">
               <button
                 onClick={() => {
                   setFilterVintage(null);
@@ -486,9 +527,18 @@ export default function ClientWinesPage() {
                   setFilterDateFrom(null);
                   setFilterDateTo(null);
                 }}
-                className={`px-4 py-2 text-xs font-medium rounded ${(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'} transition-colors`}
+                className={`px-6 py-3 text-sm font-medium rounded-2xl transition-all duration-200 ${
+                  (filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) 
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30' 
+                    : 'bg-white/60 backdrop-blur-sm border border-gray-200/60 text-gray-500 cursor-not-allowed'
+                }`}
                 disabled={filterVintage === null && filterAlcohol === null && filterBatch === null && filterRegion === null && filterDateFrom === null && filterDateTo === null}
               >
+                {(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) && (
+                  <svg className="w-4 h-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
                 Resetovat filtry
               </button>
             </div>
@@ -498,15 +548,16 @@ export default function ClientWinesPage() {
       
       {/* Wine list */}
       <div className="mt-8 flex flex-col">
-        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl rounded-3xl border border-gray-200/60 shadow-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200/50">
+                <thead className="bg-gradient-to-r from-gray-50/80 to-white/60">
                   <tr>
                     <th 
                       scope="col" 
-                      className="py-4 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer select-none group"
+                      className="py-4 pl-6 pr-3 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group hover:bg-white/60 transition-colors duration-200"
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center">
@@ -532,7 +583,7 @@ export default function ClientWinesPage() {
                     </th>
                     <th 
                       scope="col" 
-                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group"
+                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group hover:bg-white/60 transition-colors duration-200"
                       onClick={() => handleSort('vintage')}
                     >
                       <div className="flex items-center">
@@ -635,11 +686,11 @@ export default function ClientWinesPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-gray-200/50 bg-white/40">
                   {currentWines.length > 0 ? (
                     currentWines.map((wine) => (
-                      <tr key={wine.$id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                      <tr key={wine.$id} className="hover:bg-white/60 transition-colors duration-200">
+                        <td className="whitespace-nowrap py-4 pl-6 pr-3 text-sm">
                           <div className="font-medium text-gray-900">{wine.name}</div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -657,52 +708,69 @@ export default function ClientWinesPage() {
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {new Date(wine.createdAt).toLocaleDateString('cs-CZ')}
                         </td>
-                        <td className="whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <Link
-                            href={`/dashboard/wines/${wine.$id}`}
-                            className="text-indigo-600 hover:text-indigo-900 mr-4 px-2 py-1"
-                          >
-                            Detail
-                          </Link>
-                          <Link
-                            href={`/dashboard/wines/${wine.$id}/edit`}
-                            className="text-indigo-600 hover:text-indigo-900 mr-4 px-2 py-1"
-                          >
-                            Upravit
-                          </Link>
-                          <Link
-                            href={`/dashboard/qrcodes?wineId=${wine.$id}`}
-                            className="text-green-600 hover:text-green-900 mr-4 px-2 py-1"
-                          >
-                            QR kód
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteWine(wine.$id)}
-                            disabled={deletingId === wine.$id}
-                            className="text-red-600 hover:text-red-900 disabled:text-gray-400 px-2 py-1"
-                          >
-                            {deletingId === wine.$id ? 'Mazání...' : 'Smazat'}
-                          </button>
+                        <td className="whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <Link
+                              href={`/dashboard/wines/${wine.$id}`}
+                              className="px-3 py-1.5 bg-blue-50/80 text-blue-700 rounded-xl hover:bg-blue-100/80 transition-colors duration-200 text-xs font-medium"
+                            >
+                              Detail
+                            </Link>
+                            <Link
+                              href={`/dashboard/wines/${wine.$id}/edit`}
+                              className="px-3 py-1.5 bg-orange-50/80 text-orange-700 rounded-xl hover:bg-orange-100/80 transition-colors duration-200 text-xs font-medium"
+                            >
+                              Upravit
+                            </Link>
+                            <Link
+                              href={`/dashboard/qrcodes?wineId=${wine.$id}`}
+                              className="px-3 py-1.5 bg-green-50/80 text-green-700 rounded-xl hover:bg-green-100/80 transition-colors duration-200 text-xs font-medium"
+                            >
+                              QR kód
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteWine(wine.$id)}
+                              disabled={deletingId === wine.$id}
+                              className="px-3 py-1.5 bg-red-50/80 text-red-700 rounded-xl hover:bg-red-100/80 disabled:bg-gray-50/80 disabled:text-gray-400 transition-colors duration-200 text-xs font-medium"
+                            >
+                              {deletingId === wine.$id ? 'Mazání...' : 'Smazat'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="py-4 px-6 text-center text-sm text-gray-500">
-                        {searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo ? (
-                          <p>Nebyly nalezeny žádné výsledky pro zadané filtry.</p>
-                        ) : (
-                          <p>Zatím nemáte přidána žádná vína.</p>
-                        )}
-                        <Link
-                          href="/dashboard/wines/new"
-                          className="mt-2 inline-flex items-center text-indigo-600 hover:text-indigo-500"
-                        >
-                          <span>Přidat první víno</span>
-                          <svg className="ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </Link>
+                      <td colSpan={7} className="py-12 px-6 text-center">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/60 to-white/40 rounded-2xl"></div>
+                          <div className="relative bg-white/60 backdrop-blur-sm p-8 rounded-2xl border border-gray-200/50">
+                            <div className="w-16 h-16 bg-gray-100/80 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              </svg>
+                            </div>
+                            {searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo ? (
+                              <p className="text-gray-600 text-lg mb-6">Nebyly nalezeny žádné výsledky pro zadané filtry.</p>
+                            ) : (
+                              <p className="text-gray-600 text-lg mb-6">Zatím nemáte přidána žádná vína.</p>
+                            )}
+                            <Link
+                              href="/dashboard/wines/new"
+                              className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30"
+                            >
+                              <span className="flex items-center space-x-2">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                <span>Přidat první víno</span>
+                                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </span>
+                            </Link>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -715,19 +783,22 @@ export default function ClientWinesPage() {
       
       {/* Pagination */}
       {pagination.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
+        <div className="mt-6 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <div className="flex items-center justify-between">
           <div className="flex flex-1 justify-between sm:hidden">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage <= 1}
-              className={`relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-2xl transition-all duration-200 ${currentPage <= 1 ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed' : 'bg-white/80 backdrop-blur-sm border border-gray-200/60 text-gray-700 hover:bg-white shadow-sm hover:shadow-md'}`}
             >
               Předchozí
             </button>
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage >= totalPages}
-              className={`relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium rounded-2xl transition-all duration-200 ${currentPage >= totalPages ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed' : 'bg-white/80 backdrop-blur-sm border border-gray-200/60 text-gray-700 hover:bg-white shadow-sm hover:shadow-md'}`}
             >
               Další
             </button>
@@ -743,7 +814,7 @@ export default function ClientWinesPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage <= 1}
-                  className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`relative inline-flex items-center rounded-l-2xl px-3 py-2 text-gray-500 ring-1 ring-inset ring-gray-200/50 backdrop-blur-sm transition-all duration-200 focus:z-20 focus:outline-offset-0 ${currentPage <= 1 ? 'opacity-50 cursor-not-allowed bg-gray-50/80' : 'bg-white/60 hover:bg-white/80'}`}
                 >
                   <span className="sr-only">Předchozí</span>
                   <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -773,10 +844,10 @@ export default function ClientWinesPage() {
                     <button
                       key={pageNumber}
                       onClick={() => setCurrentPage(pageNumber)}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                         pageNumber === currentPage
-                          ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
-                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0'
+                          ? 'z-10 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
+                          : 'text-gray-700 bg-white/60 backdrop-blur-sm ring-1 ring-inset ring-gray-200/50 hover:bg-white/80 focus:outline-offset-0'
                       }`}
                     >
                       {pageNumber}
@@ -787,7 +858,7 @@ export default function ClientWinesPage() {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage >= totalPages}
-                  className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`relative inline-flex items-center rounded-r-2xl px-3 py-2 text-gray-500 ring-1 ring-inset ring-gray-200/50 backdrop-blur-sm transition-all duration-200 focus:z-20 focus:outline-offset-0 ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed bg-gray-50/80' : 'bg-white/60 hover:bg-white/80'}`}
                 >
                   <span className="sr-only">Další</span>
                   <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -797,26 +868,33 @@ export default function ClientWinesPage() {
               </nav>
             </div>
           </div>
+            </div>
+          </div>
         </div>
       )}
       
       {/* Backup/Import Modal */}
       {showBackupModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-30 flex items-center justify-center z-50">
-          <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Záloha a import</h3>
-              <button 
-                onClick={() => setShowBackupModal(false)}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
-              >
-                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6">
-              <ImportExportWines />
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div ref={modalRef} className="relative max-w-2xl w-full mx-4">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 rounded-3xl"></div>
+            <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-2xl overflow-hidden">
+              <div className="px-8 py-6 border-b border-gray-200/50 flex justify-between items-center">
+                <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  Záloha a import
+                </h3>
+                <button 
+                  onClick={() => setShowBackupModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-2xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                >
+                  <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-8">
+                <ImportExportWines />
+              </div>
             </div>
           </div>
         </div>

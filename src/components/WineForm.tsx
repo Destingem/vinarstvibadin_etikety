@@ -150,89 +150,114 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
   };
   
   return (
-    <div className="bg-white shadow sm:rounded-md">
-      <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-          {isEditing ? 'Upravit víno' : 'Přidat nové víno'}
-        </h3>
+    <div className="relative max-w-4xl mx-auto">
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+      <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+        
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            {isEditing ? 'Upravit víno' : 'Přidat nové víno'}
+          </h3>
+        </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+          <div className="mb-6 p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
             {error}
           </div>
         )}
         
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            {/* Basic Wine Information */}
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Název vína *
-              </label>
-              <input
-                type="text"
-                id="name"
-                {...register('name')}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-              )}
-            </div>
-            
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="vintage" className="block text-sm font-medium text-gray-700">
-                Ročník
-              </label>
-              <input
-                type="number"
-                id="vintage"
-                {...register('vintage')}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-              {errors.vintage && (
-                <p className="mt-1 text-sm text-red-600">{errors.vintage.message}</p>
-              )}
-            </div>
-            
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="batch" className="block text-sm font-medium text-gray-700">
-                Šarže
-              </label>
-              <input
-                type="text"
-                id="batch"
-                {...register('batch')}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-              {errors.batch && (
-                <p className="mt-1 text-sm text-red-600">{errors.batch.message}</p>
-              )}
-            </div>
-            
-            <div className="col-span-2 sm:col-span-1">
-              <label htmlFor="alcoholContent" className="block text-sm font-medium text-gray-700">
-                Obsah alkoholu (%)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                id="alcoholContent"
-                {...register('alcoholContent')}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-              {errors.alcoholContent && (
-                <p className="mt-1 text-sm text-red-600">{errors.alcoholContent.message}</p>
-              )}
-            </div>
-            
-            {/* Nutritional Values */}
-            <div className="col-span-2">
-              <h4 className="font-medium text-gray-700 mb-3 border-b pb-2">Výživové údaje (na 100 ml)</h4>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          
+          {/* Basic Wine Information */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <div className="w-2 h-2 bg-red-600 rounded-full mr-3"></div>
+                Základní informace
+              </h4>
               
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Název vína *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    {...register('name')}
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="Např. Rulandské šedé"
+                  />
+                  {errors.name && (
+                    <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                  )}
+                </div>
+                
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="vintage" className="block text-sm font-medium text-gray-700 mb-2">
+                    Ročník
+                  </label>
+                  <input
+                    type="number"
+                    id="vintage"
+                    {...register('vintage')}
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="2023"
+                  />
+                  {errors.vintage && (
+                    <p className="mt-1 text-sm text-red-600">{errors.vintage.message}</p>
+                  )}
+                </div>
+                
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="batch" className="block text-sm font-medium text-gray-700 mb-2">
+                    Šarže
+                  </label>
+                  <input
+                    type="text"
+                    id="batch"
+                    {...register('batch')}
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="A001"
+                  />
+                  {errors.batch && (
+                    <p className="mt-1 text-sm text-red-600">{errors.batch.message}</p>
+                  )}
+                </div>
+                
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="alcoholContent" className="block text-sm font-medium text-gray-700 mb-2">
+                    Obsah alkoholu (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    id="alcoholContent"
+                    {...register('alcoholContent')}
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="12.5"
+                  />
+                  {errors.alcoholContent && (
+                    <p className="mt-1 text-sm text-red-600">{errors.alcoholContent.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Nutritional Values */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <div className="w-2 h-2 bg-green-600 rounded-full mr-3"></div>
+                Výživové údaje (na 100 ml)
+              </h4>
+              
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <label htmlFor="energyValueKJ" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="energyValueKJ" className="block text-sm font-medium text-gray-700 mb-2">
                     Energetická hodnota (kJ)
                   </label>
                   <input
@@ -240,12 +265,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="energyValueKJ"
                     {...register('energyValueKJ')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="310"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="energyValueKcal" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="energyValueKcal" className="block text-sm font-medium text-gray-700 mb-2">
                     Energetická hodnota (kcal)
                   </label>
                   <input
@@ -253,12 +279,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="energyValueKcal"
                     {...register('energyValueKcal')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="74"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="fat" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="fat" className="block text-sm font-medium text-gray-700 mb-2">
                     Tuky (g)
                   </label>
                   <input
@@ -266,12 +293,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="fat"
                     {...register('fat')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="0"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="saturatedFat" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="saturatedFat" className="block text-sm font-medium text-gray-700 mb-2">
                     Nasycené mastné kyseliny (g)
                   </label>
                   <input
@@ -279,12 +307,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="saturatedFat"
                     {...register('saturatedFat')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="0"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="carbs" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="carbs" className="block text-sm font-medium text-gray-700 mb-2">
                     Sacharidy (g)
                   </label>
                   <input
@@ -292,12 +321,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="carbs"
                     {...register('carbs')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="3.7"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="sugars" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="sugars" className="block text-sm font-medium text-gray-700 mb-2">
                     Cukry (g)
                   </label>
                   <input
@@ -305,12 +335,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="sugars"
                     {...register('sugars')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="2.5"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="protein" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="protein" className="block text-sm font-medium text-gray-700 mb-2">
                     Bílkoviny (g)
                   </label>
                   <input
@@ -318,12 +349,13 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="protein"
                     {...register('protein')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="0.2"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="salt" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="salt" className="block text-sm font-medium text-gray-700 mb-2">
                     Sůl (g)
                   </label>
                   <input
@@ -331,122 +363,174 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     step="0.1"
                     id="salt"
                     {...register('salt')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="0"
                   />
                 </div>
               </div>
             </div>
-            
-            {/* Ingredients */}
-            <div className="col-span-2">
-              <label htmlFor="ingredients" className="block text-sm font-medium text-gray-700">
-                Složení
-              </label>
-              <textarea
-                id="ingredients"
-                rows={3}
-                {...register('ingredients')}
-                placeholder="Např. Hrozny, antioxidant: oxid siřičitý"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
+          </div>
+          
+          {/* Ingredients & Allergens */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <div className="w-2 h-2 bg-blue-600 rounded-full mr-3"></div>
+                Složení a alergeny
+              </h4>
+              
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="ingredients" className="block text-sm font-medium text-gray-700 mb-2">
+                    Složení
+                  </label>
+                  <textarea
+                    id="ingredients"
+                    rows={3}
+                    {...register('ingredients')}
+                    placeholder="Např. Hrozny, antioxidant: oxid siřičitý"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 resize-none"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="allergens" className="block text-sm font-medium text-gray-700 mb-2">
+                    Alergeny
+                  </label>
+                  <textarea
+                    id="allergens"
+                    rows={2}
+                    {...register('allergens')}
+                    placeholder="Např. Obsahuje siřičitany"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 resize-none"
+                  />
+                </div>
+              </div>
             </div>
-            
-            <div className="col-span-2">
-              <label htmlFor="allergens" className="block text-sm font-medium text-gray-700">
-                Alergeny
-              </label>
-              <textarea
-                id="allergens"
-                rows={2}
-                {...register('allergens')}
-                placeholder="Např. Obsahuje siřičitany"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            
-            {/* Origin Information */}
-            <div className="col-span-2">
-              <h4 className="font-medium text-gray-700 mb-3 border-b pb-2">Původ</h4>
+          </div>
+          
+          {/* Origin Information */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <div className="w-2 h-2 bg-purple-600 rounded-full mr-3"></div>
+                Původ
+              </h4>
               
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="wineRegion" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="wineRegion" className="block text-sm font-medium text-gray-700 mb-2">
                     Vinařská oblast
                   </label>
                   <input
                     type="text"
                     id="wineRegion"
                     {...register('wineRegion')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="Moravské vinařství"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="wineSubregion" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="wineSubregion" className="block text-sm font-medium text-gray-700 mb-2">
                     Vinařská podoblast
                   </label>
                   <input
                     type="text"
                     id="wineSubregion"
                     {...register('wineSubregion')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="Morava"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="wineVillage" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="wineVillage" className="block text-sm font-medium text-gray-700 mb-2">
                     Obec
                   </label>
                   <input
                     type="text"
                     id="wineVillage"
                     {...register('wineVillage')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="Znojmo"
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="wineTract" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="wineTract" className="block text-sm font-medium text-gray-700 mb-2">
                     Trať
                   </label>
                   <input
                     type="text"
                     id="wineTract"
                     {...register('wineTract')}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="Na vinici"
                   />
                 </div>
               </div>
             </div>
-            
-            {/* Additional Information */}
-            <div className="col-span-2">
-              <label htmlFor="additionalInfo" className="block text-sm font-medium text-gray-700">
+          </div>
+          
+          {/* Additional Information */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                <div className="w-2 h-2 bg-orange-600 rounded-full mr-3"></div>
                 Další informace
-              </label>
-              <textarea
-                id="additionalInfo"
-                rows={3}
-                {...register('additionalInfo')}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-black focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
+              </h4>
+              
+              <div>
+                <label htmlFor="additionalInfo" className="block text-sm font-medium text-gray-700 mb-2">
+                  Další informace
+                </label>
+                <textarea
+                  id="additionalInfo"
+                  rows={3}
+                  {...register('additionalInfo')}
+                  placeholder="Další poznámky k vínu..."
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 resize-none"
+                />
+              </div>
             </div>
           </div>
           
-          <div className="flex justify-end space-x-3">
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-4 pt-6">
             <button
               type="button"
               onClick={() => router.back()}
-              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="px-6 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
             >
               Zrušit
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+              className="group relative px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Ukládám...' : isEditing ? 'Upravit víno' : 'Přidat víno'}
+              <span className="flex items-center justify-center space-x-2">
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Ukládám...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{isEditing ? 'Upravit víno' : 'Přidat víno'}</span>
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
+              </span>
             </button>
           </div>
         </form>

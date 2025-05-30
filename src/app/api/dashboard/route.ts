@@ -34,16 +34,15 @@ export async function GET(request: NextRequest) {
       },
     });
     
-    // Get recent wines
-    const recentWines = await prisma.wine.findMany({
+    // Get all wines sorted by creation date
+    const allWines = await prisma.wine.findMany({
       where: { wineryId: verifiedToken.userId },
       orderBy: { createdAt: 'desc' },
-      take: 5,
     });
     
     return NextResponse.json({
       winery,
-      recentWines,
+      allWines,
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
