@@ -158,7 +158,7 @@ export async function GET() {
       email: demoUser.email,
       lastReset,
       hoursSinceReset,
-      needsReset: !lastReset || hoursSinceReset > 1
+      needsReset: !lastReset || (hoursSinceReset !== null && hoursSinceReset > 1)
     });
     
   } catch (error) {

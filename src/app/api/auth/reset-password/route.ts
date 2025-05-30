@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Use Appwrite's built-in password recovery completion
-      await account.updateRecovery(userId, secret, password, password);
+      await account.updateRecovery(userId, secret, password);
 
       return NextResponse.json({
         message: 'Heslo bylo úspěšně změněno. Nyní se můžete přihlásit s novým heslem.',

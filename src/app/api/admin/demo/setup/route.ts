@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
+import { verifyJwtToken, getUserById } from '@/lib/auth-server';
 import { adminDatabases, DB_ID, MEMBERSHIPS_COLLECTION_ID, ID } from '@/lib/appwrite-client';
 
 // Admin emails - only these users can set up demo account
@@ -10,7 +10,7 @@ const ADMIN_EMAILS = [
 ];
 
 // Demo account constants
-export const DEMO_ACCOUNT = {
+const DEMO_ACCOUNT = {
   email: 'demo@etiketa.wine',
   password: 'demo123456',
   name: 'Demo Účet',
@@ -41,9 +41,15 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get user email from request or token (admin check)
+    // Get user email from request or fetch from user data (admin check)
     const body = await request.json();
-    const userEmail = body.userEmail || verifiedToken.email;
+    let userEmail = body.userEmail;
+    
+    // If no email in request, fetch user data to get email
+    if (!userEmail && verifiedToken.userId) {
+      const user = await getUserById(verifiedToken.userId);
+      userEmail = user?.email;
+    }
     
     if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
       return NextResponse.json(

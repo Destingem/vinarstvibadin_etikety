@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-
+import { getWineById } from '@/lib/appwrite-client';
+import { getUserById } from '@/lib/auth-server';
 
 export async function GET(
   request: NextRequest,
@@ -11,15 +12,8 @@ export async function GET(
   const { winery, wineId } = await params;
   
   try {
-    // Get the wine from the database
-    const wine = await prisma.wine.findUnique({
-      where: {
-        id: wineId,
-      },
-      include: {
-        winery: true,
-      },
-    });
+    // Get the wine from Appwrite
+    const wine = await getWineById(wineId);
 
     if (!wine) {
       return NextResponse.json(
@@ -28,16 +22,29 @@ export async function GET(
       );
     }
 
+    // Get the user (winery) details
+    const user = await getUserById(wine.userId);
+    
+    if (!user) {
+      return NextResponse.json(
+        { message: 'Winery not found', params },
+        { status: 404 }
+      );
+    }
+
+    // Get slug from user preferences
+    const userSlug = user.prefs?.slug || '';
+
     // Check if the wine belongs to the winery
-    if (wine.winery.slug.toLowerCase() !== winery.toLowerCase()) {
+    if (userSlug.toLowerCase() !== winery.toLowerCase()) {
       return NextResponse.json(
         { 
           message: 'Wine does not belong to this winery', 
           params,
           winery: {
-            id: wine.winery.id,
-            name: wine.winery.name,
-            slug: wine.winery.slug
+            id: user.$id,
+            name: user.name,
+            slug: userSlug
           }
         },
         { status: 404 }
@@ -48,15 +55,15 @@ export async function GET(
     return NextResponse.json({
       message: 'Wine found',
       wine: {
-        id: wine.id,
+        id: wine.$id,
         name: wine.name,
         vintage: wine.vintage,
         batch: wine.batch,
       },
       winery: {
-        id: wine.winery.id,
-        name: wine.winery.name,
-        slug: wine.winery.slug,
+        id: user.$id,
+        name: user.name,
+        slug: userSlug,
       },
       params,
     });

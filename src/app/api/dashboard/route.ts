@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth-utils';
-
+import { verifyJwtToken, getUserById } from '@/lib/auth-server';
+import { getWinesByUserId } from '@/lib/appwrite-client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const verifiedToken = verifyToken(token);
+    const verifiedToken = verifyJwtToken(token);
     
     if (!verifiedToken) {
       return NextResponse.json(
@@ -24,24 +24,28 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Get winery data
-    const winery = await prisma.winery.findUnique({
-      where: { id: verifiedToken.userId },
-      include: {
-        _count: {
-          select: { wines: true },
-        },
-      },
-    });
+    // Get user data (winery data)
+    const user = await getUserById(verifiedToken.userId);
     
-    // Get all wines sorted by creation date
-    const allWines = await prisma.wine.findMany({
-      where: { wineryId: verifiedToken.userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    if (!user) {
+      return NextResponse.json(
+        { message: 'User not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Get all wines for the user
+    const allWines = await getWinesByUserId(verifiedToken.userId);
     
     return NextResponse.json({
-      winery,
+      winery: {
+        id: user.$id,
+        email: user.email,
+        name: user.name,
+        _count: {
+          wines: allWines.length
+        }
+      },
       allWines,
     });
   } catch (error) {

@@ -55,6 +55,7 @@ export { ID, Query };
 export const DB_ID = 'wine_db';
 export const ANALYTICS_DB_ID = 'analytics';
 export const WINES_COLLECTION_ID = '6827655800216265c9fc';
+export const MEMBERSHIPS_COLLECTION_ID = 'memberships';
 
 // Helper functions
 export async function getWinesByUserId(userId: string) {

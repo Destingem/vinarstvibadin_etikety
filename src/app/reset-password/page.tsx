@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ const resetPasswordSchema = z.object({
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,6 +92,113 @@ export default function ResetPasswordPage() {
   };
 
   return (
+    <div className="w-full max-w-md">
+      {/* Header Text */}
+      <div className="text-center mb-10">
+        <h2 className="text-4xl font-bold mb-3 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
+          Obnovení hesla
+        </h2>
+        <p className="text-lg text-gray-600 font-light">
+          Zadejte své nové heslo
+        </p>
+      </div>
+
+      {/* Reset Password Form */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+        <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+          
+          {error && (
+            <div className="mb-6 p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="mb-6 p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 text-green-700 rounded-2xl">
+              {success}
+              <p className="text-sm mt-2">Za chvíli budete přesměrováni na přihlášení...</p>
+            </div>
+          )}
+          
+          {!success && (
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Nové heslo
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  {...register('password')}
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                  placeholder="••••••••"
+                />
+                {errors.password && (
+                  <p className="text-sm text-red-600 mt-1">{errors.password.message}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-700">
+                  Potvrdit heslo
+                </label>
+                <input
+                  id="passwordConfirm"
+                  type="password"
+                  {...register('passwordConfirm')}
+                  className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                  placeholder="••••••••"
+                />
+                {errors.passwordConfirm && (
+                  <p className="text-sm text-red-600 mt-1">{errors.passwordConfirm.message}</p>
+                )}
+              </div>
+              
+              <button
+                type="submit"
+                disabled={isSubmitting || !userId || !secret}
+                className="group relative w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="flex items-center justify-center space-x-2">
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Měním heslo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Změnit heslo</span>
+                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </>
+                  )}
+                </span>
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+
+      {/* Back to Login Link */}
+      <div className="mt-8 text-center">
+        <Link 
+          href="/login" 
+          className="text-red-600 hover:text-red-700 font-medium transition-colors duration-300"
+        >
+          ← Zpět na přihlášení
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
     <div className="h-screen flex flex-col bg-white relative overflow-hidden">
       {/* Ambient Background - Same as main page */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -151,108 +258,20 @@ export default function ResetPasswordPage() {
 
       {/* Main Content */}
       <main className="relative z-20 flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md">
-          {/* Header Text */}
-          <div className="text-center mb-10">
-            <h2 className="text-4xl font-bold mb-3 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
-              Obnovení hesla
-            </h2>
-            <p className="text-lg text-gray-600 font-light">
-              Zadejte své nové heslo
-            </p>
-          </div>
-
-          {/* Reset Password Form */}
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-              
-              {error && (
-                <div className="mb-6 p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
-                  {error}
-                </div>
-              )}
-              
-              {success && (
-                <div className="mb-6 p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 text-green-700 rounded-2xl">
-                  {success}
-                  <p className="text-sm mt-2">Za chvíli budete přesměrováni na přihlášení...</p>
-                </div>
-              )}
-              
-              {!success && (
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="space-y-2">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                      Nové heslo
-                    </label>
-                    <input
-                      id="password"
-                      type="password"
-                      {...register('password')}
-                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                      placeholder="••••••••"
-                    />
-                    {errors.password && (
-                      <p className="text-sm text-red-600 mt-1">{errors.password.message}</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-700">
-                      Potvrdit heslo
-                    </label>
-                    <input
-                      id="passwordConfirm"
-                      type="password"
-                      {...register('passwordConfirm')}
-                      className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                      placeholder="••••••••"
-                    />
-                    {errors.passwordConfirm && (
-                      <p className="text-sm text-red-600 mt-1">{errors.passwordConfirm.message}</p>
-                    )}
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !userId || !secret}
-                    className="group relative w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="flex items-center justify-center space-x-2">
-                      {isSubmitting ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span>Měním heslo...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Změnit heslo</span>
-                          <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </>
-                      )}
-                    </span>
-                  </button>
-                </form>
-              )}
+        <Suspense fallback={
+          <div className="w-full max-w-md">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold mb-3 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
+                Obnovení hesla
+              </h2>
+              <p className="text-lg text-gray-600 font-light">
+                Načítání...
+              </p>
             </div>
           </div>
-
-          {/* Back to Login Link */}
-          <div className="mt-8 text-center">
-            <Link 
-              href="/login" 
-              className="text-red-600 hover:text-red-700 font-medium transition-colors duration-300"
-            >
-              ← Zpět na přihlášení
-            </Link>
-          </div>
-        </div>
+        }>
+          <ResetPasswordForm />
+        </Suspense>
       </main>
 
       {/* Footer */}

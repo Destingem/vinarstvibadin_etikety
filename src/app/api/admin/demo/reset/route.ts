@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
+import { verifyJwtToken, getUserById } from '@/lib/auth-server';
 import { adminDatabases, DB_ID, WINES_COLLECTION_ID, MEMBERSHIPS_COLLECTION_ID, Query } from '@/lib/appwrite-client';
 
 // Admin emails and demo constants
@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
       // If token is provided, verify admin access
       try {
         const verifiedToken = verifyJwtToken(token);
-        const userEmail = verifiedToken.email;
+        const user = await getUserById(verifiedToken.userId);
+        const userEmail = user?.email;
         if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
           return NextResponse.json(
             { message: 'Nemáte oprávnění k této operaci' },

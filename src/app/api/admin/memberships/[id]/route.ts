@@ -21,7 +21,7 @@ async function isAdmin(email: string): Promise<boolean> {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get the token from the Authorization header
@@ -43,7 +43,8 @@ export async function PUT(
     }
 
     const { plan, isActive, expiresAt } = await request.json();
-    const membershipId = params.id;
+    const resolvedParams = await params;
+    const membershipId = resolvedParams.id;
 
     const updateData: any = {};
 
@@ -76,7 +77,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get the token from the Authorization header
@@ -97,7 +98,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membershipId = params.id;
+    const resolvedParams = await params;
+    const membershipId = resolvedParams.id;
 
     // Set membership as inactive instead of deleting
     const updatedMembership = await updateMembership(membershipId, {

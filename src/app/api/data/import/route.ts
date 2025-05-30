@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
-
+import { getWinesByUserId, createWine } from '@/lib/appwrite-client';
 import { z } from 'zod';
 
 // Schema for a single wine
@@ -61,32 +61,29 @@ export async function POST(request: NextRequest) {
         errors: [] as string[]
       };
       
+      // Get existing wines to check for duplicates
+      const existingWines = await getWinesByUserId(wineryId);
+      
       for (const wine of data.wines) {
         try {
           // Check if wine with the same name and vintage already exists
-          const existingWine = await prisma.wine.findFirst({
-            where: {
-              wineryId: wineryId,
-              name: wine.name,
-              vintage: wine.vintage ? parseInt(wine.vintage) : null
-            }
-          });
+          const duplicateWine = existingWines.find(existing => 
+            existing.name === wine.name && 
+            existing.vintage === (wine.vintage ? parseInt(wine.vintage) : null)
+          );
           
-          if (existingWine) {
+          if (duplicateWine) {
             importResults.skipped++;
             continue;
           }
           
           // Create new wine
-          await prisma.wine.create({
-            data: {
-              name: wine.name,
-              vintage: wine.vintage ? parseInt(wine.vintage) : null,
-              batch: wine.batch || null,
-              // Add only properties that exist in the schema
-              additionalInfo: wine.description || '',
-              wineryId: wineryId
-            }
+          await createWine({
+            name: wine.name,
+            vintage: wine.vintage ? parseInt(wine.vintage) : null,
+            batch: wine.batch || null,
+            additionalInfo: wine.description || '',
+            userId: wineryId
           });
           
           importResults.imported++;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
-
+import { getWinesByUserId } from '@/lib/appwrite-client';
 import * as AnalyticsService from '@/lib/analytics-service';
 
 export async function GET(request: NextRequest) {
@@ -43,15 +43,8 @@ export async function GET(request: NextRequest) {
       
       // Determine what to export based on exportType
       if (exportType === 'wines') {
-        // Get all wines for this winery
-        const wines = await prisma.wine.findMany({
-          where: {
-            wineryId: userId
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        });
+        // Get all wines for this user
+        const wines = await getWinesByUserId(userId);
         
         if (format === 'csv') {
           // Return CSV for wines
@@ -155,7 +148,7 @@ function generateWineCsv(wines: any[]): string {
   // Generate CSV rows
   const rows = wines.map(wine => {
     return [
-      wine.id,
+      wine.$id,
       escapeCSVField(wine.name || ''),
       wine.vintage || '',
       escapeCSVField(wine.batch || ''),
@@ -164,7 +157,7 @@ function generateWineCsv(wines: any[]): string {
       escapeCSVField(wine.wineSubregion || ''),
       escapeCSVField(wine.wineVillage || ''),
       escapeCSVField(wine.wineTract || ''),
-      wine.createdAt
+      wine.$createdAt
     ].join(',');
   }).join('\n');
   

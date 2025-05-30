@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
         
         // Check if membership is expiring within any of our warning periods
         for (const days of warningDays) {
-          if (isExpiringWithinDays(membership, days)) {
+          // Only process memberships with valid IDs
+          if (membership.$id && isExpiringWithinDays(membership as any, days)) {
             
             // Check if we've already sent a warning for this period
             // In a real implementation, you'd want to track this in the database
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
             
             if (diffDays === days) {
               try {
-                const success = await sendExpirationWarning(membership, days);
+                const success = await sendExpirationWarning(membership as any, days);
                 if (success) {
                   warningsSent++;
                   console.log(`Sent ${days}-day expiration warning for user ${membership.appwriteUserId}`);
