@@ -1,11 +1,9 @@
 // This file is kept for reference but is not currently used.
 // Appwrite authentication is used instead.
-// The bcrypt dependency has been removed to fix build errors.
 
 import { sign, verify } from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { AuthResponse } from '@/types';
-import prisma from './prisma';
 
 // Password hashing functions that used bcrypt have been removed
 
@@ -42,29 +40,8 @@ export async function getAuthToken(): Promise<string | undefined> {
 }
 
 export async function getCurrentUser() {
-  const token = await getAuthToken();
-  
-  if (!token) {
-    return null;
-  }
-  
-  const verifiedToken = verifyToken(token);
-  
-  if (!verifiedToken) {
-    return null;
-  }
-  
-  const user = await prisma.winery.findUnique({
-    where: { id: verifiedToken.userId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      slug: true,
-    },
-  });
-  
-  return user;
+  // This function is deprecated - use Appwrite authentication instead
+  return null;
 }
 
 export function createAuthResponse(userId: string, name: string, email: string): AuthResponse {

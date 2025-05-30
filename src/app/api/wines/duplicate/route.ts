@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databases, DB_ID, WINES_COLLECTION_ID, ID, getWineById, adminDatabases } from '@/lib/appwrite-client';
 import { verifyJwtToken } from '@/lib/auth-server';
+import { checkWineLimit, incrementWineCount } from '@/lib/appwrite';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +28,27 @@ export async function POST(request: NextRequest) {
     }
     
     const userId = verifiedToken.userId;
+    
+    // Check wine creation limits before proceeding
+    const limitCheck = await checkWineLimit(userId);
+    if (!limitCheck.canCreate) {
+      const limitText = limitCheck.limit === -1 ? '∞' : limitCheck.limit.toString();
+      const yearInfo = limitCheck.yearlyLimit > 0 
+        ? ` (${limitCheck.yearlyLimit} vín ročně × ${limitCheck.yearsSinceStart} ${limitCheck.yearsSinceStart === 1 ? 'rok' : limitCheck.yearsSinceStart < 5 ? 'roky' : 'let'})`
+        : '';
+      
+      return NextResponse.json(
+        { 
+          message: `Dosáhli jste limitu pro vytváření vín. Aktuální využití: ${limitCheck.currentCount}/${limitText}${yearInfo}. Kopírování vína se počítá jako vytvoření nového vína.`,
+          error: 'WINE_LIMIT_EXCEEDED',
+          currentCount: limitCheck.currentCount,
+          limit: limitCheck.limit,
+          yearlyLimit: limitCheck.yearlyLimit,
+          yearsSinceStart: limitCheck.yearsSinceStart
+        },
+        { status: 403 }
+      );
+    }
     
     // Get the wine ID from the request body
     const body = await request.json();
@@ -128,6 +150,14 @@ export async function POST(request: NextRequest) {
         winerySlug: winerySlug
       }
     );
+    
+    // Increment wine count for the user's membership
+    try {
+      await incrementWineCount(userId);
+    } catch (error) {
+      console.error('Error incrementing wine count after duplication:', error);
+      // Don't fail the request if we can't update the count
+    }
     
     return NextResponse.json({
       message: 'Víno bylo úspěšně zkopírováno',

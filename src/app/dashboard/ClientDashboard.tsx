@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
+import MembershipStatusWidget from '@/components/MembershipStatusWidget';
 
 type Wine = {
   id: string;
@@ -211,41 +212,11 @@ export default function ClientDashboard() {
           </div>
         </div>
 
-        {/* QR Codes Card */}
+        {/* Membership Status Widget */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4 flex-1">
-                <dt className="text-sm font-medium text-gray-600">
-                  QR kódy
-                </dt>
-                <dd className="mt-1 text-lg font-bold text-gray-900">
-                  Generovat
-                </dd>
-                <p className="text-sm text-gray-500">
-                  Pro etikety vín
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <Link
-                href="/dashboard/qrcodes"
-                className="text-green-600 hover:text-green-700 font-medium text-sm transition-colors duration-200 flex items-center space-x-1"
-              >
-                <span>Spravovat QR kódy</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
+          <div className="relative backdrop-blur-2xl rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
+            <MembershipStatusWidget />
           </div>
         </div>
       </div>

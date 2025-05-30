@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
-import prisma from '@/lib/prisma-client';
+
 import { z } from 'zod';
 
 // Schema for a single wine

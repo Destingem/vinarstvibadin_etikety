@@ -104,14 +104,14 @@ export default function Home() {
                     <p className="text-red-50/90 text-base mb-6">
                       Prohlédněte si všechny funkce bez registrace
                     </p>
-                    <button className="w-full bg-white/15 backdrop-blur-sm text-white border border-white/30 py-3.5 px-6 rounded-2xl font-medium hover:bg-white/25 transition-all duration-300 group/btn">
+                    <Link href="/login?demo=true" className="w-full bg-white/15 backdrop-blur-sm text-white border border-white/30 py-3.5 px-6 rounded-2xl font-medium hover:bg-white/25 transition-all duration-300 group/btn block">
                       <span className="flex items-center justify-center space-x-2">
                         <span>Spustit demo účet</span>
                         <svg className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </span>
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>

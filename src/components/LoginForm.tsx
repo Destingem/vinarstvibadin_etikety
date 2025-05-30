@@ -22,20 +22,29 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
   useEffect(() => {
     // Check if user was redirected from registration
     if (searchParams.get('registered') === 'true') {
       setSuccess('Registrace proběhla úspěšně. Nyní se můžete přihlásit.');
     }
-  }, [searchParams]);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
+    
+    // Check if demo login was requested
+    if (searchParams.get('demo') === 'true') {
+      // Auto-fill demo credentials
+      setValue('email', 'demo@etiketa.wine');
+      setValue('password', 'demo123456');
+      setSuccess('Demo účet je připraven k přihlášení. Stačí kliknout na tlačítko "Přihlásit se".');
+    }
+  }, [searchParams, setValue]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);

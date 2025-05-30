@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from '@/lib/auth-context';
+import ProfileForm from '@/components/ProfileForm';
 
 export default function SettingsPage() {
   const { user } = useAuth();

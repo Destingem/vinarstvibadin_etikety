@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import ClientAnalyticsDashboard from './ClientAnalyticsDashboard';
+import PremiumFeatureWrapper from './PremiumFeatureWrapper';
 
 export const metadata = {
   title: 'Analytika QR kódů | Etiketa.wine',
@@ -8,20 +9,22 @@ export const metadata = {
 
 export default function AnalyticsPage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Analytika QR kódů</h1>
-      
-      <div className="mb-4 text-sm">
-        <p className="text-black">
-          Na této stránce najdete anonymní statistiky o načítání QR kódů vašich vín.
-          Data jsou aktualizována denně a poskytují přehled o tom, jak zákazníci interagují s vašimi produkty.
-        </p>
+    <PremiumFeatureWrapper featureName="Pokročilá analytika">
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-6">Analytika QR kódů</h1>
+        
+        <div className="mb-4 text-sm">
+          <p className="text-black">
+            Na této stránce najdete anonymní statistiky o načítání QR kódů vašich vín.
+            Data jsou aktualizována denně a poskytují přehled o tom, jak zákazníci interagují s vašimi produkty.
+          </p>
+        </div>
+        
+        <Suspense fallback={<AnalyticsLoadingSkeleton />}>
+          <ClientAnalyticsDashboard />
+        </Suspense>
       </div>
-      
-      <Suspense fallback={<AnalyticsLoadingSkeleton />}>
-        <ClientAnalyticsDashboard />
-      </Suspense>
-    </div>
+    </PremiumFeatureWrapper>
   );
 }
 

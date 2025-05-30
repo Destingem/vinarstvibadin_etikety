@@ -1,4 +1,5 @@
 import ClientApiDashboard from './ClientApiDashboard';
+import PremiumFeatureWrapper from '../analytics/PremiumFeatureWrapper';
 
 export const metadata = {
   title: 'API přístup | Etiketa.wine',
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function ApiDashboardPage() {
-  return <ClientApiDashboard />;
+  return (
+    <PremiumFeatureWrapper featureName="API integrace">
+      <ClientApiDashboard />
+    </PremiumFeatureWrapper>
+  );
 }

@@ -187,7 +187,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="name"
                     {...register('name')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="Např. Rulandské šedé"
                   />
                   {errors.name && (
                     <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -203,7 +202,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="vintage"
                     {...register('vintage')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="2023"
                   />
                   {errors.vintage && (
                     <p className="mt-1 text-sm text-red-600">{errors.vintage.message}</p>
@@ -219,7 +217,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="batch"
                     {...register('batch')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="A001"
                   />
                   {errors.batch && (
                     <p className="mt-1 text-sm text-red-600">{errors.batch.message}</p>
@@ -236,7 +233,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="alcoholContent"
                     {...register('alcoholContent')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="12.5"
                   />
                   {errors.alcoholContent && (
                     <p className="mt-1 text-sm text-red-600">{errors.alcoholContent.message}</p>
@@ -266,7 +262,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="energyValueKJ"
                     {...register('energyValueKJ')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="310"
                   />
                 </div>
                 
@@ -280,7 +275,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="energyValueKcal"
                     {...register('energyValueKcal')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="74"
                   />
                 </div>
                 
@@ -294,7 +288,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="fat"
                     {...register('fat')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="0"
                   />
                 </div>
                 
@@ -308,7 +301,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="saturatedFat"
                     {...register('saturatedFat')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="0"
                   />
                 </div>
                 
@@ -322,7 +314,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="carbs"
                     {...register('carbs')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="3.7"
                   />
                 </div>
                 
@@ -336,7 +327,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="sugars"
                     {...register('sugars')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="2.5"
                   />
                 </div>
                 
@@ -350,7 +340,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="protein"
                     {...register('protein')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="0.2"
                   />
                 </div>
                 
@@ -364,7 +353,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="salt"
                     {...register('salt')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="0"
                   />
                 </div>
               </div>
@@ -389,7 +377,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="ingredients"
                     rows={3}
                     {...register('ingredients')}
-                    placeholder="Např. Hrozny, antioxidant: oxid siřičitý"
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 resize-none"
                   />
                 </div>
@@ -402,7 +389,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="allergens"
                     rows={2}
                     {...register('allergens')}
-                    placeholder="Např. Obsahuje siřičitany"
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 resize-none"
                   />
                 </div>
@@ -429,7 +415,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="wineRegion"
                     {...register('wineRegion')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="Moravské vinařství"
                   />
                 </div>
                 
@@ -442,7 +427,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="wineSubregion"
                     {...register('wineSubregion')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="Morava"
                   />
                 </div>
                 
@@ -455,7 +439,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="wineVillage"
                     {...register('wineVillage')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="Znojmo"
                   />
                 </div>
                 
@@ -468,7 +451,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="wineTract"
                     {...register('wineTract')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                    placeholder="Na vinici"
                   />
                 </div>
               </div>
@@ -492,7 +474,6 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                   id="additionalInfo"
                   rows={3}
                   {...register('additionalInfo')}
-                  placeholder="Další poznámky k vínu..."
                   className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 resize-none"
                 />
               </div>

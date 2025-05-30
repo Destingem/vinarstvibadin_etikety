@@ -10,6 +10,7 @@ type User = {
   name: string;
   email: string;
   slug?: string;
+  isDemo?: boolean;
 };
 
 type AuthContextType = {
@@ -18,6 +19,7 @@ type AuthContextType = {
   login: (token: string, user: User) => void;
   logout: () => void;
   isLoading: boolean;
+  isDemo: boolean;
 };
 
 // Create context
@@ -82,8 +84,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('Auth context: Logout successful');
   };
 
+  // Check if current user is demo
+  const isDemo = user?.email === 'demo@etiketa.wine' || user?.isDemo === true;
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading, isDemo }}>
       {children}
     </AuthContext.Provider>
   );

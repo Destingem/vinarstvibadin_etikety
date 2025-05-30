@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
 import { adminDatabases, DB_ID, WINES_COLLECTION_ID, Query, ID } from '@/lib/appwrite-client';
 import { deobfuscateData } from '@/lib/encryption';
+import { checkWineLimit, incrementWineCount } from '@/lib/appwrite';
 import { z } from 'zod';
 
 // Schema for import validation
@@ -60,6 +61,49 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // Check wine creation limits before bulk import
+      const limitCheck = await checkWineLimit(userId);
+      const winesToImport = importData.wines.length;
+      
+      if (!limitCheck.canCreate) {
+        const limitText = limitCheck.limit === -1 ? '∞' : limitCheck.limit.toString();
+        const yearInfo = limitCheck.yearlyLimit > 0 
+          ? ` (${limitCheck.yearlyLimit} vín ročně × ${limitCheck.yearsSinceStart} ${limitCheck.yearsSinceStart === 1 ? 'rok' : limitCheck.yearsSinceStart < 5 ? 'roky' : 'let'})`
+          : '';
+        
+        return NextResponse.json(
+          { 
+            message: `Dosáhli jste limitu pro vytváření vín. Aktuální využití: ${limitCheck.currentCount}/${limitText}${yearInfo}. Nemůžete importovat žádná další vína.`,
+            error: 'WINE_LIMIT_EXCEEDED',
+            currentCount: limitCheck.currentCount,
+            limit: limitCheck.limit,
+            yearlyLimit: limitCheck.yearlyLimit,
+            yearsSinceStart: limitCheck.yearsSinceStart
+          },
+          { status: 403 }
+        );
+      }
+      
+      // Check if import would exceed the limit
+      const remainingWines = limitCheck.limit === -1 ? winesToImport : limitCheck.limit - limitCheck.currentCount;
+      if (limitCheck.limit !== -1 && winesToImport > remainingWines) {
+        const yearInfo = limitCheck.yearlyLimit > 0 
+          ? ` (${limitCheck.yearlyLimit} vín ročně × ${limitCheck.yearsSinceStart} ${limitCheck.yearsSinceStart === 1 ? 'rok' : limitCheck.yearsSinceStart < 5 ? 'roky' : 'let'})`
+          : '';
+        
+        return NextResponse.json(
+          { 
+            message: `Import ${winesToImport} vín by překročil váš limit. Zbývá ${remainingWines} vín z celkového limitu ${limitCheck.limit}${yearInfo}.`,
+            error: 'WINE_LIMIT_WOULD_EXCEED',
+            currentCount: limitCheck.currentCount,
+            limit: limitCheck.limit,
+            remainingWines,
+            requestedImport: winesToImport
+          },
+          { status: 403 }
+        );
+      }
+
       // Process each wine
       const importResults = {
         total: importData.wines.length,
@@ -114,6 +158,14 @@ export async function POST(request: NextRequest) {
             ID.unique(),
             wineData
           );
+          
+          // Increment wine count for the user's membership
+          try {
+            await incrementWineCount(userId);
+          } catch (error) {
+            console.error('Error incrementing wine count during import:', error);
+            // Don't fail the import if we can't update the count
+          }
           
           importResults.imported++;
         } catch (wineError: any) {

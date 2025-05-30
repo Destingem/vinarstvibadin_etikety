@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken, createSlug } from '@/lib/auth-server';
 import { z } from 'zod';
 import { createWine, getWinesByUserId, Query, adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
-import { Wine } from '@/lib/appwrite';
+import { Wine, checkWineLimit, incrementWineCount } from '@/lib/appwrite';
 
 // Schema for creating/updating wine 
 // This matches exactly the Appwrite collection attributes
@@ -141,6 +141,27 @@ export async function POST(request: NextRequest) {
     
     const userId = verifiedToken.userId;
     
+    // Check wine creation limits before proceeding
+    const limitCheck = await checkWineLimit(userId);
+    if (!limitCheck.canCreate) {
+      const limitText = limitCheck.limit === -1 ? '∞' : limitCheck.limit.toString();
+      const yearInfo = limitCheck.yearlyLimit > 0 
+        ? ` (${limitCheck.yearlyLimit} vín ročně × ${limitCheck.yearsSinceStart} ${limitCheck.yearsSinceStart === 1 ? 'rok' : limitCheck.yearsSinceStart < 5 ? 'roky' : 'let'})`
+        : '';
+      
+      return NextResponse.json(
+        { 
+          message: `Dosáhli jste limitu pro vytváření vín. Aktuální využití: ${limitCheck.currentCount}/${limitText}${yearInfo}`,
+          error: 'WINE_LIMIT_EXCEEDED',
+          currentCount: limitCheck.currentCount,
+          limit: limitCheck.limit,
+          yearlyLimit: limitCheck.yearlyLimit,
+          yearsSinceStart: limitCheck.yearsSinceStart
+        },
+        { status: 403 }
+      );
+    }
+    
     // Try to get user info from token payload or request headers
     let userName = '';
     let userSlug = '';
@@ -262,6 +283,14 @@ export async function POST(request: NextRequest) {
         { message: 'Nastala chyba při vytváření vína' },
         { status: 500 }
       );
+    }
+    
+    // Increment wine count for the user's membership
+    try {
+      await incrementWineCount(userId);
+    } catch (error) {
+      console.error('Error incrementing wine count:', error);
+      // Don't fail the request if we can't update the count
     }
     
     return NextResponse.json(
