@@ -221,114 +221,106 @@ export default function ProfileForm() {
   };
 
   return (
-    <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-      <div className="px-4 py-5 sm:px-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900">
-          Informace o vinařství
-        </h3>
-        <p className="mt-1 max-w-2xl text-sm text-gray-500">
-          Upravte základní údaje o vašem vinařství. Upozornění: Změna slugu ovlivní pouze nově vytvořená vína.
-        </p>
-      </div>
+    <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
+          {error}
+        </div>
+      )}
 
-      <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
+      {success && (
+        <div className="p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 text-green-700 rounded-2xl">
+          {success}
+        </div>
+      )}
 
-        {success && (
-          <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
-            {success}
-          </div>
-        )}
-
-        <form className="space-y-8">
-          {/* Name Field */}
-          <div className="border-b border-gray-200 pb-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Název vinařství
-              </label>
-              <div className="flex">
-                <input
-                  id="name"
-                  type="text"
-                  {...register('name')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
-                />
-                <button
-                  type="button"
-                  onClick={updateName}
-                  disabled={isNameSubmitting}
-                  className="ml-3 py-2 px-4 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                >
-                  {isNameSubmitting ? 'Ukládám...' : 'Uložit změny'}
-                </button>
-              </div>
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Email Field (read-only as we're not implementing email change) */}
-          <div className="border-b border-gray-200 pb-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
+      <form className="space-y-6">
+        {/* Name Field */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-3">
+              Název vinařství
+            </label>
+            <div className="flex gap-3">
               <input
-                id="email"
-                type="email"
-                {...register('email')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black bg-gray-100"
-                readOnly
+                id="name"
+                type="text"
+                {...register('name')}
+                className="flex-1 px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Změna e-mailu není momentálně podporována.
-              </p>
+              <button
+                type="button"
+                onClick={updateName}
+                disabled={isNameSubmitting}
+                className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isNameSubmitting ? 'Ukládám...' : 'Uložit'}
+              </button>
             </div>
+            {errors.name && (
+              <p className="mt-2 text-sm text-red-600">{errors.name.message}</p>
+            )}
           </div>
+        </div>
 
-          {/* Slug Field */}
-          <div>
-            <div>
-              <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-1">
-                Slug pro URL
-              </label>
-              <div className="flex">
-                <div className="flex flex-1">
-                  <span className="inline-flex items-center px-3 text-gray-500 bg-gray-100 rounded-l-md border border-r-0 border-gray-300">
-                    /
-                  </span>
-                  <input
-                    id="slug"
-                    type="text"
-                    {...register('slug')}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={updateSlug}
-                  disabled={isSlugSubmitting}
-                  className="ml-3 py-2 px-4 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                >
-                  {isSlugSubmitting ? 'Ukládám...' : 'Uložit změny'}
-                </button>
-              </div>
-              {errors.slug && (
-                <p className="mt-1 text-sm text-red-600">{errors.slug.message}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                Upozornění: Změna slugu ovlivní pouze nově vytvořená vína, existující QR kódy zůstanou funkční.
-              </p>
-            </div>
+        {/* Email Field (read-only) */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-3">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              {...register('email')}
+              className="w-full px-4 py-3 bg-gray-100/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-gray-600 cursor-not-allowed"
+              readOnly
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              Změna e-mailu není momentálně podporována.
+            </p>
           </div>
-        </form>
-      </div>
+        </div>
+
+        {/* Slug Field */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <label htmlFor="slug" className="block text-sm font-semibold text-gray-700 mb-3">
+              Slug pro URL
+            </label>
+            <div className="flex gap-3">
+              <div className="flex flex-1">
+                <span className="inline-flex items-center px-4 text-gray-500 bg-gray-100/60 backdrop-blur-sm rounded-l-2xl border border-r-0 border-gray-200/60">
+                  /
+                </span>
+                <input
+                  id="slug"
+                  type="text"
+                  {...register('slug')}
+                  className="flex-1 px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-r-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={updateSlug}
+                disabled={isSlugSubmitting}
+                className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSlugSubmitting ? 'Ukládám...' : 'Uložit'}
+              </button>
+            </div>
+            {errors.slug && (
+              <p className="mt-2 text-sm text-red-600">{errors.slug.message}</p>
+            )}
+            <p className="mt-2 text-xs text-gray-500">
+              Upozornění: Změna slugu ovlivní pouze nově vytvořená vína, existující QR kódy zůstanou funkční.
+            </p>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }
