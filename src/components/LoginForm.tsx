@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import ForgotPasswordForm from './ForgotPasswordForm';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Neplatný email' }),
@@ -21,6 +22,7 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   
   const {
     register,
@@ -92,6 +94,11 @@ export default function LoginForm() {
       setIsSubmitting(false);
     }
   };
+
+  // Show forgot password form if requested
+  if (showForgotPassword) {
+    return <ForgotPasswordForm onCancel={() => setShowForgotPassword(false)} />;
+  }
 
   return (
     <div className="relative w-full max-w-md mx-auto">
@@ -167,6 +174,16 @@ export default function LoginForm() {
               )}
             </span>
           </button>
+          
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors duration-300"
+            >
+              Zapomněli jste heslo?
+            </button>
+          </div>
         </form>
       </div>
     </div>

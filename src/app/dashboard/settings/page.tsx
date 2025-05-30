@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context';
 import ProfileForm from '@/components/ProfileForm';
+import PasswordChangeForm from '@/components/PasswordChangeForm';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -38,6 +39,26 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Password Change */}
+      <div className="mt-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+        <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+          <div className="flex items-center mb-6">
+            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mr-4">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Změna hesla</h2>
+              <p className="text-gray-600 mt-1">Aktualizujte heslo pro váš účet</p>
+            </div>
+          </div>
+          
+          <PasswordChangeForm />
+        </div>
+      </div>
+
       {/* Features in Development */}
       <div className="mt-8 relative">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-50/80 to-orange-50/60 rounded-3xl"></div>
@@ -55,26 +76,6 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-              <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mr-4">
-                    <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM9 5v6h2V5H9zm0 8v2h2v-2H9z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">Změna hesla</h3>
-                    <p className="text-gray-600 mt-1">Tato funkce bude brzy dostupná.</p>
-                  </div>
-                  <div className="text-sm font-medium text-amber-600 bg-amber-100/80 px-3 py-1 rounded-xl border border-amber-200/50">
-                    Připravujeme
-                  </div>
-                </div>
-              </div>
-            </div>
-            
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
               <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">

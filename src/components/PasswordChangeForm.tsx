@@ -82,84 +82,104 @@ export default function PasswordChangeForm() {
   };
 
   return (
-    <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-      <div className="px-4 py-5 sm:px-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900">
-          Změna hesla
-        </h3>
-        <p className="mt-1 max-w-2xl text-sm text-gray-500">
-          Zde můžete změnit heslo k vašemu účtu.
-        </p>
-      </div>
+    <div className="space-y-6">
+      {error && (
+        <div className="p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
+          {error}
+        </div>
+      )}
 
-      <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-            {error}
-          </div>
-        )}
+      {success && (
+        <div className="p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 text-green-700 rounded-2xl">
+          {success}
+        </div>
+      )}
 
-        {success && (
-          <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Current Password */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <label htmlFor="currentPassword" className="block text-sm font-semibold text-gray-700 mb-3">
               Současné heslo
             </label>
             <input
               id="currentPassword"
               type="password"
               {...register('currentPassword')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
+              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+              placeholder="••••••••"
             />
             {errors.currentPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.currentPassword.message}</p>
+              <p className="mt-2 text-sm text-red-600">{errors.currentPassword.message}</p>
             )}
           </div>
+        </div>
 
-          <div>
-            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+        {/* New Password */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 mb-3">
               Nové heslo
             </label>
             <input
               id="newPassword"
               type="password"
               {...register('newPassword')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
+              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+              placeholder="••••••••"
             />
             {errors.newPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.newPassword.message}</p>
+              <p className="mt-2 text-sm text-red-600">{errors.newPassword.message}</p>
             )}
+            <p className="mt-2 text-xs text-gray-500">
+              Heslo musí mít alespoň 6 znaků.
+            </p>
           </div>
+        </div>
 
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Potvrzení nového hesla
+        {/* Confirm Password */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+            <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-3">
+              Potvrdit nové heslo
             </label>
             <input
               id="confirmPassword"
               type="password"
               {...register('confirmPassword')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
+              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+              placeholder="••••••••"
             />
             {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+              <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
             )}
           </div>
+        </div>
 
+        {/* Submit Button */}
+        <div className="flex justify-end">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="py-2 px-4 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-indigo-300"
+            className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Ukládám...' : 'Změnit heslo'}
+            {isSubmitting ? (
+              <span className="flex items-center space-x-2">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Měním heslo...</span>
+              </span>
+            ) : (
+              'Změnit heslo'
+            )}
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }
