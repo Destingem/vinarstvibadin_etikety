@@ -552,8 +552,19 @@ async function createWineRankings(
 /**
  * API endpoint to process raw scan events
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
+    // Verify the request is from an authorized source using URL parameter
+    const { searchParams } = new URL(request.url);
+    const providedKey = searchParams.get('key');
+    const expectedToken = process.env.CRON_SECRET || 'default-cron-secret';
+    
+    if (providedKey !== expectedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    console.log('Analytics processing triggered via cron...');
+    
     // Process all scan events
     const result = await processScanEvents();
     
@@ -569,14 +580,8 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * API endpoint to check the status of the processor
+ * Also support POST for manual triggering
  */
-export async function GET() {
-  return NextResponse.json(
-    { 
-      status: 'active',
-      message: 'Analytics processing service is running. Use POST to trigger processing.' 
-    },
-    { status: 200 }
-  );
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

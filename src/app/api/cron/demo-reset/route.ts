@@ -4,6 +4,15 @@ import { adminDatabases, DB_ID, WINES_COLLECTION_ID, MEMBERSHIPS_COLLECTION_ID, 
 // This endpoint resets the demo account every hour
 export async function GET(request: NextRequest) {
   try {
+    // Verify the request is from an authorized source using URL parameter
+    const { searchParams } = new URL(request.url);
+    const providedKey = searchParams.get('key');
+    const expectedToken = process.env.CRON_SECRET || 'default-cron-secret';
+    
+    if (providedKey !== expectedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     console.log('🚀 Hourly demo account reset triggered...');
     console.log(`📅 Date: ${new Date().toISOString()}`);
     
