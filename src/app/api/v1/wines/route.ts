@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
             totalCount,
             totalPages,
           },
+          timestamp: new Date().toISOString(),
           requestId: ctx.requestId
         }
       );
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
         wine,
         201,
         {
+          timestamp: new Date().toISOString(),
           requestId: ctx.requestId
         }
       );

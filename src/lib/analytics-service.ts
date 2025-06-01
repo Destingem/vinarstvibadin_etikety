@@ -11,19 +11,15 @@ const LANGUAGE_SCAN_STATS_COLLECTION_ID = 'language_scan_stats';
 const HOURLY_SCAN_STATS_COLLECTION_ID = 'hourly_scan_stats';
 const WINE_POPULARITY_RANKINGS_COLLECTION_ID = 'wine_popularity_rankings';
 
-// Types
+// Types - GDPR Compliant
 export interface ScanEvent {
-  timestamp: string;
-  ipAddress?: string;
-  userAgent?: string;
+  date: string; // YYYY-MM-DD format
+  hour: number; // 0-23
   deviceType: string;
   operatingSystem?: string;
   browserLanguage?: string;
   countryCode?: string;
-  regionCode?: string;
-  city?: string;
   languageUsed?: string;
-  referrer?: string;
   wineId: string;
   wineName: string;
   wineBatch?: string;

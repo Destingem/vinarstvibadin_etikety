@@ -168,8 +168,8 @@ export async function GET(request: NextRequest) {
             SCAN_EVENTS_COLLECTION_ID,
             [
               Query.equal('wineryId', userId),
-              Query.greaterThanEqual('timestamp', startDate),
-              Query.lessThanEqual('timestamp', endDate),
+              Query.greaterThanEqual('date', startDate.split('T')[0]),
+              Query.lessThanEqual('date', endDate.split('T')[0]),
               Query.limit(1000) // Reasonable limit
             ]
           );

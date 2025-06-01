@@ -385,27 +385,11 @@
             "documentSecurity": false,
             "attributes": [
                 {
-                    "key": "timestamp",
-                    "type": "string",
-                    "required": true,
-                    "array": false,
-                    "size": 128,
-                    "default": null
-                },
-                {
                     "key": "ipAddress",
                     "type": "string",
                     "required": false,
                     "array": false,
                     "size": 64,
-                    "default": null
-                },
-                {
-                    "key": "userAgent",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 256,
                     "default": null
                 },
                 {
@@ -441,35 +425,11 @@
                     "default": null
                 },
                 {
-                    "key": "regionCode",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 32,
-                    "default": null
-                },
-                {
-                    "key": "city",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 64,
-                    "default": null
-                },
-                {
                     "key": "languageUsed",
                     "type": "string",
                     "required": false,
                     "array": false,
                     "size": 32,
-                    "default": null
-                },
-                {
-                    "key": "referrer",
-                    "type": "string",
-                    "required": false,
-                    "array": false,
-                    "size": 128,
                     "default": null
                 },
                 {
@@ -527,20 +487,26 @@
                     "array": false,
                     "size": 64,
                     "default": null
+                },
+                {
+                    "key": "date",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 10,
+                    "default": null
+                },
+                {
+                    "key": "hour",
+                    "type": "integer",
+                    "required": true,
+                    "array": false,
+                    "min": 0,
+                    "max": 23,
+                    "default": null
                 }
             ],
             "indexes": [
-                {
-                    "key": "timestamp_idx",
-                    "type": "key",
-                    "status": "available",
-                    "attributes": [
-                        "timestamp"
-                    ],
-                    "orders": [
-                        "ASC"
-                    ]
-                },
                 {
                     "key": "wineId_idx",
                     "type": "key",
@@ -586,12 +552,34 @@
                     ]
                 },
                 {
-                    "key": "wine_timestamp_idx",
+                    "key": "date_idx",
                     "type": "key",
                     "status": "available",
                     "attributes": [
-                        "wineId",
-                        "timestamp"
+                        "date"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "hour_idx",
+                    "type": "key",
+                    "status": "available",
+                    "attributes": [
+                        "hour"
+                    ],
+                    "orders": [
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "date_hour_idx",
+                    "type": "key",
+                    "status": "available",
+                    "attributes": [
+                        "date",
+                        "hour"
                     ],
                     "orders": [
                         "ASC",
@@ -599,12 +587,25 @@
                     ]
                 },
                 {
-                    "key": "winery_timestamp_idx",
+                    "key": "wine_date_idx",
+                    "type": "key",
+                    "status": "available",
+                    "attributes": [
+                        "wineId",
+                        "date"
+                    ],
+                    "orders": [
+                        "ASC",
+                        "ASC"
+                    ]
+                },
+                {
+                    "key": "winery_date_idx",
                     "type": "key",
                     "status": "available",
                     "attributes": [
                         "wineryId",
-                        "timestamp"
+                        "date"
                     ],
                     "orders": [
                         "ASC",

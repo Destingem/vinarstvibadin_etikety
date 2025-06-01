@@ -74,95 +74,36 @@ function fallbackDeviceDetection(userAgent: string): 'MOBILE' | 'TABLET' | 'DESK
 }
 
 /**
- * Masks IP address for privacy (keeps only first two octets for IPv4)
+ * Gets country code from IP address for GDPR-compliant analytics
+ * Only returns country-level information, no precise location
  */
-function maskIpAddress(ip: string): string {
-  if (!ip) return '';
-  
-  // Handle IPv4
-  if (ip.includes('.')) {
-    const parts = ip.split('.');
-    if (parts.length === 4) {
-      return `${parts[0]}.${parts[1]}.*.*`;
-    }
-  }
-  
-  // Handle IPv6 - mask more aggressively
-  if (ip.includes(':')) {
-    const parts = ip.split(':');
-    if (parts.length > 2) {
-      return `${parts[0]}:${parts[1]}:****`;
-    }
-  }
-  
-  return ip;
-}
-
-/**
- * Gets geolocation data from IP address using ipinfo.io
- * Uses API key stored in environment variable IP_INFO_KEY
- */
-async function getGeolocationFromIp(ip: string): Promise<{
-  countryCode: string;
-  regionCode: string;
-  city: string;
-}> {
-  // Default values if lookup fails
-  const defaultGeo = {
-    countryCode: '',
-    regionCode: '',
-    city: ''
-  };
-  
+async function getCountryFromIp(ip: string): Promise<string> {
   // Skip geolocation for localhost or internal IPs
   if (ip === '127.0.0.1' || ip === 'localhost' || ip === '::1' || 
       ip.startsWith('192.168.') || ip.startsWith('10.') || 
       ip.startsWith('172.16.') || ip.startsWith('::ffff:')) {
-    console.log(`Skipping geolocation for local/internal IP: ${ip}`);
-    return {
-      countryCode: 'LOCAL',
-      regionCode: 'DEV',
-      city: 'Development'
-    };
+    return 'LOCAL';
   }
   
   try {
-    // Get API token from environment utility
     const apiToken = env.IP_INFO_KEY;
-    
-    if (!apiToken) {
-      console.warn('IP_INFO_KEY environment variable not set. Geolocation might be limited.');
-    }
-    
-    // Construct the API URL with token if available
     const apiUrl = apiToken 
-      ? `https://ipinfo.io/${ip}/json?token=${apiToken}`
-      : `https://ipinfo.io/${ip}/json`;
+      ? `https://ipinfo.io/${ip}/country?token=${apiToken}`
+      : `https://ipinfo.io/${ip}/country`;
     
-    console.log(`Fetching geolocation data for IP: ${ip}`);
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-    
+    const response = await fetch(apiUrl);
     if (!response.ok) {
-      throw new Error(`Geolocation lookup failed: ${response.status} ${response.statusText}`);
+      return '';
     }
     
-    const data = await response.json();
-    console.log('Geolocation data received:', JSON.stringify(data, null, 2));
-    
-    return {
-      countryCode: data.country || '',
-      regionCode: data.region || '',
-      city: data.city || ''
-    };
+    const countryCode = await response.text();
+    return countryCode.trim().toUpperCase();
   } catch (error) {
-    console.error('Error getting geolocation from IP:', error);
-    return defaultGeo;
+    console.error('Error getting country from IP:', error);
+    return '';
   }
 }
+
 
 /**
  * API endpoint to record a QR code scan event
@@ -183,25 +124,21 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Extract client IP address
+    // Extract client IP address for country lookup only
     const forwardedFor = request.headers.get('x-forwarded-for');
     const ip = forwardedFor ? forwardedFor.split(',')[0] : '127.0.0.1';
-    const maskedIp = maskIpAddress(ip);
     
-    // Get user agent
+    // Get user agent for device detection only (not stored)
     const userAgent = request.headers.get('user-agent') || '';
     
-    // Safely parse user agent information
-    let browserName = 'Unknown';
+    // Safely parse user agent information (for device detection only)
     let osInfo = 'Unknown';
     let deviceType: 'MOBILE' | 'TABLET' | 'DESKTOP' | 'UNKNOWN' = 'UNKNOWN';
     
     try {
       const parser = new UAParser(userAgent);
-      const browser = parser.getBrowser();
       const os = parser.getOS();
       
-      browserName = browser.name || 'Unknown';
       osInfo = os.name ? `${os.name} ${os.version || ''}`.trim() : 'Unknown';
       deviceType = getDeviceType(userAgent);
     } catch (error) {
@@ -214,41 +151,32 @@ export async function POST(request: NextRequest) {
     const acceptLanguage = request.headers.get('accept-language') || '';
     const browserLanguage = acceptLanguage.split(',')[0];
     
-    // Get referrer (if available)
-    const referrer = request.headers.get('referer') || '';
-    
-    // Create base scan event record
+    // Create GDPR-compliant scan event record with anonymized data
+    const now = new Date();
     const scanEvent = {
-      timestamp: new Date().toISOString(),
-      ipAddress: maskedIp,
-      userAgent: userAgent,
+      date: now.toISOString().split('T')[0], // YYYY-MM-DD format
+      hour: now.getHours(), // 0-23
       deviceType: deviceType,
       operatingSystem: osInfo,
       browserLanguage: browserLanguage,
-      countryCode: '', // Will be filled by geolocation
-      regionCode: '', // Will be filled by geolocation
-      city: '', // Will be filled by geolocation
+      countryCode: '', // Will be filled by country lookup
       languageUsed: data.languageUsed || browserLanguage.substring(0, 2),
-      referrer: referrer,
       wineId: wineId,
       wineName: wineName || 'Unknown Wine',
       wineBatch: wineBatch || '',
-      wineVintage: wineVintage ? String(wineVintage) : '', // Convert to string for Appwrite storage
+      wineVintage: wineVintage ? String(wineVintage) : '',
       wineryId: wineryId,
       wineryName: wineryName || 'Unknown Winery',
       winerySlug: winerySlug || '',
     };
     
-    // Try to get geolocation data
+    // Get country code only (GDPR compliant)
     try {
-      const geoData = await getGeolocationFromIp(ip);
-      
-      scanEvent.countryCode = geoData.countryCode;
-      scanEvent.regionCode = geoData.regionCode;
-      scanEvent.city = geoData.city;
+      const countryCode = await getCountryFromIp(ip);
+      scanEvent.countryCode = countryCode;
     } catch (geoError) {
-      console.error('Error getting geolocation:', geoError);
-      // Continue without geolocation data
+      console.error('Error getting country code:', geoError);
+      // Continue without country data
     }
     
     // Record the scan event using the analytics service

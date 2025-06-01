@@ -95,8 +95,7 @@ function groupByHour(events: any[]): Record<number, number> {
   }
   
   for (const event of events) {
-    const timestamp = new Date(event.timestamp);
-    const hour = timestamp.getUTCHours();
+    const hour = event.hour; // Use pre-calculated hour field
     result[hour]++;
   }
   
@@ -123,8 +122,9 @@ function groupByRegion(events: any[]): Record<string, {
   
   for (const event of events) {
     const countryCode = event.countryCode || 'unknown';
-    const regionCode = event.regionCode || 'unknown';
-    const city = event.city || 'unknown';
+    // Note: regionCode and city are no longer collected for GDPR compliance
+    const regionCode = 'unknown';
+    const city = 'unknown';
     
     // Initialize country if needed
     if (!result[countryCode]) {
@@ -174,15 +174,9 @@ function calculateWineRankings(events: any[]): Record<string, { count: number; n
  * Estimate the number of unique visitors based on IP addresses
  */
 function estimateUniqueVisitors(events: any[]): number {
-  const uniqueIps = new Set();
-  
-  for (const event of events) {
-    if (event.ipAddress) {
-      uniqueIps.add(event.ipAddress);
-    }
-  }
-  
-  return uniqueIps.size;
+  // Conservative estimate since we no longer store IP addresses for GDPR compliance
+  // Assume 80% of scans are unique visitors
+  return Math.floor(events.length * 0.8);
 }
 
 /**
@@ -200,8 +194,7 @@ async function aggregateDailyStats(dateStr: string) {
       ANALYTICS_DB_ID,
       SCAN_EVENTS_COLLECTION_ID,
       [
-        Query.greaterThanEqual('timestamp', startTime),
-        Query.lessThan('timestamp', endTime),
+        Query.equal('date', dateStr),
         Query.limit(5000) // Limit to 5000 records per day
       ]
     );

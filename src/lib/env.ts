@@ -30,6 +30,9 @@ export const env = {
   // Analytics/IP
   IP_INFO_KEY: getEnv('IP_INFO_KEY', false),
   
+  // Cron/Cleanup
+  CRON_SECRET: getEnv('CRON_SECRET', false, 'default-cron-secret'),
+  
   // Add other environment variables as needed, e.g.:
   // NODE_ENV: getEnv('NODE_ENV', false, 'development'),
   // DATABASE_URL: getEnv('DATABASE_URL', true),

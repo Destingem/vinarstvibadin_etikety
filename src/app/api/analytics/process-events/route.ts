@@ -19,7 +19,7 @@ async function processScanEvents() {
       ANALYTICS_DB_ID,
       SCAN_EVENTS_COLLECTION_ID,
       [
-        Query.orderDesc('timestamp'),
+        Query.orderDesc('date'),
         Query.limit(100)
       ]
     );
@@ -35,8 +35,7 @@ async function processScanEvents() {
     const wineryDateGroups: Record<string, Record<string, Record<string, any[]>>> = {};
     
     for (const event of scanEvents) {
-      const timestamp = new Date(event.timestamp);
-      const dateStr = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dateStr = event.date; // Already in YYYY-MM-DD format
       const wineryId = event.wineryId;
       const wineId = event.wineId;
       
@@ -132,13 +131,9 @@ async function createOrUpdateDailyScanStats(
       else deviceCounts.unknown++;
     }
     
-    // Estimate unique visitors by counting unique IP addresses
-    const uniqueIPs = new Set();
-    for (const event of events) {
-      if (event.ipAddress) {
-        uniqueIPs.add(event.ipAddress);
-      }
-    }
+    // Estimate unique visitors (conservative estimate since we no longer store IP)
+    // Use a heuristic: assume 80% of scans are unique visitors
+    const uniqueIPs = new Set([Math.floor(events.length * 0.8)]);
     
     // Check if there's an existing record
     const existingResponse = await adminDatabases.listDocuments(
@@ -207,8 +202,9 @@ async function createRegionalStats(
     
     for (const event of events) {
       const countryCode = event.countryCode || 'unknown';
-      const regionCode = event.regionCode || 'unknown';
-      const city = event.city || 'unknown';
+      // Note: regionCode and city are no longer collected for GDPR compliance
+      const regionCode = 'unknown';
+      const city = 'unknown';
       
       if (!regions[countryCode]) {
         regions[countryCode] = {};
@@ -382,8 +378,7 @@ async function createHourlyStats(
     }
     
     for (const event of events) {
-      const timestamp = new Date(event.timestamp);
-      const hour = timestamp.getHours();
+      const hour = event.hour; // Use pre-calculated hour field
       hours[hour]++;
     }
     
