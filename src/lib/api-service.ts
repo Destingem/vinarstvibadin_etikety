@@ -1,11 +1,21 @@
 import { ID, Query } from 'appwrite';
-import { adminDatabases, DB_ID } from '@/lib/appwrite-client';
+import { adminDatabases, API_DB_ID } from '@/lib/appwrite-client';
 // Use crypto module instead of uuid
 // import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 
 // Define API key collection ID
 export const API_KEYS_COLLECTION_ID = 'api_keys';
+
+// API key scopes/permissions
+export enum ApiScope {
+  WINES_READ = 'wines:read',
+  WINES_WRITE = 'wines:write',
+  WINES_DELETE = 'wines:delete',
+  QRCODES_GENERATE = 'qrcodes:generate',
+  ANALYTICS_READ = 'analytics:read',
+  ALL = '*'
+}
 
 // Interface for API key
 export interface ApiKey {
@@ -15,13 +25,19 @@ export interface ApiKey {
   name: string;
   key: string;
   keyHash: string;
+  scopes: ApiScope[];
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
 }
 
 // Function to create a new API key
-export async function createApiKey(userId: string, name: string, expiresAt: string | null = null): Promise<ApiKey> {
+export async function createApiKey(
+  userId: string, 
+  name: string, 
+  expiresAt: string | null = null,
+  scopes: ApiScope[] = [ApiScope.ALL]
+): Promise<ApiKey> {
   try {
     // Generate a new API key
     const key = `etw_${crypto.randomBytes(32).toString('hex')}`;
@@ -35,6 +51,7 @@ export async function createApiKey(userId: string, name: string, expiresAt: stri
       name,
       key, // In a production environment, consider not storing the plain key
       keyHash,
+      scopes,
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
       expiresAt
@@ -42,7 +59,7 @@ export async function createApiKey(userId: string, name: string, expiresAt: stri
     
     // Save to database
     const result = await adminDatabases.createDocument(
-      DB_ID,
+      API_DB_ID,
       API_KEYS_COLLECTION_ID,
       ID.unique(),
       apiKey
@@ -59,7 +76,7 @@ export async function createApiKey(userId: string, name: string, expiresAt: stri
 export async function getApiKeysByUserId(userId: string): Promise<ApiKey[]> {
   try {
     const response = await adminDatabases.listDocuments(
-      DB_ID,
+      API_DB_ID,
       API_KEYS_COLLECTION_ID,
       [
         Query.equal('userId', userId),
@@ -78,7 +95,7 @@ export async function getApiKeysByUserId(userId: string): Promise<ApiKey[]> {
 export async function deleteApiKey(keyId: string): Promise<boolean> {
   try {
     await adminDatabases.deleteDocument(
-      DB_ID,
+      API_DB_ID,
       API_KEYS_COLLECTION_ID,
       keyId
     );
@@ -91,14 +108,19 @@ export async function deleteApiKey(keyId: string): Promise<boolean> {
 }
 
 // Function to validate an API key
-export async function validateApiKey(key: string): Promise<{ valid: boolean; userId: string | null; keyId: string | null }> {
+export async function validateApiKey(key: string): Promise<{ 
+  valid: boolean; 
+  userId: string | null; 
+  keyId: string | null; 
+  scopes: ApiScope[];
+}> {
   try {
     // Hash the provided key
     const keyHash = crypto.createHash('sha256').update(key).digest('hex');
     
     // Look for a matching key hash
     const response = await adminDatabases.listDocuments(
-      DB_ID,
+      API_DB_ID,
       API_KEYS_COLLECTION_ID,
       [
         Query.equal('keyHash', keyHash)
@@ -106,20 +128,20 @@ export async function validateApiKey(key: string): Promise<{ valid: boolean; use
     );
     
     if (response.documents.length === 0) {
-      return { valid: false, userId: null, keyId: null };
+      return { valid: false, userId: null, keyId: null, scopes: [] };
     }
     
     const apiKey = response.documents[0] as unknown as ApiKey;
     
     // Check if the key is expired
     if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
-      return { valid: false, userId: null, keyId: null };
+      return { valid: false, userId: null, keyId: null, scopes: [] };
     }
     
     // Update the last used timestamp
     if (apiKey.$id) {
       await adminDatabases.updateDocument(
-        DB_ID,
+        API_DB_ID,
         API_KEYS_COLLECTION_ID,
         apiKey.$id,
         {
@@ -130,9 +152,25 @@ export async function validateApiKey(key: string): Promise<{ valid: boolean; use
       console.error('API key document is missing $id property');
     }
     
-    return { valid: true, userId: apiKey.userId, keyId: apiKey.$id || apiKey.id };
+    return { 
+      valid: true, 
+      userId: apiKey.userId, 
+      keyId: apiKey.$id || apiKey.id,
+      scopes: apiKey.scopes || [ApiScope.ALL]
+    };
   } catch (error) {
     console.error('Error validating API key:', error);
-    return { valid: false, userId: null, keyId: null };
+    return { valid: false, userId: null, keyId: null, scopes: [] };
   }
+}
+
+// Function to check if API key has required scope
+export function hasScope(userScopes: ApiScope[], requiredScope: ApiScope): boolean {
+  // If user has ALL scope, they can access everything
+  if (userScopes.includes(ApiScope.ALL)) {
+    return true;
+  }
+  
+  // Check if user has the specific required scope
+  return userScopes.includes(requiredScope);
 }

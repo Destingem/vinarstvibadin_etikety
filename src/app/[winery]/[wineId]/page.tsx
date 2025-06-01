@@ -250,7 +250,7 @@ export default async function WinePage({ params }: { params: Promise<{ winery: s
   console.log(`[Server] Rendering wine page for: ${wine.name}`);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Analytics tracking component - client-side only */}
       <AnalyticsTracker
         wineId={wine.$id}
@@ -261,146 +261,209 @@ export default async function WinePage({ params }: { params: Promise<{ winery: s
         wineBatch={wine.batch}
         wineVintage={wine.vintage}
       />
-      <div className="container mx-auto px-4 py-8">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-black mb-2">
-            {wine.name}
-          </h1>
-          <div className="text-black">
-            {wine.winery.name}
+      
+      {/* Ambient Background - Same as main page */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-100"></div>
+        
+        {/* Floating red orbs */}
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-r from-red-100/60 to-red-200/40 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-gradient-to-l from-red-200/50 to-red-300/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-2/3 left-2/3 w-64 h-64 bg-gradient-to-br from-red-150/40 to-red-100/30 rounded-full blur-3xl animate-pulse delay-500"></div>
+        
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.03]" 
+             style={{
+               backgroundImage: `radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.1) 1px, transparent 0)`,
+               backgroundSize: '50px 50px'
+             }}>
+        </div>
+        
+        {/* Noise texture */}
+        <div className="absolute inset-0 opacity-[0.02] mix-blend-multiply"
+             style={{
+               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+             }}>
+        </div>
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Header */}
+        <header className="mb-12 text-center">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl blur-sm"></div>
+            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+              <h1 className="text-5xl font-bold mb-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
+                {wine.name}
+              </h1>
+              <div className="text-xl text-gray-700 font-medium mb-6">
+                {wine.winery.name}
+              </div>
+              
+              <div className="flex flex-wrap justify-center gap-3">
+                {wine.vintage && (
+                  <div className="bg-gradient-to-r from-red-100/80 to-red-200/60 backdrop-blur-sm text-red-800 px-4 py-2 rounded-2xl text-sm font-medium border border-red-200/50">
+                    Ročník {wine.vintage}
+                  </div>
+                )}
+                {wine.batch && (
+                  <div className="bg-gradient-to-r from-gray-100/80 to-gray-200/60 backdrop-blur-sm text-gray-800 px-4 py-2 rounded-2xl text-sm font-medium border border-gray-200/50">
+                    Šarže {wine.batch}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          {wine.vintage && (
-            <div className="mt-2 inline-block bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
-              Ročník {wine.vintage}
-            </div>
-          )}
-          {wine.batch && (
-            <div className="mt-2 ml-2 inline-block bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
-              Šarže {wine.batch}
-            </div>
-          )}
         </header>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
-          <div className="bg-gray-50 p-6 rounded-lg shadow-sm order-2 md:order-1">
-            <h2 className="text-xl font-bold text-black mb-4 border-b pb-2">
-              Výživové údaje (na 100 ml)
-            </h2>
-            <div className="space-y-3 text-black">
-              {(wine.energyValueKJ || wine.energyValueKcal) && (
-                <div className="flex justify-between">
-                  <span className="font-medium">Energetická hodnota</span>
-                  <span>
-                    {wine.energyValueKJ && `${wine.energyValueKJ} kJ`}
-                    {wine.energyValueKJ && wine.energyValueKcal && ' / '}
-                    {wine.energyValueKcal && `${wine.energyValueKcal} kcal`}
-                  </span>
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
+          {/* Nutrition Facts */}
+          <div className="relative order-2 lg:order-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
+                Výživové údaje (na 100 ml)
+              </h2>
+              <div className="space-y-4 text-gray-800">
+                {(wine.energyValueKJ || wine.energyValueKcal) && (
+                  <div className="flex justify-between py-2 border-b border-gray-100/50">
+                    <span className="font-medium">Energetická hodnota</span>
+                    <span className="font-medium">
+                      {wine.energyValueKJ && `${wine.energyValueKJ} kJ`}
+                      {wine.energyValueKJ && wine.energyValueKcal && ' / '}
+                      {wine.energyValueKcal && `${wine.energyValueKcal} kcal`}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between py-2 border-b border-gray-100/50">
+                  <span className="font-medium">Tuky</span>
+                  <span className="font-medium">{wine.fat ?? 0} g</span>
+                </div>
+                <div className="flex justify-between pl-4 py-1 text-gray-600">
+                  <span>Z toho nasycené mastné kyseliny</span>
+                  <span>{wine.saturatedFat ?? 0} g</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100/50">
+                  <span className="font-medium">Sacharidy</span>
+                  <span className="font-medium">{wine.carbs ?? 0} g</span>
+                </div>
+                <div className="flex justify-between pl-4 py-1 text-gray-600">
+                  <span>Z toho cukry</span>
+                  <span>{wine.sugars ?? 0} g</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100/50">
+                  <span className="font-medium">Bílkoviny</span>
+                  <span className="font-medium">{wine.protein ?? 0} g</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100/50">
+                  <span className="font-medium">Sůl</span>
+                  <span className="font-medium">{wine.salt ?? 0} g</span>
+                </div>
+              </div>
+
+              {wine.alcoholContent && (
+                <div className="mt-8 p-4 bg-gradient-to-r from-red-50/80 to-red-100/60 backdrop-blur-sm rounded-2xl border border-red-200/50">
+                  <h3 className="font-bold text-red-800 mb-2">Obsah alkoholu</h3>
+                  <p className="text-red-700 text-lg font-medium">{wine.alcoholContent}% obj.</p>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="font-medium">Tuky</span>
-                <span>{wine.fat ?? 0} g</span>
-              </div>
-              <div className="flex justify-between pl-4 text-black">
-                <span>Z toho nasycené mastné kyseliny</span>
-                <span>{wine.saturatedFat ?? 0} g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Sacharidy</span>
-                <span>{wine.carbs ?? 0} g</span>
-              </div>
-              <div className="flex justify-between pl-4 text-black">
-                <span>Z toho cukry</span>
-                <span>{wine.sugars ?? 0} g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Bílkoviny</span>
-                <span>{wine.protein ?? 0} g</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Sůl</span>
-                <span>{wine.salt ?? 0} g</span>
-              </div>
             </div>
-
-            {wine.alcoholContent && (
-              <div className="mt-6 text-black">
-                <h3 className="font-medium">Obsah alkoholu</h3>
-                <p>{wine.alcoholContent}% obj.</p>
-              </div>
-            )}
           </div>
 
-          <div className="order-1 md:order-2">
-            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-              <h2 className="text-xl font-bold text-black mb-4 border-b pb-2">
-                Složení
-              </h2>
-              <p className="text-black">
-                {wine.ingredients || 'Hrozny, antioxidant: oxid siřičitý'}
-              </p>
+          {/* Composition and Origin */}
+          <div className="order-1 lg:order-2 space-y-6">
+            {/* Composition */}
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+              <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+                <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
+                  Složení
+                </h2>
+                <p className="text-gray-800 leading-relaxed">
+                  {wine.ingredients || 'Hrozny, antioxidant: oxid siřičitý'}
+                </p>
 
-              {wine.allergens && (
-                <div className="mt-4">
-                  <h3 className="font-bold text-amber-600">Alergeny</h3>
-                  <p className="text-amber-600">
-                    {wine.allergens}
-                  </p>
-                </div>
-              )}
+                {wine.allergens && (
+                  <div className="mt-6 p-4 bg-gradient-to-r from-amber-50/80 to-amber-100/60 backdrop-blur-sm rounded-2xl border border-amber-200/50">
+                    <h3 className="font-bold text-amber-800 mb-2">Alergeny</h3>
+                    <p className="text-amber-700">
+                      {wine.allergens}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* Origin */}
             {(wine.wineRegion || wine.wineSubregion || wine.wineVillage || wine.wineTract) && (
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h2 className="text-xl font-bold text-black mb-4 border-b pb-2">
-                  Původ
-                </h2>
-                <ul className="space-y-2 text-black">
-                  {(wine.wineRegion || wine.wineRegio) && (
-                    <li>
-                      <span className="font-medium">Vinařská oblast:</span> {wine.wineRegion || wine.wineRegio}
-                    </li>
-                  )}
-                  {wine.wineSubregion && (
-                    <li>
-                      <span className="font-medium">Vinařská podoblast:</span> {wine.wineSubregion}
-                    </li>
-                  )}
-                  {wine.wineVillage && (
-                    <li>
-                      <span className="font-medium">Obec:</span> {wine.wineVillage}
-                    </li>
-                  )}
-                  {wine.wineTract && (
-                    <li>
-                      <span className="font-medium">Trať:</span> {wine.wineTract}
-                    </li>
-                  )}
-                </ul>
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+                <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
+                    Původ
+                  </h2>
+                  <ul className="space-y-3 text-gray-800">
+                    {(wine.wineRegion || wine.wineRegio) && (
+                      <li className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100/50">
+                        <span className="font-medium text-gray-700">Vinařská oblast:</span>
+                        <span className="font-medium">{wine.wineRegion || wine.wineRegio}</span>
+                      </li>
+                    )}
+                    {wine.wineSubregion && (
+                      <li className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100/50">
+                        <span className="font-medium text-gray-700">Vinařská podoblast:</span>
+                        <span className="font-medium">{wine.wineSubregion}</span>
+                      </li>
+                    )}
+                    {wine.wineVillage && (
+                      <li className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100/50">
+                        <span className="font-medium text-gray-700">Obec:</span>
+                        <span className="font-medium">{wine.wineVillage}</span>
+                      </li>
+                    )}
+                    {wine.wineTract && (
+                      <li className="flex flex-col sm:flex-row sm:justify-between py-2">
+                        <span className="font-medium text-gray-700">Trať:</span>
+                        <span className="font-medium">{wine.wineTract}</span>
+                      </li>
+                    )}
+                  </ul>
+                </div>
               </div>
             )}
           </div>
         </div>
 
+        {/* Additional Information */}
         {wine.additionalInfo && (
-          <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-            <h2 className="text-xl font-bold text-black mb-4 border-b pb-2">
-              Další informace
-            </h2>
-            <p className="text-black">
-              {wine.additionalInfo}
-            </p>
+          <div className="relative mb-12">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
+            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+              <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
+                Další informace
+              </h2>
+              <p className="text-gray-800 leading-relaxed">
+                {wine.additionalInfo}
+              </p>
+            </div>
           </div>
         )}
 
-        <footer className="text-center text-black text-sm mt-12 pt-4 border-t">
-          <p>Plnič/Výrobce: {wine.winery.name}</p>
-          {wine.winery.address && (
-            <p>{wine.winery.address}</p>
-          )}
-          <p className="mt-4">
-            &copy; {new Date().getFullYear()} {wine.winery.name} - Informace dle EU nařízení 2021/2117
-          </p>
+        {/* Footer */}
+        <footer className="relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/60 to-white/40 rounded-3xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-xl p-8 rounded-3xl border border-gray-200/50 shadow-xl text-center">
+            <div className="text-gray-700 space-y-2">
+              <p className="font-medium">Plnič/Výrobce: {wine.winery.name}</p>
+              {wine.winery.address && (
+                <p className="text-gray-600">{wine.winery.address}</p>
+              )}
+              <p className="text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200/50">
+                &copy; {new Date().getFullYear()} {wine.winery.name} - Informace dle EU nařízení 2021/2117
+              </p>
+            </div>
+          </div>
         </footer>
       </div>
     </div>

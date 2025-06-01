@@ -23,22 +23,27 @@ const adminClient = new Client()
 // Set API key for admin operations
 if (process.env.APPWRITE_KEY) {
   try {
-    // Different versions of the Appwrite SDK use different methods to set the API key
-    // First try the newer method
-    if (typeof (adminClient as any).setKey === 'function') {
-      (adminClient as any).setKey(process.env.APPWRITE_KEY);
-    } 
-    // Then try the older method
-    else if (typeof (adminClient as any).setApiKey === 'function') {
-      (adminClient as any).setApiKey(process.env.APPWRITE_KEY);
-    }
-    // If none of these methods work, warn the user
-    else {
-      console.warn('WARNING: Could not set Appwrite API key - no compatible method found');
+    // In Appwrite SDK v17+, try the headers approach for API key
+    (adminClient as any).headers = {
+      ...((adminClient as any).headers || {}),
+      'X-Appwrite-Key': process.env.APPWRITE_KEY
+    };
+    console.log('✓ Appwrite API key set via headers for admin operations');
+  } catch (error) {
+    console.error('Error setting Appwrite API key via headers:', error);
+    
+    // Fallback: try setKey method
+    try {
+      if (typeof (adminClient as any).setKey === 'function') {
+        (adminClient as any).setKey(process.env.APPWRITE_KEY);
+        console.log('✓ Appwrite API key set via setKey method');
+      } else {
+        console.warn('WARNING: setKey method not available, using headers approach');
+      }
+    } catch (setKeyError) {
+      console.warn('Both headers and setKey approaches failed for API key');
       console.warn('This will cause issues with analytics and other admin operations');
     }
-  } catch (error) {
-    console.error('Error setting Appwrite API key:', error);
   }
 } else {
   console.warn('WARNING: APPWRITE_KEY environment variable not set');
@@ -54,6 +59,7 @@ export { ID, Query };
 // Appwrite constants
 export const DB_ID = 'wine_db';
 export const ANALYTICS_DB_ID = 'analytics';
+export const API_DB_ID = 'api';
 export const WINES_COLLECTION_ID = '6827655800216265c9fc';
 export const MEMBERSHIPS_COLLECTION_ID = 'memberships';
 
