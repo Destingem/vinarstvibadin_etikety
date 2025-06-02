@@ -7,7 +7,6 @@
     "build": "next build --no-lint",
     "start": "next start -p 3232",
     "lint": "next lint",
-    "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "db:setup": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/setup.ts",
