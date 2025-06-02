@@ -1,4 +1,5 @@
-import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
+import { Client, Account, Databases, Storage, ID, Query, Permission, Role } from 'appwrite';
+import { adminDatabases } from '@/lib/appwrite-client';
 
 // Initialize Appwrite client
 const client = new Client();
@@ -269,7 +270,7 @@ export async function deleteWine(id: string): Promise<boolean> {
 // Membership management functions
 export async function getMembershipByUserId(appwriteUserId: string): Promise<Membership | null> {
   try {
-    const response = await databases.listDocuments(
+    const response = await adminDatabases.listDocuments(
       DB_ID,
       MEMBERSHIPS_COLLECTION_ID,
       [Query.equal('appwriteUserId', appwriteUserId)]
@@ -287,7 +288,7 @@ export async function getMembershipByUserId(appwriteUserId: string): Promise<Mem
 
 export async function getAllMemberships(limit: number = 20, offset: number = 0): Promise<{ memberships: Membership[], total: number }> {
   try {
-    const response = await databases.listDocuments(
+    const response = await adminDatabases.listDocuments(
       DB_ID,
       MEMBERSHIPS_COLLECTION_ID,
       [Query.limit(limit), Query.offset(offset), Query.orderDesc('$createdAt')]
@@ -305,7 +306,7 @@ export async function getAllMemberships(limit: number = 20, offset: number = 0):
 
 export async function createMembership(membership: Omit<Membership, '$id' | '$createdAt' | '$updatedAt'>): Promise<Membership | null> {
   try {
-    const newMembership = await databases.createDocument(
+    const newMembership = await adminDatabases.createDocument(
       DB_ID,
       MEMBERSHIPS_COLLECTION_ID,
       ID.unique(),
@@ -318,6 +319,8 @@ export async function createMembership(membership: Omit<Membership, '$id' | '$cr
         isActive: membership.isActive,
         resetYear: membership.resetYear
       }
+      // Document permissions removed - server v1.7.4 doesn't support user-specific permissions
+      // Security relies on collection permissions + server-side validation
     );
     return newMembership as unknown as Membership;
   } catch (error) {
@@ -334,7 +337,7 @@ export async function updateMembership(id: string, data: Partial<Membership>): P
     delete updateData.$createdAt;
     delete updateData.$updatedAt;
     
-    const updatedMembership = await databases.updateDocument(
+    const updatedMembership = await adminDatabases.updateDocument(
       DB_ID,
       MEMBERSHIPS_COLLECTION_ID,
       id,

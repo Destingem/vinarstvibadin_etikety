@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
     
     let newWine;
     try {
-      newWine = await createWine(wineData);
+      newWine = await createWine(wineData, userId);
     } catch (error: any) {
       console.error('Error creating wine:', error);
       return NextResponse.json(

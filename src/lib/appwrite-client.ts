@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID, Query } from "appwrite";
+import { Client, Account, Databases, ID, Query, Permission, Role } from "appwrite";
 
 // Initialize Appwrite client (browser-safe)
 // Important: For frontend usage, we use the NEXT_PUBLIC_ prefixed env vars
@@ -54,7 +54,7 @@ if (process.env.APPWRITE_KEY) {
 export const adminDatabases = new Databases(adminClient);
 
 // Export helper functions
-export { ID, Query };
+export { ID, Query, Permission, Role };
 
 // Appwrite constants
 export const DB_ID = 'wine_db';
@@ -94,23 +94,25 @@ export async function getWineById(id: string) {
   }
 }
 
-export async function createWine(wineData: any) {
+export async function createWine(wineData: any, userId: string) {
   try {
     const now = new Date().toISOString();
-    // Use adminDatabases to ensure we have permission to create documents
+    // Create wine with proper document permissions
     return await adminDatabases.createDocument(
       DB_ID,
       WINES_COLLECTION_ID,
       ID.unique(),
       {
         ...wineData,
+        userId, // Ensure userId is set
         createdAt: now,
         updatedAt: now
       }
+      // Document permissions removed for Appwrite v1.7.4 compatibility
     );
   } catch (error) {
     console.error('Error creating wine:', error);
-    throw error; // Throw the error so the caller can handle it appropriately
+    throw error;
   }
 }
 

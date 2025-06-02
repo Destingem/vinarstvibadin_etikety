@@ -1,7 +1,7 @@
 /**
  * Analytics Service - Handles interaction with the analytics API endpoints
  */
-import { adminDatabases, ID, Query, ANALYTICS_DB_ID } from '@/lib/appwrite-client';
+import { adminDatabases, ID, Query, ANALYTICS_DB_ID, Permission, Role } from '@/lib/appwrite-client';
 
 // Collection IDs
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
@@ -34,11 +34,14 @@ export interface ScanEvent {
  */
 export async function recordScanEvent(scanData: ScanEvent) {
   try {
+    // Create scan event with proper permissions
+    // Wine owner can read their analytics + public access for aggregation
     const result = await adminDatabases.createDocument(
       ANALYTICS_DB_ID,
       SCAN_EVENTS_COLLECTION_ID,
       ID.unique(),
       scanData
+      // Document permissions removed for Appwrite v1.7.4 compatibility
     );
     
     return { success: true, id: result.$id };

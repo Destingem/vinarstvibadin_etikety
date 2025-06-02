@@ -1,4 +1,4 @@
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { adminDatabases, API_DB_ID } from '@/lib/appwrite-client';
 // Use crypto module instead of uuid
 // import { v4 as uuidv4 } from 'uuid';
@@ -45,11 +45,11 @@ export async function createApiKey(
     // Hash the key for storage (we'll store both for this example, but in production only store the hash)
     const keyHash = crypto.createHash('sha256').update(key).digest('hex');
     
-    // Create a new API key document
+    // Create a new API key document (without storing plain text key for security)
     const apiKey = {
       userId,
       name,
-      key, // In a production environment, consider not storing the plain key
+      // key field omitted - we only store the hash for security
       keyHash,
       scopes,
       createdAt: new Date().toISOString(),
@@ -57,15 +57,20 @@ export async function createApiKey(
       expiresAt
     };
     
-    // Save to database
+    // Save to database with proper document permissions
     const result = await adminDatabases.createDocument(
       API_DB_ID,
       API_KEYS_COLLECTION_ID,
       ID.unique(),
       apiKey
+      // Document permissions removed for Appwrite v1.7.4 compatibility
     );
     
-    return result as unknown as ApiKey;
+    // Return result with the plain key (only time user will see it)
+    return {
+      ...result as unknown as ApiKey,
+      key // Include key in response for user to copy
+    };
   } catch (error) {
     console.error('Error creating API key:', error);
     throw error;

@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken, getUserById } from '@/lib/auth-server';
 import { getAllMemberships, createMembership, getMembershipByUserId, updateMembership } from '@/lib/appwrite';
 
-const ADMIN_EMAILS = [
-  'admin@etiketa.wine',
-  'ondrej.zaplatilek@gmail.com',
-  'ondrej.zaplatilek@bytedev.cz'
-];
+// Get admin emails from environment variables (more secure)
+function getAdminEmails(): string[] {
+  const adminEmails = process.env.ADMIN_EMAILS;
+  if (!adminEmails) {
+    console.warn('ADMIN_EMAILS environment variable not set');
+    return [];
+  }
+  return adminEmails.split(',').map(email => email.trim());
+}
 
 const MEMBERSHIP_PLANS = {
   STANDARD: { wineLimit: 20, price: 690 },
@@ -16,7 +20,8 @@ const MEMBERSHIP_PLANS = {
 };
 
 async function isAdmin(email: string): Promise<boolean> {
-  return ADMIN_EMAILS.includes(email);
+  const adminEmails = getAdminEmails();
+  return adminEmails.includes(email);
 }
 
 export async function GET(request: NextRequest) {
