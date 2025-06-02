@@ -82,9 +82,8 @@ export async function POST(request: NextRequest) {
             name: wine.name,
             vintage: wine.vintage ? parseInt(wine.vintage) : null,
             batch: wine.batch || null,
-            additionalInfo: wine.description || '',
-            userId: wineryId
-          });
+            additionalInfo: wine.description || ''
+          }, wineryId);
           
           importResults.imported++;
         } catch (wineError: any) {

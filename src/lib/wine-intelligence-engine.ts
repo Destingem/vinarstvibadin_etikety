@@ -215,7 +215,7 @@ export class WineIntelligenceEngine {
     }
 
     // Temporal insights
-    if (behavior.peakHours.some(hour => hour >= 17 && hour <= 21)) {
+    if (behavior.peakHours.some((hour: number) => hour >= 17 && hour <= 21)) {
       insights.push('Populární pro večerní konzumaci');
       competitiveAdvantages.push('Vhodné pro prémiové večerní příležitosti');
     }
@@ -377,9 +377,9 @@ export class WineIntelligenceEngine {
     insights: string[]
   ): MarketSegment {
     const devices = [...new Set(scans.map(s => s.deviceType))];
-    const operatingSystems = [...new Set(scans.map(s => s.operatingSystem).filter(Boolean))];
-    const countries = [...new Set(scans.map(s => s.countryCode).filter(Boolean))];
-    const languages = [...new Set(scans.map(s => s.languageUsed).filter(Boolean))];
+    const operatingSystems = [...new Set(scans.map(s => s.operatingSystem).filter((os): os is string => Boolean(os)))];
+    const countries = [...new Set(scans.map(s => s.countryCode).filter((cc): cc is string => Boolean(cc)))];
+    const languages = [...new Set(scans.map(s => s.languageUsed).filter((lang): lang is string => Boolean(lang)))];
 
     // Analyze time patterns
     const hourCounts = this.countOccurrences(scans.map(s => s.hour));

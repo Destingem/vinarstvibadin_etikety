@@ -141,7 +141,7 @@ export function AdvancedTrendChart({
           x={new Date().toLocaleDateString('cs-CZ', { month: 'short', day: 'numeric' })}
           stroke={COLORS.warning}
           strokeDasharray="3 3"
-          label={{ value: "Dnes", position: "topRight" }}
+          label={{ value: "Dnes", position: "top" }}
         />
         
         <Brush 
@@ -214,7 +214,7 @@ export function AnomalyDetectionChart({ data, height = 300 }: AnomalyChartProps)
         {/* Actual values with anomaly highlighting */}
         <Scatter
           dataKey="value"
-          fill={(entry: any) => entry.anomalyColor}
+          fill="#8884d8"
         />
         
         <Line
