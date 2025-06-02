@@ -279,27 +279,37 @@ export default function ClientApiDashboard() {
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex items-center">
-                            <code className="font-mono bg-gray-50 px-2 py-1 rounded text-xs">
-                              {showKeys[key.id] ? key.key : `${key.key.substring(0, 10)}...`}
+                            <code 
+                              className="font-mono bg-gray-50 px-2 py-1 rounded text-xs"
+                              title={key.key ? "API klíč" : "Klíč je dostupný pouze při vytvoření z bezpečnostních důvodů"}
+                            >
+                              {key.key ? 
+                                (showKeys[key.id] ? key.key : `${key.key.substring(0, 10)}...`) :
+                                "••••••••••••••••••••••••"
+                              }
                             </code>
-                            <button
-                              onClick={() => toggleShowKey(key.id)}
-                              className="ml-2 text-gray-400 hover:text-gray-600"
-                              title={showKeys[key.id] ? "Skrýt klíč" : "Zobrazit klíč"}
-                            >
-                              {showKeys[key.id] ? (
-                                <EyeSlashIcon className="h-4 w-4" />
-                              ) : (
-                                <EyeIcon className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => copyToClipboard(key.key)}
-                              className="ml-2 text-gray-400 hover:text-gray-600"
-                              title="Kopírovat do schránky"
-                            >
-                              <ClipboardIcon className="h-4 w-4" />
-                            </button>
+                            {key.key && (
+                              <button
+                                onClick={() => toggleShowKey(key.id)}
+                                className="ml-2 text-gray-400 hover:text-gray-600"
+                                title={showKeys[key.id] ? "Skrýt klíč" : "Zobrazit klíč"}
+                              >
+                                {showKeys[key.id] ? (
+                                  <EyeSlashIcon className="h-4 w-4" />
+                                ) : (
+                                  <EyeIcon className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            {key.key && (
+                              <button
+                                onClick={() => copyToClipboard(key.key)}
+                                className="ml-2 text-gray-400 hover:text-gray-600"
+                                title="Kopírovat do schránky"
+                              >
+                                <ClipboardIcon className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
