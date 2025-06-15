@@ -136,29 +136,31 @@ export default function QRCodesPage() {
   };
   
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">
+    <div className="px-3 sm:px-4 lg:px-8 max-w-7xl mx-auto">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2 sm:mb-3">
           QR kódy pro etikety
         </h1>
-        <p className="text-gray-600 text-lg leading-relaxed">
+        <p className="text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed">
           Jednoduše vyberte víno ze seznamu a stáhněte QR kód pro své etikety.
         </p>
       </div>
       
-      <div className="mt-8 max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-2xl">
+            <div className="flex items-start sm:items-center mb-4 sm:mb-6">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Vyberte víno pro generování QR kódu
-              </h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                  Vyberte víno pro generování QR kódu
+                </h3>
+              </div>
             </div>
             
             {error && (
@@ -233,55 +235,55 @@ export default function QRCodesPage() {
             
             {qrCodeData && !loading && (
               <div>
-                <div className="grid xl:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8">
                   <div>
                     <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-green-50/80 to-white/60 rounded-3xl"></div>
-                      <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-green-200/50 shadow-2xl">
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+                      <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-green-200/50 shadow-2xl">
                         <div className="flex flex-col items-center">
-                          <div className="w-80 h-80 bg-white/60 backdrop-blur-sm flex items-center justify-center p-4 rounded-3xl border border-gray-200/50 shadow-lg mb-6">
+                          <div className="w-64 h-64 sm:w-80 sm:h-80 bg-white/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-gray-200/50 shadow-lg mb-4 sm:mb-6">
                             <Image
                               src={qrCodeData.qrCode}
                               alt={`QR kód pro víno ${qrCodeData.wine.name}`}
                               width={300}
                               height={300}
-                              className="max-w-full max-h-full rounded-2xl"
+                              className="max-w-full max-h-full rounded-xl sm:rounded-2xl"
                             />
                           </div>
                         
                           <div className="w-full">
-                            <h4 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+                            <h4 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-2 text-center leading-tight">
                               {qrCodeData.wine.name}
                               {qrCodeData.wine.vintage ? ` (${qrCodeData.wine.vintage})` : ''}
                               {qrCodeData.wine.batch ? ` - ${qrCodeData.wine.batch}` : ''}
                             </h4>
                             
-                            <div className="mt-6 p-4 bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-200/50">
-                              <p className="text-sm font-medium text-gray-600 mb-2">
+                            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-gray-200/50">
+                              <p className="text-xs sm:text-sm font-medium text-gray-600 mb-2">
                                 QR kód URL:
                               </p>
                               <a
                                 href={qrCodeData.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm text-blue-600 hover:text-blue-700 break-all font-medium transition-colors duration-200"
+                                className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 break-all font-medium transition-colors duration-200"
                               >
                                 {qrCodeData.url}
                               </a>
                             </div>
                             
-                            <div className="mt-8 grid grid-cols-1 gap-4">
+                            <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
                               <button
                                 type="button"
                                 onClick={handleDownload}
-                                className="group relative bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-green-500 hover:to-green-600 shadow-lg hover:shadow-green-500/30"
+                                className="w-full group relative bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:from-green-500 hover:to-green-600 shadow-lg hover:shadow-green-500/30"
                               >
                                 <span className="flex items-center justify-center space-x-2">
-                                  <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                  <svg className="w-4 h-4 sm:w-5 sm:h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                                   </svg>
-                                  <span>Stáhnout QR kód</span>
-                                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <span className="text-sm sm:text-base">Stáhnout QR kód</span>
+                                  <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                   </svg>
                                 </span>
@@ -292,9 +294,9 @@ export default function QRCodesPage() {
                                   href={qrCodeData.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                  className="inline-flex items-center justify-center px-3 py-2 sm:px-4 sm:py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                 >
-                                  <svg className="w-4 h-4 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                  <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
                                     <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
                                   </svg>
@@ -303,9 +305,9 @@ export default function QRCodesPage() {
                                 
                                 <Link
                                   href={`/dashboard/wines/${qrCodeData.wine.id || qrCodeData.wine.$id}`}
-                                  className="inline-flex items-center justify-center px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                  className="inline-flex items-center justify-center px-3 py-2 sm:px-4 sm:py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
                                 >
-                                  <svg className="w-4 h-4 mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                  <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
                                     <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
                                   </svg>

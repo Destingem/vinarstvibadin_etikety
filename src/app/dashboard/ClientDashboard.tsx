@@ -110,26 +110,26 @@ export default function ClientDashboard() {
   const dashboardData = data || fallbackData;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="px-3 sm:px-4 lg:px-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="md:flex md:items-center md:justify-between mb-8">
+      <div className="md:flex md:items-center md:justify-between mb-6 sm:mb-8">
         <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
             Dashboard
           </h1>
-          <p className="mt-1 text-gray-600">Vítejte zpět, {dashboardData.winery?.name || user?.name}</p>
+          <p className="mt-1 text-sm sm:text-base text-gray-600 truncate">Vítejte zpět, {dashboardData.winery?.name || user?.name}</p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
           <Link
             href="/dashboard/wines/new"
-            className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30"
+            className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 w-full sm:w-auto"
           >
-            <span className="flex items-center space-x-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span className="flex items-center justify-center space-x-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              <span>Přidat nové víno</span>
-              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <span className="text-sm sm:text-base">Přidat nové víno</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </span>
@@ -138,35 +138,35 @@ export default function ClientDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-6 sm:mb-8">
         {/* Total Wines Card */}
         <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
               </div>
-              <div className="ml-4 flex-1">
-                <dt className="text-sm font-medium text-gray-600">
+              <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                <dt className="text-xs sm:text-sm font-medium text-gray-600 truncate">
                   Celkový počet vín
                 </dt>
-                <dd className="mt-1 text-3xl font-bold text-gray-900">
+                <dd className="mt-1 text-2xl sm:text-3xl font-bold text-gray-900">
                   {dashboardData.winery?._count?.wines || 0}
                 </dd>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-3 sm:mt-4">
               <Link
                 href="/dashboard/wines"
-                className="text-red-600 hover:text-red-700 font-medium text-sm transition-colors duration-200 flex items-center space-x-1"
+                className="text-red-600 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors duration-200 flex items-center space-x-1"
               >
                 <span>Zobrazit všechna vína</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
@@ -176,35 +176,35 @@ export default function ClientDashboard() {
 
         {/* Account Info Card */}
         <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
               </div>
-              <div className="ml-4 flex-1">
-                <dt className="text-sm font-medium text-gray-600">
+              <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                <dt className="text-xs sm:text-sm font-medium text-gray-600">
                   Vinařství
                 </dt>
-                <dd className="mt-1 text-lg font-bold text-gray-900">
+                <dd className="mt-1 text-base sm:text-lg font-bold text-gray-900 truncate">
                   {dashboardData.winery?.name || user?.name}
                 </dd>
-                <p className="text-sm text-gray-500 truncate">
+                <p className="text-xs sm:text-sm text-gray-500 truncate">
                   {user?.email}
                 </p>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-3 sm:mt-4">
               <Link
                 href="/dashboard/settings"
-                className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors duration-200 flex items-center space-x-1"
+                className="text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm transition-colors duration-200 flex items-center space-x-1"
               >
                 <span>Upravit nastavení</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Link>
@@ -300,43 +300,43 @@ export default function ClientDashboard() {
       </div>
 
       {/* Quick Guide */}
-      <div className="relative mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-        <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8">
+      <div className="relative mb-6 sm:mb-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+        <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-lg">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8">
             Rychlý průvodce
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-4 lg:gap-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">1</span>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <span className="text-white font-bold text-lg sm:text-xl">1</span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">
                 Přidejte víno
               </h3>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Vytvořte nový záznam pro vaše víno s výživovými údaji a složením.
               </p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">2</span>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <span className="text-white font-bold text-lg sm:text-xl">2</span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">
                 Vygenerujte QR kód
               </h3>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Po přidání vína si stáhněte QR kód pro umístění na etiketu.
               </p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">3</span>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <span className="text-white font-bold text-lg sm:text-xl">3</span>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">
                 Umístěte na etiketu
               </h3>
-              <p className="text-gray-600">
+              <p className="text-sm sm:text-base text-gray-600">
                 Použijte vygenerovaný QR kód na etiketě vašeho vína.
               </p>
             </div>
@@ -345,30 +345,30 @@ export default function ClientDashboard() {
       </div>
 
       {/* Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Analytics Card */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-purple-200/60 shadow-lg">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-purple-200/60 shadow-lg">
+            <div className="flex items-center mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="ml-4 text-xl font-semibold text-gray-900">
+              <h3 className="ml-3 sm:ml-4 text-lg sm:text-xl font-semibold text-gray-900">
                 Analytika
               </h3>
             </div>
-            <p className="text-gray-600 mb-4">
+            <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
               Sledujte statistiky načtení QR kódů vašich vín a získejte cenné informace o zájmu spotřebitelů.
             </p>
             <Link
               href="/dashboard/analytics"
-              className="text-purple-600 hover:text-purple-700 font-medium flex items-center space-x-1 transition-colors duration-200"
+              className="text-purple-600 hover:text-purple-700 font-medium text-sm sm:text-base flex items-center space-x-1 transition-colors duration-200"
             >
               <span>Zobrazit analýzu</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
@@ -377,27 +377,27 @@ export default function ClientDashboard() {
 
         {/* API Access Card */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-orange-200/60 shadow-lg">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-orange-200/60 shadow-lg">
+            <div className="flex items-center mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="ml-4 text-xl font-semibold text-gray-900">
+              <h3 className="ml-3 sm:ml-4 text-lg sm:text-xl font-semibold text-gray-900">
                 API přístup
               </h3>
             </div>
-            <p className="text-gray-600 mb-4">
+            <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
               Získejte přístup k API pro integraci dat o vínech do svých aplikací nebo webových stránek.
             </p>
             <Link
               href="/dashboard/api"
-              className="text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 transition-colors duration-200"
+              className="text-orange-600 hover:text-orange-700 font-medium text-sm sm:text-base flex items-center space-x-1 transition-colors duration-200"
             >
               <span>Spravovat API klíče</span>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
@@ -406,30 +406,30 @@ export default function ClientDashboard() {
       </div>
       
       {/* Partner Services - CTA Banners */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
           Naše služby
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Byte Development Banner */}
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
-            <div className="relative bg-gradient-to-r from-blue-500 to-indigo-600 rounded-3xl shadow-lg overflow-hidden">
-              <div className="px-8 py-8">
-                <h3 className="text-2xl font-bold text-white mb-3">
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+            <div className="relative bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
+              <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-3">
                   Vývoj webových stránek
                 </h3>
-                <p className="text-blue-100 mb-6 leading-relaxed">
+                <p className="text-blue-100 mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed">
                   Byte Development - profesionální tvorba moderních webových stránek a aplikací pro vaše podnikání.
                 </p>
                 <a
                   href="https://bytedevelopment.cz"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white border border-white/20 py-3 px-6 rounded-2xl font-medium hover:bg-white/20 transition-all duration-200 space-x-2"
+                  className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white border border-white/20 py-2 px-4 sm:py-3 sm:px-6 rounded-xl sm:rounded-2xl font-medium hover:bg-white/20 transition-all duration-200 space-x-1 sm:space-x-2 text-sm sm:text-base"
                 >
                   <span>Navštívit stránky</span>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </a>
@@ -439,23 +439,23 @@ export default function ClientDashboard() {
           
           {/* Parcel View Banner */}
           <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-green-600 via-teal-600 to-emerald-600 rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
-            <div className="relative bg-gradient-to-r from-green-500 to-teal-600 rounded-3xl shadow-lg overflow-hidden">
-              <div className="px-8 py-8">
-                <h3 className="text-2xl font-bold text-white mb-3">
+            <div className="absolute -inset-1 bg-gradient-to-r from-green-600 via-teal-600 to-emerald-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+            <div className="relative bg-gradient-to-r from-green-500 to-teal-600 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
+              <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-3">
                   Promo záběry dronem
                 </h3>
-                <p className="text-green-100 mb-6 leading-relaxed">
+                <p className="text-green-100 mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed">
                   Parcel View - profesionální letecké snímky a videa pro prezentaci vašeho vinařství a vinic.
                 </p>
                 <a
                   href="https://parcelview.cz"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white border border-white/20 py-3 px-6 rounded-2xl font-medium hover:bg-white/20 transition-all duration-200 space-x-2"
+                  className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white border border-white/20 py-2 px-4 sm:py-3 sm:px-6 rounded-xl sm:rounded-2xl font-medium hover:bg-white/20 transition-all duration-200 space-x-1 sm:space-x-2 text-sm sm:text-base"
                 >
                   <span>Zobrazit ukázky</span>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </a>

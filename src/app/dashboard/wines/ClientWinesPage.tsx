@@ -296,68 +296,76 @@ export default function ClientWinesPage() {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="px-3 sm:px-4 lg:px-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="sm:flex sm:items-center sm:justify-between mb-8">
-        <div className="sm:flex-auto">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+      <div className="mb-6 sm:mb-8">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
             Správa vín
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
             Seznam všech vašich vín, pro která můžete generovat QR kódy
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center gap-3">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="relative inline-flex items-center px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-          >
-            <svg className="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-            </svg>
-            Filtry
-            {(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) && (
-              <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
-                {(filterVintage !== null ? 1 : 0) + (filterAlcohol !== null ? 1 : 0) + (filterBatch !== null ? 1 : 0) + (filterRegion !== null ? 1 : 0) + ((filterDateFrom !== null || filterDateTo !== null) ? 1 : 0)}
-              </span>
-            )}
-          </button>
-          
-          <button
-            onClick={() => setShowBackupModal(!showBackupModal)}
-            className="inline-flex items-center px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50"
-          >
-            <svg className="mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h1a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h1v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
-            </svg>
-            Import/Export
-          </button>
-          
+        
+        {/* Action buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 lg:gap-3">
+          {/* Primary action - Add wine */}
           <Link
             href="/dashboard/wines/new"
-            className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-2.5 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30"
+            className="order-1 sm:order-4 group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 sm:px-6 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 w-full sm:w-auto"
           >
-            <span className="flex items-center space-x-2">
-              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <span className="flex items-center justify-center space-x-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
-              <span>Přidat víno</span>
-              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <span className="text-sm sm:text-base">Přidat víno</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </span>
           </Link>
+          
+          {/* Secondary actions */}
+          <div className="order-2 sm:order-1 flex gap-2 sm:gap-3">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex-1 sm:flex-none relative inline-flex items-center justify-center px-3 py-2.5 sm:px-4 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            >
+              <svg className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+              </svg>
+              <span className="hidden sm:inline">Filtry</span>
+              <span className="sm:hidden">Filtr</span>
+              {(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) && (
+                <span className="ml-1 sm:ml-2 inline-flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                  {(filterVintage !== null ? 1 : 0) + (filterAlcohol !== null ? 1 : 0) + (filterBatch !== null ? 1 : 0) + (filterRegion !== null ? 1 : 0) + ((filterDateFrom !== null || filterDateTo !== null) ? 1 : 0)}
+                </span>
+              )}
+            </button>
+            
+            <button
+              onClick={() => setShowBackupModal(!showBackupModal)}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 py-2.5 sm:px-4 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50"
+            >
+              <svg className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h1a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h1v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
+              </svg>
+              <span className="hidden sm:inline">Import/Export</span>
+              <span className="sm:hidden">I/E</span>
+            </button>
+          </div>
         </div>
       </div>
       
       {/* Search box */}
-      <div className="mt-6 mb-6">
+      <div className="mb-4 sm:mb-6">
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-xl sm:rounded-2xl"></div>
+          <div className="relative bg-white/60 backdrop-blur-sm p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-gray-200/50">
           <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-              <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
               </svg>
             </div>
@@ -367,16 +375,16 @@ export default function ClientWinesPage() {
               id="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-12 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 text-gray-900"
+              className="w-full pl-10 pr-10 sm:pl-12 sm:pr-12 py-2.5 sm:py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 text-gray-900 text-sm sm:text-base"
               placeholder="Hledat podle názvu, ročníku nebo šarže..."
             />
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-red-600 transition-colors duration-200"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4 text-gray-500 hover:text-red-600 transition-colors duration-200"
                 title="Vymazat hledání"
               >
-                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               </button>

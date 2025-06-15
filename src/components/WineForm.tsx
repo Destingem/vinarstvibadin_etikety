@@ -150,34 +150,34 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
   };
   
   return (
-    <div className="relative max-w-4xl mx-auto">
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-      <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
+    <div className="relative max-w-4xl mx-auto px-3 sm:px-0">
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
+      <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-2xl">
         
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+        <div className="mb-6 sm:mb-8">
+          <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
             {isEditing ? 'Upravit víno' : 'Přidat nové víno'}
           </h3>
         </div>
         
         {error && (
-          <div className="mb-6 p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-xl sm:rounded-2xl text-sm sm:text-base">
             {error}
           </div>
         )}
         
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
           
           {/* Basic Wine Information */}
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-              <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="w-2 h-2 bg-red-600 rounded-full mr-3"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-xl sm:rounded-2xl"></div>
+            <div className="relative bg-white/60 backdrop-blur-sm p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-gray-200/50">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center">
+                <div className="w-2 h-2 bg-red-600 rounded-full mr-2 sm:mr-3"></div>
                 Základní informace
               </h4>
               
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2">
                 <div className="col-span-2 sm:col-span-1">
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                     Název vína *
@@ -186,7 +186,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     type="text"
                     id="name"
                     {...register('name')}
-                    className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    className="w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 text-sm sm:text-base"
                   />
                   {errors.name && (
                     <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -481,32 +481,32 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
           </div>
           
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-4 pt-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6 sm:justify-end">
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-6 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
+              className="order-2 sm:order-1 px-4 py-2.5 sm:px-6 sm:py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
             >
               Zrušit
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group relative px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="order-1 sm:order-2 group relative px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="flex items-center justify-center space-x-2">
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Ukládám...</span>
+                    <span className="text-sm sm:text-base">Ukládám...</span>
                   </>
                 ) : (
                   <>
-                    <span>{isEditing ? 'Upravit víno' : 'Přidat víno'}</span>
-                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span className="text-sm sm:text-base">{isEditing ? 'Upravit víno' : 'Přidat víno'}</span>
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </>

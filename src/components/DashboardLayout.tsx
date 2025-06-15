@@ -123,72 +123,92 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Mobile menu */}
-      <div className="lg:hidden">
-        <div className="fixed inset-0 flex z-50 lg:hidden" role="dialog" aria-modal="true">
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
           {/* Off-canvas menu backdrop */}
-          {isMobileMenuOpen && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={() => setIsMobileMenuOpen(false)}></div>
-          )}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+            aria-hidden="true" 
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
 
           {/* Off-canvas menu */}
-          <div className={`relative flex-1 flex flex-col max-w-xs w-full transition-transform transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="relative bg-white/90 backdrop-blur-xl border-r border-gray-200/50 h-full">
-              <div className="absolute top-0 right-0 -mr-12 pt-2">
-                <button
-                  type="button"
-                  className="ml-1 flex items-center justify-center h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <span className="sr-only">Zavřít menu</span>
-                  <svg className="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+          <div className="relative flex flex-col h-full max-w-xs w-full bg-white shadow-xl">
+            {/* Close button inside the menu */}
+            <div className="absolute top-0 right-0 p-3 z-10">
+              <button
+                type="button"
+                className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <span className="sr-only">Zavřít menu</span>
+                <svg className="h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
-              <div className="flex-shrink-0 flex items-center px-6 py-6">
-                <Link href="/dashboard" className="flex items-center space-x-3">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-800 rounded-xl blur-sm opacity-75"></div>
-                    <div className="relative w-8 h-8 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center shadow-2xl">
-                      <span className="text-white font-bold text-sm">E</span>
-                    </div>
+            {/* Header */}
+            <div className="flex-shrink-0 flex items-center px-4 py-6 pt-14">
+              <Link href="/dashboard" className="flex items-center space-x-3" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-800 rounded-xl blur-sm opacity-75"></div>
+                  <div className="relative w-8 h-8 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center shadow-2xl">
+                    <span className="text-white font-bold text-sm">E</span>
                   </div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    etiketa.wine
-                  </h1>
-                </Link>
-              </div>
-              
-              <div className="mt-2 flex-1 h-0 overflow-y-auto px-4">
-                <nav className="space-y-2">
-                  {navigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`${
-                        pathname === item.href
-                          ? 'bg-red-50/80 text-red-700 border-red-200/50'
-                          : 'text-gray-700 hover:bg-white/60 hover:text-gray-900 border-transparent'
-                      } group flex items-center px-3 py-3 text-base font-medium rounded-2xl transition-all duration-200 backdrop-blur-sm border`}
-                    >
-                      <div className={`${
-                        pathname === item.href
-                          ? 'text-red-600'
-                          : 'text-gray-500 group-hover:text-gray-700'
-                      } mr-4 transition-colors duration-200`}>
-                        {item.icon}
-                      </div>
-                      {item.name}
-                    </Link>
-                  ))}
-                </nav>
+                </div>
+                <h1 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  etiketa.wine
+                </h1>
+              </Link>
+            </div>
+            
+            {/* Navigation */}
+            <div className="flex-1 overflow-y-auto px-4">
+              <nav className="space-y-1 pb-6">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`${
+                      pathname === item.href
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-transparent'
+                    } group flex items-center px-3 py-3 text-base font-medium rounded-lg transition-all duration-200 border`}
+                  >
+                    <div className={`${
+                      pathname === item.href
+                        ? 'text-red-600'
+                        : 'text-gray-500 group-hover:text-gray-700'
+                    } mr-3 flex-shrink-0 transition-colors duration-200`}>
+                      {item.icon}
+                    </div>
+                    {item.name}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+
+            {/* Footer - User info */}
+            <div className="flex-shrink-0 border-t border-gray-200 p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">{user?.name?.charAt(0) || 'U'}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Static sidebar for desktop */}
       <div className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 z-40">
@@ -235,50 +255,75 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-72 flex flex-col flex-1 relative z-10">
-        {/* Top navigation */}
-        <div className="sticky top-0 z-30 flex-shrink-0 flex h-16 bg-white/70 backdrop-blur-xl border-b border-gray-200/50">
+      <div className="lg:pl-72 flex flex-col min-h-screen relative">
+        {/* Top navigation - Fixed header */}
+        <header className="sticky top-0 z-40 flex-shrink-0 flex h-14 sm:h-16 bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
+          {/* Mobile menu button */}
           <button
             type="button"
-            className="px-4 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500/50 lg:hidden transition-colors"
+            className="flex items-center justify-center w-14 sm:w-16 text-gray-600 hover:text-gray-900 hover:bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500/50 lg:hidden transition-colors"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <span className="sr-only">Otevřít menu</span>
-            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5 sm:h-6 sm:w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
-          <div className="flex-1 px-4 flex justify-between items-center">
-            <div className="flex-1 flex items-center">
-              {/* Placeholder for search */}
-            </div>
-            <div className="ml-4 flex items-center space-x-4">
-              {/* Demo account indicator */}
-              {isDemo && (
-                <div className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full border border-orange-200">
-                  DEMO ÚČET
+          {/* Mobile logo - shown only on mobile when menu is closed */}
+          <div className="flex-1 flex items-center lg:hidden px-2">
+            <Link href="/dashboard" className="flex items-center space-x-2">
+              <div className="relative">
+                <div className="w-6 h-6 bg-gradient-to-br from-red-600 to-red-800 rounded-lg flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-xs">E</span>
                 </div>
-              )}
-              {/* Profile section */}
-              <div className="flex items-center space-x-3">
-                <div className="text-sm font-medium text-gray-700">
-                  {user?.name || ''}
-                </div>
-                <button 
-                  onClick={logout}
-                  className="px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/80 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                >
-                  Odhlásit
-                </button>
               </div>
+              <h1 className="text-base font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                etiketa.wine
+              </h1>
+            </Link>
+          </div>
+
+          {/* Desktop content area - hidden on mobile */}
+          <div className="hidden lg:flex flex-1 items-center px-4">
+            {/* Breadcrumb or page title could go here */}
+          </div>
+
+          {/* Right side content */}
+          <div className="flex items-center space-x-2 sm:space-x-3 px-2 sm:px-4">
+            {/* Demo account indicator */}
+            {isDemo && (
+              <div className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full border border-orange-200">
+                <span className="hidden sm:inline">DEMO ÚČET</span>
+                <span className="sm:hidden">DEMO</span>
+              </div>
+            )}
+            
+            {/* Profile section */}
+            <div className="flex items-center space-x-2">
+              {/* User name - hidden on mobile */}
+              <div className="text-sm font-medium text-gray-700 hidden md:block truncate max-w-32 lg:max-w-none">
+                {user?.name || ''}
+              </div>
+              
+              {/* Logout button */}
+              <button 
+                onClick={logout}
+                className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-auto sm:px-3 bg-white/70 hover:bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-lg sm:rounded-xl text-gray-700 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                title="Odhlásit"
+              >
+                <span className="hidden sm:inline text-sm font-medium mr-1">Odhlásit</span>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Main content */}
         <main className="flex-1">
-          <div className="py-8">
+          <div className="py-4 sm:py-6 lg:py-8">
             {children}
           </div>
         </main>

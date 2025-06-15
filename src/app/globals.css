@@ -41,3 +41,36 @@ code {
 
 /* Default black text for all elements */
 
+/* Mobile optimization - Better touch targets and spacing */
+@media (max-width: 640px) {
+  /* Ensure minimum tap target size on mobile */
+  button, a[href] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better text readability on mobile */
+  body {
+    line-height: 1.6;
+  }
+  
+  /* Prevent horizontal scroll on mobile */
+  html, body {
+    overflow-x: hidden;
+  }
+  
+  /* Better form inputs on mobile */
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Better spacing for tablet layout */
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
