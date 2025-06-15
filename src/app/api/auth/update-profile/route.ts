@@ -47,6 +47,50 @@ export async function POST(request: NextRequest) {
       // Get user by ID for validation
       const user = await getUserById(decoded.userId);
       
+      // Check 6-month restriction for name/slug changes separately
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      
+      if (updateField === 'name' || updateField === 'all') {
+        const lastNameUpdate = user.prefs?.lastWineryNameUpdate;
+        if (lastNameUpdate) {
+          const lastNameUpdateDate = new Date(lastNameUpdate);
+          if (lastNameUpdateDate > sixMonthsAgo) {
+            const nextAllowedDate = new Date(lastNameUpdateDate);
+            nextAllowedDate.setMonth(nextAllowedDate.getMonth() + 6);
+            
+            return NextResponse.json(
+              { 
+                message: `Název vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od ${nextAllowedDate.toLocaleDateString('cs-CZ')}`,
+                nextAllowedDate: nextAllowedDate.toISOString(),
+                restrictedField: 'name'
+              },
+              { status: 429 }
+            );
+          }
+        }
+      }
+      
+      if (updateField === 'slug' || updateField === 'all') {
+        const lastSlugUpdate = user.prefs?.lastWinerySlugUpdate;
+        if (lastSlugUpdate) {
+          const lastSlugUpdateDate = new Date(lastSlugUpdate);
+          if (lastSlugUpdateDate > sixMonthsAgo) {
+            const nextAllowedDate = new Date(lastSlugUpdateDate);
+            nextAllowedDate.setMonth(nextAllowedDate.getMonth() + 6);
+            
+            return NextResponse.json(
+              { 
+                message: `Slug vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od ${nextAllowedDate.toLocaleDateString('cs-CZ')}`,
+                nextAllowedDate: nextAllowedDate.toISOString(),
+                restrictedField: 'slug'
+              },
+              { status: 429 }
+            );
+          }
+        }
+      }
+      
       // Create client for admin operations
       const client = new Client()
         .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
@@ -139,6 +183,26 @@ export async function POST(request: NextRequest) {
               throw new Error('Aktualizace jména selhala');
             }
           }
+        }
+      }
+      
+      // Update timestamps separately for name and slug changes
+      const timestampUpdates: Record<string, any> = {};
+      const currentTimestamp = new Date().toISOString();
+      
+      if (nameUpdated) {
+        timestampUpdates.lastWineryNameUpdate = currentTimestamp;
+      }
+      
+      if (slugUpdated) {
+        timestampUpdates.lastWinerySlugUpdate = currentTimestamp;
+      }
+      
+      if (Object.keys(timestampUpdates).length > 0) {
+        try {
+          await updateUserPrefs(timestampUpdates, decoded.userId);
+        } catch (timestampError) {
+          console.error('Error updating timestamps:', timestampError);
         }
       }
       
