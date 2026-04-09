@@ -2,9 +2,7 @@ import { Client } from 'appwrite';
 
 const LOCAL_APP_URL = 'http://localhost:3232';
 
-function getRequiredEnv(key: string): string {
-  const value = process.env[key];
-
+function requireEnv(value: string | undefined, key: string): string {
   if (!value) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
@@ -13,10 +11,18 @@ function getRequiredEnv(key: string): string {
 }
 
 export function getPublicAppwriteEnv() {
-  const projectId = getRequiredEnv('NEXT_PUBLIC_APPWRITE_PROJECT_ID');
+  // Client bundles only get NEXT_PUBLIC_* vars when referenced statically.
+  const projectId = requireEnv(
+    process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
+    'NEXT_PUBLIC_APPWRITE_PROJECT_ID'
+  );
+  const endpoint = requireEnv(
+    process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT,
+    'NEXT_PUBLIC_APPWRITE_ENDPOINT'
+  );
 
   return {
-    endpoint: getRequiredEnv('NEXT_PUBLIC_APPWRITE_ENDPOINT'),
+    endpoint,
     projectId,
     projectName: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_NAME || projectId,
     appUrl: process.env.NEXT_PUBLIC_APP_URL || LOCAL_APP_URL,
@@ -25,9 +31,9 @@ export function getPublicAppwriteEnv() {
 
 export function getServerAppwriteEnv() {
   return {
-    endpoint: getRequiredEnv('APPWRITE_ENDPOINT'),
-    projectId: getRequiredEnv('APPWRITE_PROJECT_ID'),
-    apiKey: getRequiredEnv('APPWRITE_KEY'),
+    endpoint: requireEnv(process.env.APPWRITE_ENDPOINT, 'APPWRITE_ENDPOINT'),
+    projectId: requireEnv(process.env.APPWRITE_PROJECT_ID, 'APPWRITE_PROJECT_ID'),
+    apiKey: requireEnv(process.env.APPWRITE_KEY, 'APPWRITE_KEY'),
   };
 }
 
