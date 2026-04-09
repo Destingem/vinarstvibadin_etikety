@@ -8,6 +8,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
+const DEMO_EMAIL = 'demo@etiketa.wine';
+const DEMO_PASSWORD = 'demo123456';
+
 const loginSchema = z.object({
   email: z.string().email({ message: 'Neplatný email' }),
   password: z.string().min(1, { message: 'Heslo je povinné' }),
@@ -27,6 +30,7 @@ export default function LoginForm() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -37,8 +41,14 @@ export default function LoginForm() {
     if (searchParams.get('registered') === 'true') {
       setSuccess('Registrace proběhla úspěšně. Nyní se můžete přihlásit.');
     }
+
+    if (searchParams.get('demo') === 'true') {
+      setValue('email', DEMO_EMAIL);
+      setValue('password', DEMO_PASSWORD);
+      setSuccess('Demo účet je připraven k přihlášení. Stačí kliknout na tlačítko "Přihlásit se".');
+    }
     
-  }, [searchParams]);
+  }, [searchParams, setValue]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
