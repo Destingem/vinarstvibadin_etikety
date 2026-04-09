@@ -1,5 +1,6 @@
 import { Account, ID } from 'appwrite';
 import { sign, verify, type Secret, type SignOptions } from 'jsonwebtoken';
+import { getAppwriteSessionUserId } from '@/server/auth/appwrite-session';
 import {
   createAdminAppwriteClient,
   createPublicAppwriteClient,
@@ -311,7 +312,7 @@ export async function loginUser(email: string, password: string) {
     
     // For user data, we'll use our server key to get user information directly
     // This avoids the "missing scope" error in server components
-    const userId = session.userId || session.$id;
+    const userId = getAppwriteSessionUserId(session);
     const user = await getUserByIdDirect(userId);
     
     // Create a JWT token for our application

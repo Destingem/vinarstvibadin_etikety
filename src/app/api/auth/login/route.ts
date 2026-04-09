@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createJwtToken } from '@/lib/auth-server';
 import { Client, Account } from 'appwrite';
 import { applySessionCookie } from '@/server/auth/session';
+import { getAppwriteSessionUserId } from '@/server/auth/appwrite-session';
 import {
   getWineryProfile,
   serializeWineryProfileForAuth,
@@ -74,18 +75,9 @@ export async function POST(request: NextRequest) {
         throw e;
       }
       
-      // Step 2: Get the user ID from the session
-      let userId;
-      if (session.userId) {
-        userId = session.userId;
-      } else if (session.$id) {
-        userId = session.$id;
-      } else if (session.user && session.user.$id) {
-        userId = session.user.$id;
-      } else {
-        console.log("Session structure:", JSON.stringify(session));
-        throw new Error("Could not extract user ID from session");
-      }
+      // Step 2: Get the user ID from the session.
+      // Do not treat session.$id as a user identifier; that is the session ID.
+      const userId = getAppwriteSessionUserId(session);
       console.log("Extracted user ID:", userId);
       
       const profile = await getWineryProfile(userId);
