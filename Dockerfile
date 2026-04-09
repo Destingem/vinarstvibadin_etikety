@@ -1,0 +1,48 @@
+FROM node:22-alpine AS deps
+WORKDIR /app
+
+COPY package.json yarn.lock ./
+RUN corepack enable && yarn install --frozen-lockfile
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+ARG APPWRITE_ENDPOINT
+ARG APPWRITE_PROJECT_ID
+ARG APPWRITE_KEY
+ARG NEXT_PUBLIC_APPWRITE_ENDPOINT
+ARG NEXT_PUBLIC_APPWRITE_PROJECT_ID
+ARG NEXT_PUBLIC_APPWRITE_PROJECT_NAME
+ARG NEXT_PUBLIC_APP_URL
+
+ENV APPWRITE_ENDPOINT=$APPWRITE_ENDPOINT
+ENV APPWRITE_PROJECT_ID=$APPWRITE_PROJECT_ID
+ENV APPWRITE_KEY=$APPWRITE_KEY
+ENV NEXT_PUBLIC_APPWRITE_ENDPOINT=$NEXT_PUBLIC_APPWRITE_ENDPOINT
+ENV NEXT_PUBLIC_APPWRITE_PROJECT_ID=$NEXT_PUBLIC_APPWRITE_PROJECT_ID
+ENV NEXT_PUBLIC_APPWRITE_PROJECT_NAME=$NEXT_PUBLIC_APPWRITE_PROJECT_NAME
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN corepack enable && yarn build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3232
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3232
+
+CMD ["node", "server.js"]
