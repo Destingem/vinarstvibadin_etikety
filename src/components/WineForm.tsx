@@ -155,9 +155,30 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
       <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-2xl">
         
         <div className="mb-6 sm:mb-8">
-          <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-            {isEditing ? 'Upravit víno' : 'Přidat nové víno'}
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8A1538]/70">
+            {isEditing ? 'Úprava vína' : 'Nové víno'}
+          </p>
+          <h3 className="mt-2 text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            {isEditing ? 'Upravte pracovní detail vína' : 'Založte nové víno do katalogu'}
           </h3>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600">
+            Začněte základní identifikací. Pro první publikaci se vyplatí doplnit hlavně alkohol, složení a původ, aby
+            na detailu a v QR workflow nechyběly klíčové údaje.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-gray-200/60 bg-white/60 px-4 py-3 text-sm text-gray-600">
+              <p className="font-medium text-gray-900">1. Základ</p>
+              <p className="mt-1">Název, ročník, šarže a obsah alkoholu.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200/60 bg-white/60 px-4 py-3 text-sm text-gray-600">
+              <p className="font-medium text-gray-900">2. Etiketa</p>
+              <p className="mt-1">Složení, alergeny a volitelné doplňující informace.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200/60 bg-white/60 px-4 py-3 text-sm text-gray-600">
+              <p className="font-medium text-gray-900">3. QR workflow</p>
+              <p className="mt-1">Po uložení přejdete rovnou do detailu a exportu.</p>
+            </div>
+          </div>
         </div>
         
         {error && (
@@ -187,6 +208,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="name"
                     {...register('name')}
                     className="w-full px-3 py-2.5 sm:px-4 sm:py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 text-sm sm:text-base"
+                    placeholder="Např. Ryzlink rýnský"
                   />
                   {errors.name && (
                     <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
@@ -202,6 +224,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="vintage"
                     {...register('vintage')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="2024"
                   />
                   {errors.vintage && (
                     <p className="mt-1 text-sm text-red-600">{errors.vintage.message}</p>
@@ -217,6 +240,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="batch"
                     {...register('batch')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="Např. 2024-A"
                   />
                   {errors.batch && (
                     <p className="mt-1 text-sm text-red-600">{errors.batch.message}</p>
@@ -233,6 +257,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                     id="alcoholContent"
                     {...register('alcoholContent')}
                     className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
+                    placeholder="12.5"
                   />
                   {errors.alcoholContent && (
                     <p className="mt-1 text-sm text-red-600">{errors.alcoholContent.message}</p>
@@ -487,7 +512,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
               onClick={() => router.back()}
               className="order-2 sm:order-1 px-4 py-2.5 sm:px-6 sm:py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-sm font-medium text-gray-700 hover:bg-white/80 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
             >
-              Zrušit
+              Zpět bez uložení
             </button>
             <button
               type="submit"
@@ -505,7 +530,7 @@ export default function WineForm({ wine, isEditing = false }: WineFormProps) {
                   </>
                 ) : (
                   <>
-                    <span className="text-sm sm:text-base">{isEditing ? 'Upravit víno' : 'Přidat víno'}</span>
+                    <span className="text-sm sm:text-base">{isEditing ? 'Uložit změny' : 'Vytvořit víno a pokračovat'}</span>
                     <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

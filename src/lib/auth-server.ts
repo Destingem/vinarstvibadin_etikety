@@ -1,5 +1,5 @@
-import { Client, Account, ID } from 'appwrite';
-import { sign, verify } from 'jsonwebtoken';
+import { Account, ID } from 'appwrite';
+import { sign, verify, type Secret, type SignOptions } from 'jsonwebtoken';
 import {
   createAdminAppwriteClient,
   createPublicAppwriteClient,
@@ -166,15 +166,45 @@ export async function getUserById(userId: string) {
   }
 }
 
+export async function getUserByIdStrict(userId: string) {
+  try {
+    const response = await fetch(getAppwriteUrl(`/users/${userId}`), {
+      headers: getAppwriteAdminHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const userData = await response.json();
+    const prefs = userData.prefs || {};
+    const displayName = prefs.displayName || userData.name;
+
+    return {
+      $id: userData.$id,
+      email: userData.email,
+      name: displayName,
+      prefs,
+    };
+  } catch (error) {
+    console.error('Error getting user strictly by ID:', error);
+    return null;
+  }
+}
+
 // Create JWT token
-export function createJwtToken(userId: string) {
-  const jwtSecret = process.env.JWT_SECRET;
+export function createJwtToken(
+  userId: string,
+  expiresIn: SignOptions['expiresIn'] = '7d'
+) {
+  const jwtSecret = process.env.JWT_SECRET as Secret | undefined;
   
   if (!jwtSecret) {
     throw new Error('JWT_SECRET is not defined');
   }
   
-  return sign({ userId }, jwtSecret, { expiresIn: '7d' });
+  return sign({ userId }, jwtSecret, { expiresIn });
 }
 
 // Verify JWT token
@@ -191,10 +221,12 @@ export function verifyJwtToken(token: string) {
 // Get current authenticated user from JWT token in cookies
 export async function getServerUser() {
   try {
-    // Get the cookie from the request
-    const cookies = require('next/headers').cookies;
-    const cookieStore = cookies();
-    const authCookie = cookieStore.get('auth_token');
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const authCookie =
+      cookieStore.get('etiketa_session') ??
+      cookieStore.get('auth_token') ??
+      cookieStore.get('auth-token');
     
     if (!authCookie) {
       console.warn('No auth cookie found for getServerUser');

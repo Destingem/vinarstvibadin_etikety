@@ -1,471 +1,616 @@
-import { notFound } from 'next/navigation';
-import { Metadata, ResolvingMetadata } from 'next';
-// Import Appwrite utility functions 
-import { getWineById, getWineryBySlug, Wine, Winery } from '@/lib/appwrite';
+import type { Metadata } from 'next';
+import { notFound, permanentRedirect } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { getWineById as getLegacyWineById } from '@/lib/appwrite';
 import { adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
-// Import the analytics tracker component
+import { getWineryProfileBySlug } from '@/server/services/winery-profiles';
 import AnalyticsTracker from './analytics-integration';
 
-// Type aliases for our wine display
+type RouteParams = Promise<{ winery: string; wineId: string }>;
+
+type RawWineDocument = Record<string, unknown> & {
+  $id?: string;
+};
+
 type WineryInfo = {
   $id: string;
   name: string;
   slug: string;
-  address?: string;
 };
 
-// Make a much simpler interface with just what we need
-interface WineWithWinery {
-  // Core required fields
+type NutritionInfo = {
+  energyValueKJ?: number;
+  energyValueKcal?: number;
+  fat?: number;
+  saturatedFat?: number;
+  carbs?: number;
+  sugars?: number;
+  protein?: number;
+  salt?: number;
+};
+
+type OriginInfo = {
+  region?: string;
+  subregion?: string;
+  village?: string;
+  tract?: string;
+};
+
+type DigitalLabelWine = {
   $id: string;
   name: string;
+  vintage?: number;
+  batch?: string;
+  alcoholContent?: number;
+  ingredients?: string;
+  allergens?: string;
+  additionalInfo?: string;
   winery: WineryInfo;
-  
-  // All other fields are optional
-  [key: string]: any;
-}
+  nutrition: NutritionInfo;
+  origin: OriginInfo;
+};
 
-// Generate metadata for page
-export async function generateMetadata(
-  { params }: { params: Promise<{ winery: string; wineId: string }> },
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  // In Next.js 15, params should be awaited
-  const { winery, wineId } = await params;
-  
-  // Fetch wine data
-  const wine = await getWineData(winery, wineId);
+const numberFormatter = new Intl.NumberFormat('cs-CZ', {
+  maximumFractionDigits: 2,
+});
 
-  if (!wine) {
-    return {
-      title: 'Víno nenalezeno',
-    };
+function asString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
   }
 
-  return {
-    title: `${wine.name} | ${wine.winery.name}`,
-    description: `Informace o víně ${wine.name} od ${wine.winery.name}`,
-  };
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return undefined;
 }
 
-// Fetch wine data function adapted for new Appwrite schema
-async function getWineData(winerySlug: string, wineId: string): Promise<WineWithWinery | null> {
-  try {
-    console.log(`[Server] Fetching wine with ID ${wineId} for winery slug ${winerySlug}`);
-    
-    // Get wine from Appwrite - first try with the new appwrite-client since we've updated the collection ID
-    let wine = null;
-    try {
-      wine = await adminDatabases.getDocument(
-        DB_ID,
-        WINES_COLLECTION_ID,
-        wineId
-      );
-    } catch (adminError) {
-      console.error('[Server] Error getting wine from adminDatabases:', adminError);
-      
-      try {
-        // Fall back to the original appwrite.ts getWineById if the first method fails
-        wine = await getWineById(wineId);
-      } catch (fallbackError) {
-        console.error('[Server] Fallback error getting wine:', fallbackError);
-      }
-    }
-    
-    console.log(`[Server] Wine found in DB: ${!!wine}`);
-    
-    if (!wine) {
-      console.log(`[Server] No wine found with ID: ${wineId}`);
-      return null;
-    }
-    
-    // Check if winerySlug matches what's in the wine document
-    // First check if the property exists using type assertion or hasOwnProperty
-    const documentWinerySlug = 'winerySlug' in wine ? (wine as any).winerySlug : undefined;
-    
-    if (documentWinerySlug && documentWinerySlug.toLowerCase() !== winerySlug.toLowerCase()) {
-      console.log(`[Server] URL winery slug does not match wine's winery slug`);
-      console.log(`[Server] Wine winery slug: ${documentWinerySlug}`);
-      console.log(`[Server] Requested winery slug: ${winerySlug}`);
-      return null;
-    }
-    
-    // Get the user details from Appwrite to get the winery name
-    let wineryName = "Unknown Winery";
-    try {
-      // Check for winery properties with type assertions to avoid TypeScript errors
-      const docWineryName = 'wineryName' in wine ? (wine as any).wineryName : undefined;
-      const docWinerySlug = 'winerySlug' in wine ? (wine as any).winerySlug : undefined;
-      const docUserId = 'userId' in wine ? (wine as any).userId : wine.$id;
-      
-      // Format the winery name to look better
-      if (docWineryName) {
-        // If there's a dot in the name (like "ondrej.zaplatilek"), format it nicely
-        if (docWineryName.includes('.')) {
-          wineryName = docWineryName
-            .split('.')
-            .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(' ');
-        }
-        // If there's a hyphen in the name, format it nicely too
-        else if (docWineryName.includes('-')) {
-          wineryName = docWineryName
-            .split('-')
-            .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(' ');
-        }
-        // Otherwise just use the name as is
-        else {
-          wineryName = docWineryName;
-        }
-      } 
-      // If no winery name, try alternative approaches
-      else if (docUserId) {
-        // Try to use the winerySlug as a basis for a display name
-        if (docWinerySlug) {
-          // Convert slug to a readable name (capitalize first letter of each word)
-          wineryName = docWinerySlug
-            .split('-')
-            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-        } 
-        // Fall back to a generic name with the userId
-        else {
-          wineryName = `Vinařství ${docUserId.substring(0, 8)}`;
-        }
-      }
-    } catch (userError) {
-      console.error('[Server] Error fetching user details:', userError);
-    }
-    
-    // Get userId safely
-    const docUserId = 'userId' in wine ? (wine as any).userId : wine.$id;
-    const docWinerySlug = 'winerySlug' in wine ? (wine as any).winerySlug : undefined;
-    
-    // Create a simple winery object based on the wine's embedded winery data and user data
-    const winery = {
-      $id: docUserId, // Use the userId as the winery ID
-      name: wineryName,
-      slug: docWinerySlug || winerySlug,
-      address: "" // We don't have address in the new schema
-    };
-    
-    // Get the wine name safely - ensure we always have a string
-    const wineName = 
-      ('name' in wine && typeof wine.name === 'string' && wine.name) || 
-      ('$id' in wine ? `Wine ${wine.$id}` : `Wine ${wineId}`);
-    
-    // Create a new object with the required structure instead of spreading
-    const wineWithWinery: WineWithWinery = {
-      // Required fields - ensure $id is a string using 'in' check
-      $id: '$id' in wine ? String(wine.$id) : String(wineId), // Fallback to the wineId from params
-      name: wineName,
-      
-      // Copy all wine properties explicitly
-      vintage: 'vintage' in wine ? (wine as any).vintage : undefined,
-      batch: 'batch' in wine ? (wine as any).batch : undefined,
-      alcoholContent: 'alcoholContent' in wine ? (wine as any).alcoholContent : undefined,
-      energyValueKJ: 'energyValueKJ' in wine ? (wine as any).energyValueKJ : undefined,
-      energyValueKcal: 'energyValueKcal' in wine ? (wine as any).energyValueKcal : undefined,
-      fat: 'fat' in wine ? (wine as any).fat : undefined,
-      saturatedFat: 'saturatedFat' in wine ? (wine as any).saturatedFat : undefined,
-      carbs: 'carbs' in wine ? (wine as any).carbs : undefined,
-      sugars: 'sugars' in wine ? (wine as any).sugars : undefined,
-      protein: 'protein' in wine ? (wine as any).protein : undefined,
-      salt: 'salt' in wine ? (wine as any).salt : undefined,
-      ingredients: 'ingredients' in wine ? (wine as any).ingredients : undefined,
-      additionalInfo: 'additionalInfo' in wine ? (wine as any).additionalInfo : undefined,
-      allergens: 'allergens' in wine ? (wine as any).allergens : undefined,
-      
-      // Origin information
-      wineRegion: 'wineRegion' in wine ? (wine as any).wineRegion : undefined,
-      wineRegio: 'wineRegio' in wine ? (wine as any).wineRegio : undefined,
-      wineSubregion: 'wineSubregion' in wine ? (wine as any).wineSubregion : undefined,
-      wineVillage: 'wineVillage' in wine ? (wine as any).wineVillage : undefined,
-      wineTract: 'wineTract' in wine ? (wine as any).wineTract : undefined,
-      
-      // ID fields
-      userId: 'userId' in wine ? (wine as any).userId : undefined,
-      wineryId: 'wineryId' in wine ? (wine as any).wineryId : undefined,
-      
-      // Metadata
-      wineryName: 'wineryName' in wine ? (wine as any).wineryName : undefined,
-      winerySlug: 'winerySlug' in wine ? (wine as any).winerySlug : undefined,
-      createdAt: 'createdAt' in wine ? (wine as any).createdAt : 
-                ('$createdAt' in wine ? (wine as any).$createdAt : new Date().toISOString()),
-      updatedAt: 'updatedAt' in wine ? (wine as any).updatedAt : 
-                ('$updatedAt' in wine ? (wine as any).$updatedAt : new Date().toISOString()),
-      
-      // System properties - with fallbacks for missing properties
-      $collectionId: '$collectionId' in wine ? (wine as any).$collectionId : WINES_COLLECTION_ID,
-      $databaseId: '$databaseId' in wine ? (wine as any).$databaseId : DB_ID,
-      $createdAt: '$createdAt' in wine ? (wine as any).$createdAt : new Date().toISOString(),
-      $updatedAt: '$updatedAt' in wine ? (wine as any).$updatedAt : new Date().toISOString(),
-      
-      // Add the winery field
-      winery: winery
-    };
-    
-    // Map fields from old field names (if any) using safer property access
-    const docWineRegio = 'wineRegio' in wine ? (wine as any).wineRegio : undefined;
-    const docWineRegion = 'wineRegion' in wine ? (wine as any).wineRegion : undefined;
-    
-    if (docWineRegio && !docWineRegion) {
-      wineWithWinery.wineRegion = docWineRegio;
+function asNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(',', '.');
+    if (!normalized) {
+      return undefined;
     }
 
-    console.log(`[Server] Wine data successfully returned: ${wine.name}`);
-    return wineWithWinery;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+}
+
+function pickString(document: RawWineDocument, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = asString(document[key]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function pickNumber(document: RawWineDocument, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = asNumber(document[key]);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeSlug(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const slug = value.trim().replace(/^\/+|\/+$/g, '').toLowerCase();
+  return slug || undefined;
+}
+
+function prettifyWineryName(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const cleanValue = value.trim();
+  if (!cleanValue) {
+    return undefined;
+  }
+
+  return cleanValue
+    .split(/[.-]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function formatValue(value?: number, suffix?: string): string {
+  if (value === undefined) {
+    return 'Neuvedeno';
+  }
+
+  return suffix ? `${numberFormatter.format(value)} ${suffix}` : numberFormatter.format(value);
+}
+
+function formatAlcohol(value?: number): string {
+  return value === undefined ? 'Neuvedeno' : `${numberFormatter.format(value)} % obj.`;
+}
+
+function buildCanonicalPath(wine: DigitalLabelWine): string {
+  return `/${encodeURIComponent(wine.winery.slug)}/${encodeURIComponent(wine.$id)}`;
+}
+
+function hasNutritionData(nutrition: NutritionInfo): boolean {
+  return Object.values(nutrition).some((value) => value !== undefined);
+}
+
+function hasOriginData(origin: OriginInfo): boolean {
+  return Object.values(origin).some(Boolean);
+}
+
+function resolveAllergenText(wine: DigitalLabelWine): string | undefined {
+  if (wine.allergens) {
+    return wine.allergens;
+  }
+
+  if (wine.ingredients && wine.ingredients.toLowerCase().includes('siřič')) {
+    return 'Obsahuje siřičitany';
+  }
+
+  return undefined;
+}
+
+async function fetchRawWineDocument(wineId: string): Promise<RawWineDocument | null> {
+  try {
+    const wine = await adminDatabases.getDocument(DB_ID, WINES_COLLECTION_ID, wineId);
+    return wine as RawWineDocument;
   } catch (error) {
-    console.error('[Server] Error fetching wine data:', error);
+    console.error('[PublicLabel] Admin fetch failed:', error);
+  }
+
+  try {
+    const wine = await getLegacyWineById(wineId);
+    return (wine as RawWineDocument | null) ?? null;
+  } catch (error) {
+    console.error('[PublicLabel] Legacy fetch failed:', error);
     return null;
   }
 }
 
-export default async function WinePage({ params }: { params: Promise<{ winery: string; wineId: string }> }) {
-  console.log(`[Server] WinePage component rendering with params:`, params);
-  
-  // In Next.js 15, params should be awaited
+async function getWineData(requestedWinerySlug: string, wineId: string): Promise<DigitalLabelWine | null> {
+  const document = await fetchRawWineDocument(wineId);
+
+  if (!document) {
+    return null;
+  }
+
+  const canonicalSlugFromWine = normalizeSlug(pickString(document, ['winerySlug']));
+  const requestedSlug = normalizeSlug(requestedWinerySlug);
+  const wineryProfile =
+    (canonicalSlugFromWine &&
+      (await getWineryProfileBySlug(canonicalSlugFromWine).catch(() => null))) ||
+    (requestedSlug && requestedSlug !== canonicalSlugFromWine
+      ? await getWineryProfileBySlug(requestedSlug).catch(() => null)
+      : null);
+
+  const canonicalSlug =
+    normalizeSlug(wineryProfile?.slug) ||
+    canonicalSlugFromWine ||
+    requestedSlug ||
+    'vinarstvi';
+
+  const wineryOwnerId =
+    wineryProfile?.ownerUserId ||
+    pickString(document, ['userId', 'wineryId', '$id']) ||
+    wineId;
+  const wineryName =
+    wineryProfile?.displayName ||
+    pickString(document, ['wineryName']) ||
+    prettifyWineryName(canonicalSlug) ||
+    'Vinařství';
+
+  return {
+    $id: pickString(document, ['$id']) || wineId,
+    name: pickString(document, ['name']) || `Víno ${wineId}`,
+    vintage: pickNumber(document, ['vintage']),
+    batch: pickString(document, ['batch']),
+    alcoholContent: pickNumber(document, ['alcoholContent']),
+    ingredients: pickString(document, ['ingredients']),
+    allergens: pickString(document, ['allergens']),
+    additionalInfo: pickString(document, ['additionalInfo']),
+    winery: {
+      $id: wineryOwnerId,
+      name: wineryName,
+      slug: canonicalSlug,
+    },
+    nutrition: {
+      energyValueKJ: pickNumber(document, ['energyValueKJ']),
+      energyValueKcal: pickNumber(document, ['energyValueKcal']),
+      fat: pickNumber(document, ['fat']),
+      saturatedFat: pickNumber(document, ['saturatedFat']),
+      carbs: pickNumber(document, ['carbs']),
+      sugars: pickNumber(document, ['sugars']),
+      protein: pickNumber(document, ['protein']),
+      salt: pickNumber(document, ['salt']),
+    },
+    origin: {
+      region: pickString(document, ['wineRegion', 'wineRegio']),
+      subregion: pickString(document, ['wineSubregion']),
+      village: pickString(document, ['wineVillage']),
+      tract: pickString(document, ['wineTract']),
+    },
+  };
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: RouteParams;
+}): Promise<Metadata> {
   const { winery, wineId } = await params;
-  
-  // Check params directly
-  console.log(`[Server] winery param: "${winery}"`);
-  console.log(`[Server] wineId param: "${wineId}"`);
-  
   const wine = await getWineData(winery, wineId);
 
   if (!wine) {
-    console.log(`[Server] Wine not found, redirecting to not-found page`);
+    return {
+      title: 'Digitální etiketa nenalezena',
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const canonicalPath = buildCanonicalPath(wine);
+  const description = `Digitální etiketa vína ${wine.name} od vinařství ${wine.winery.name}.`;
+
+  return {
+    title: `${wine.name} | ${wine.winery.name}`,
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      title: `${wine.name} | ${wine.winery.name}`,
+      description,
+      url: canonicalPath,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${wine.name} | ${wine.winery.name}`,
+      description,
+    },
+  };
+}
+
+export default async function WinePage({
+  params,
+}: {
+  params: RouteParams;
+}) {
+  const { winery, wineId } = await params;
+  const wine = await getWineData(winery, wineId);
+
+  if (!wine) {
     notFound();
   }
-  
-  // Check if the requested URL matches the canonical URL (case sensitive)
-  // For production, we would redirect if they don't match
-  const docWinerySlug = 'winerySlug' in wine ? (wine as any).winerySlug : undefined;
-  if (docWinerySlug && docWinerySlug !== winery) {
-    console.log(`[Server] Non-canonical URL detected. Canonical: ${docWinerySlug}, Requested: ${winery}`);
-    // We're not redirecting for now, but logging it
+
+  if (wine.winery.slug !== winery) {
+    permanentRedirect(buildCanonicalPath(wine));
   }
-  
-  console.log(`[Server] Rendering wine page for: ${wine.name}`);
+
+  const allergens = resolveAllergenText(wine);
+  const nutritionAvailable = hasNutritionData(wine.nutrition);
+  const originAvailable = hasOriginData(wine.origin);
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Analytics tracking component - client-side only */}
-      <AnalyticsTracker
-        wineId={wine.$id}
-        wineName={wine.name}
-        wineryId={wine.winery.$id}
-        wineryName={wine.winery.name}
-        winerySlug={wine.winery.slug}
-        wineBatch={wine.batch}
-        wineVintage={wine.vintage}
-      />
-      
-      {/* Ambient Background - Same as main page */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-100"></div>
-        
-        {/* Floating red orbs */}
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-r from-red-100/60 to-red-200/40 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-gradient-to-l from-red-200/50 to-red-300/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-2/3 left-2/3 w-64 h-64 bg-gradient-to-br from-red-150/40 to-red-100/30 rounded-full blur-3xl animate-pulse delay-500"></div>
-        
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" 
-             style={{
-               backgroundImage: `radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.1) 1px, transparent 0)`,
-               backgroundSize: '50px 50px'
-             }}>
-        </div>
-        
-        {/* Noise texture */}
-        <div className="absolute inset-0 opacity-[0.02] mix-blend-multiply"
-             style={{
-               backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-             }}>
-        </div>
-      </div>
+    <main className="min-h-screen bg-[linear-gradient(180deg,#faf6f1_0%,#f6efe7_48%,#fbf8f4_100%)] text-stone-900">
+      <AnalyticsTracker wineId={wine.$id} />
 
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Header */}
-        <header className="mb-12 text-center">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl blur-sm"></div>
-            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-              <h1 className="text-5xl font-bold mb-4 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent">
-                {wine.name}
-              </h1>
-              <div className="text-xl text-gray-700 font-medium mb-6">
-                {wine.winery.name}
-              </div>
-              
-              <div className="flex flex-wrap justify-center gap-3">
-                {wine.vintage && (
-                  <div className="bg-gradient-to-r from-red-100/80 to-red-200/60 backdrop-blur-sm text-red-800 px-4 py-2 rounded-2xl text-sm font-medium border border-red-200/50">
-                    Ročník {wine.vintage}
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-14">
+        <header className="mb-8">
+          <div className="overflow-hidden rounded-[2rem] border border-[rgba(110,54,36,0.12)] bg-white/80 shadow-[0_28px_80px_rgba(56,30,18,0.10)] backdrop-blur-xl">
+            <div className="bg-[linear-gradient(135deg,rgba(112,24,42,0.10),rgba(255,255,255,0))] px-6 py-6 sm:px-8 lg:px-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[rgb(112,24,42)]">
+                Digitalni etiketa
+              </p>
+              <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.7fr)]">
+                <div>
+                  <h1 className="font-serif text-4xl leading-tight text-stone-900 sm:text-5xl lg:text-6xl">
+                    {wine.name}
+                  </h1>
+                  <p className="mt-3 text-lg text-stone-700 sm:text-xl">{wine.winery.name}</p>
+                  <p className="mt-5 max-w-2xl text-sm leading-6 text-stone-600 sm:text-base">
+                    Veřejná stránka s povinnými informacemi k vínu podle nařízení EU 2021/2117.
+                    Produktové nebo prodejní sdělení je záměrně až níže.
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {wine.vintage !== undefined && <Badge>Rocnik {wine.vintage}</Badge>}
+                    {wine.batch && <Badge>Sarze {wine.batch}</Badge>}
+                    {wine.origin.region && <Badge>{wine.origin.region}</Badge>}
                   </div>
-                )}
-                {wine.batch && (
-                  <div className="bg-gradient-to-r from-gray-100/80 to-gray-200/60 backdrop-blur-sm text-gray-800 px-4 py-2 rounded-2xl text-sm font-medium border border-gray-200/50">
-                    Šarže {wine.batch}
-                  </div>
-                )}
+                </div>
+
+                <aside className="rounded-[1.75rem] border border-[rgba(112,24,42,0.14)] bg-[rgba(253,248,244,0.92)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[rgb(112,24,42)]">
+                    Rychly prehled
+                  </p>
+                  <dl className="mt-5 space-y-4">
+                    <SummaryRow label="Obsah alkoholu" value={formatAlcohol(wine.alcoholContent)} />
+                    <SummaryRow label="Alergeny" value={allergens || 'Neuvedeno'} />
+                    <SummaryRow label="Vyrobce / plnic" value={wine.winery.name} />
+                    <SummaryRow
+                      label="Puvod"
+                      value={wine.origin.region || wine.origin.subregion || 'Neuvedeno'}
+                    />
+                  </dl>
+                </aside>
               </div>
             </div>
           </div>
         </header>
 
-        <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Nutrition Facts */}
-          <div className="relative order-2 lg:order-1">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
-                Výživové údaje (na 100 ml)
-              </h2>
-              <div className="space-y-4 text-gray-800">
-                {(wine.energyValueKJ || wine.energyValueKcal) && (
-                  <div className="flex justify-between py-2 border-b border-gray-100/50">
-                    <span className="font-medium">Energetická hodnota</span>
-                    <span className="font-medium">
-                      {wine.energyValueKJ && `${wine.energyValueKJ} kJ`}
-                      {wine.energyValueKJ && wine.energyValueKcal && ' / '}
-                      {wine.energyValueKcal && `${wine.energyValueKcal} kcal`}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between py-2 border-b border-gray-100/50">
-                  <span className="font-medium">Tuky</span>
-                  <span className="font-medium">{wine.fat ?? 0} g</span>
-                </div>
-                <div className="flex justify-between pl-4 py-1 text-gray-600">
-                  <span>Z toho nasycené mastné kyseliny</span>
-                  <span>{wine.saturatedFat ?? 0} g</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100/50">
-                  <span className="font-medium">Sacharidy</span>
-                  <span className="font-medium">{wine.carbs ?? 0} g</span>
-                </div>
-                <div className="flex justify-between pl-4 py-1 text-gray-600">
-                  <span>Z toho cukry</span>
-                  <span>{wine.sugars ?? 0} g</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100/50">
-                  <span className="font-medium">Bílkoviny</span>
-                  <span className="font-medium">{wine.protein ?? 0} g</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-100/50">
-                  <span className="font-medium">Sůl</span>
-                  <span className="font-medium">{wine.salt ?? 0} g</span>
-                </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+          <div className="space-y-6">
+            <SectionCard
+              eyebrow="Povinne udaje"
+              title="Zakladni informace k vinu"
+              description="Tyto informace maji na verejne strance prednost pred marketingovym obsahem."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <DetailItem label="Vyrobce / plnic" value={wine.winery.name} />
+                <DetailItem label="Obsah alkoholu" value={formatAlcohol(wine.alcoholContent)} />
+                <DetailItem label="Slozeni" value={wine.ingredients || 'Slozeni nebylo doplneno.'} />
+                <DetailItem label="Alergeny" value={allergens || 'Alergeny nebyly doplneny.'} />
               </div>
+            </SectionCard>
 
-              {wine.alcoholContent && (
-                <div className="mt-8 p-4 bg-gradient-to-r from-red-50/80 to-red-100/60 backdrop-blur-sm rounded-2xl border border-red-200/50">
-                  <h3 className="font-bold text-red-800 mb-2">Obsah alkoholu</h3>
-                  <p className="text-red-700 text-lg font-medium">{wine.alcoholContent}% obj.</p>
+            <SectionCard
+              eyebrow="Na 100 ml"
+              title="Vyživove udaje"
+              description="Hodnoty se zobrazuji jen podle podkladu vlozenych vinařstvim."
+            >
+              {nutritionAvailable ? (
+                <div className="overflow-hidden rounded-[1.5rem] border border-stone-200/70 bg-stone-50/70">
+                  <NutritionRow
+                    label="Energeticka hodnota"
+                    primary={
+                      wine.nutrition.energyValueKJ !== undefined
+                        ? `${numberFormatter.format(wine.nutrition.energyValueKJ)} kJ`
+                        : undefined
+                    }
+                    secondary={
+                      wine.nutrition.energyValueKcal !== undefined
+                        ? `${numberFormatter.format(wine.nutrition.energyValueKcal)} kcal`
+                        : undefined
+                    }
+                  />
+                  <NutritionRow label="Tuky" primary={formatValue(wine.nutrition.fat, 'g')} />
+                  <NutritionRow
+                    label="z toho nasycene mastne kyseliny"
+                    primary={formatValue(wine.nutrition.saturatedFat, 'g')}
+                    muted
+                  />
+                  <NutritionRow label="Sacharidy" primary={formatValue(wine.nutrition.carbs, 'g')} />
+                  <NutritionRow
+                    label="z toho cukry"
+                    primary={formatValue(wine.nutrition.sugars, 'g')}
+                    muted
+                  />
+                  <NutritionRow label="Bilkoviny" primary={formatValue(wine.nutrition.protein, 'g')} />
+                  <NutritionRow label="Sul" primary={formatValue(wine.nutrition.salt, 'g')} last />
                 </div>
+              ) : (
+                <EmptyState>
+                  Vyživove udaje u tohoto vina zatim nebyly doplneny.
+                </EmptyState>
               )}
-            </div>
-          </div>
+            </SectionCard>
 
-          {/* Composition and Origin */}
-          <div className="order-1 lg:order-2 space-y-6">
-            {/* Composition */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-              <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-                <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
-                  Složení
-                </h2>
-                <p className="text-gray-800 leading-relaxed">
-                  {wine.ingredients || 'Hrozny, antioxidant: oxid siřičitý'}
-                </p>
-
-                {wine.allergens && (
-                  <div className="mt-6 p-4 bg-gradient-to-r from-amber-50/80 to-amber-100/60 backdrop-blur-sm rounded-2xl border border-amber-200/50">
-                    <h3 className="font-bold text-amber-800 mb-2">Alergeny</h3>
-                    <p className="text-amber-700">
-                      {wine.allergens}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Origin */}
-            {(wine.wineRegion || wine.wineSubregion || wine.wineVillage || wine.wineTract) && (
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-                <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-                  <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
-                    Původ
-                  </h2>
-                  <ul className="space-y-3 text-gray-800">
-                    {(wine.wineRegion || wine.wineRegio) && (
-                      <li className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100/50">
-                        <span className="font-medium text-gray-700">Vinařská oblast:</span>
-                        <span className="font-medium">{wine.wineRegion || wine.wineRegio}</span>
-                      </li>
-                    )}
-                    {wine.wineSubregion && (
-                      <li className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100/50">
-                        <span className="font-medium text-gray-700">Vinařská podoblast:</span>
-                        <span className="font-medium">{wine.wineSubregion}</span>
-                      </li>
-                    )}
-                    {wine.wineVillage && (
-                      <li className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-100/50">
-                        <span className="font-medium text-gray-700">Obec:</span>
-                        <span className="font-medium">{wine.wineVillage}</span>
-                      </li>
-                    )}
-                    {wine.wineTract && (
-                      <li className="flex flex-col sm:flex-row sm:justify-between py-2">
-                        <span className="font-medium text-gray-700">Trať:</span>
-                        <span className="font-medium">{wine.wineTract}</span>
-                      </li>
-                    )}
-                  </ul>
+            {originAvailable && (
+              <SectionCard
+                eyebrow="Puvod hroznu"
+                title="Puvod"
+                description="Pokud bylo doplneno, zobrazuje se oblast, podoblast, obec a trat."
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <DetailItem label="Vinarska oblast" value={wine.origin.region || 'Neuvedeno'} />
+                  <DetailItem
+                    label="Vinarska podoblast"
+                    value={wine.origin.subregion || 'Neuvedeno'}
+                  />
+                  <DetailItem label="Obec" value={wine.origin.village || 'Neuvedeno'} />
+                  <DetailItem label="Trat" value={wine.origin.tract || 'Neuvedeno'} />
                 </div>
-              </div>
+              </SectionCard>
+            )}
+
+            {wine.additionalInfo && (
+              <SectionCard
+                eyebrow="Doplnujici text"
+                title="Dalsi informace"
+                description="Sekce slouzi pro doplneni dalsich verejnych informaci k vinu."
+              >
+                <p className="whitespace-pre-line text-base leading-7 text-stone-700">
+                  {wine.additionalInfo}
+                </p>
+              </SectionCard>
             )}
           </div>
+
+          <aside className="space-y-6">
+            <SectionCard
+              eyebrow="Identifikace"
+              title="Udaje k lahvi"
+              description="Strucny prehled pro orientaci pri kontrole nebo dotazu zakaznika."
+              compact
+            >
+              <dl className="space-y-3">
+                <MetaRow label="Nazev vina" value={wine.name} />
+                <MetaRow label="Rocnik" value={wine.vintage !== undefined ? String(wine.vintage) : 'Neuvedeno'} />
+                <MetaRow label="Sarze" value={wine.batch || 'Neuvedeno'} />
+                <MetaRow label="Slug vinařstvi" value={wine.winery.slug} />
+              </dl>
+            </SectionCard>
+
+            <SectionCard
+              eyebrow="Pravni kontext"
+              title="Poznamka k digitalni etikete"
+              description="Tato verze stranky uprednostnuje regulatorni a identifikacni informace."
+              compact
+            >
+              <p className="text-sm leading-6 text-stone-600">
+                Pokud nektery udaj chybi, stranka ho nedomysli ani nenahrazuje fikci. Zobrazuje
+                pouze to, co je k danemu vinu dostupne v systemu.
+              </p>
+            </SectionCard>
+          </aside>
         </div>
 
-        {/* Additional Information */}
-        {wine.additionalInfo && (
-          <div className="relative mb-12">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent border-b border-gray-200/50 pb-3">
-                Další informace
-              </h2>
-              <p className="text-gray-800 leading-relaxed">
-                {wine.additionalInfo}
-              </p>
+        <section className="mt-6">
+          <div className="overflow-hidden rounded-[2rem] border border-[rgba(112,24,42,0.14)] bg-[linear-gradient(135deg,rgba(112,24,42,0.08),rgba(255,255,255,0.92))] p-6 shadow-[0_24px_60px_rgba(56,30,18,0.08)] sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[rgb(112,24,42)]">
+              Dostupnost u vinarstvi
+            </p>
+            <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(240px,0.9fr)]">
+              <div>
+                <h2 className="font-serif text-2xl text-stone-900 sm:text-3xl">
+                  Mate zajem o toto vino?
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-700 sm:text-base">
+                  Pro aktualni dostupnost, cenu nebo odber kontaktujte primo vinařstvi{' '}
+                  <span className="font-semibold text-stone-900">{wine.winery.name}</span>.
+                  Pri dotazu pomuze uvest nazev vina
+                  {wine.batch ? ` a sarzi ${wine.batch}` : ''}.
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] border border-white/70 bg-white/70 p-5">
+                <dl className="space-y-3">
+                  <MetaRow label="Vino" value={wine.name} />
+                  {wine.batch && <MetaRow label="Sarze" value={wine.batch} />}
+                  {wine.vintage !== undefined && (
+                    <MetaRow label="Rocnik" value={String(wine.vintage)} />
+                  )}
+                </dl>
+              </div>
             </div>
           </div>
-        )}
+        </section>
 
-        {/* Footer */}
-        <footer className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/60 to-white/40 rounded-3xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-xl p-8 rounded-3xl border border-gray-200/50 shadow-xl text-center">
-            <div className="text-gray-700 space-y-2">
-              <p className="font-medium">Plnič/Výrobce: {wine.winery.name}</p>
-              {wine.winery.address && (
-                <p className="text-gray-600">{wine.winery.address}</p>
-              )}
-              <p className="text-sm text-gray-600 mt-4 pt-4 border-t border-gray-200/50">
-                &copy; {new Date().getFullYear()} {wine.winery.name} - Informace dle EU nařízení 2021/2117
-              </p>
-            </div>
-          </div>
+        <footer className="mt-6 text-center text-sm text-stone-500">
+          <p>
+            &copy; {new Date().getFullYear()} {wine.winery.name}. Digitalni etiketa podle EU
+            2021/2117.
+          </p>
         </footer>
       </div>
+    </main>
+  );
+}
+
+function SectionCard({
+  eyebrow,
+  title,
+  description,
+  children,
+  compact = false,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  compact?: boolean;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-[rgba(110,54,36,0.12)] bg-white/82 shadow-[0_28px_80px_rgba(56,30,18,0.08)] backdrop-blur-xl">
+      <div className={compact ? 'px-5 py-5 sm:px-6' : 'px-6 py-6 sm:px-8 sm:py-8'}>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[rgb(112,24,42)]">
+          {eyebrow}
+        </p>
+        <h2 className="mt-3 font-serif text-2xl text-stone-900 sm:text-3xl">{title}</h2>
+        {description && <p className="mt-3 text-sm leading-6 text-stone-600">{description}</p>}
+        <div className="mt-6">{children}</div>
+      </div>
+    </section>
+  );
+}
+
+function Badge({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-[rgba(112,24,42,0.14)] bg-[rgba(112,24,42,0.06)] px-3 py-1 text-sm font-medium text-[rgb(112,24,42)]">
+      {children}
+    </span>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-stone-200/70 pb-4 last:border-b-0 last:pb-0">
+      <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{label}</dt>
+      <dd className="mt-1 text-base font-medium text-stone-900">{value}</dd>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1.5rem] border border-stone-200/70 bg-stone-50/60 p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{label}</p>
+      <p className="mt-3 text-sm leading-7 text-stone-800 sm:text-base">{value}</p>
+    </div>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 border-b border-stone-200/70 pb-3 last:border-b-0 last:pb-0">
+      <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">{label}</dt>
+      <dd className="text-sm leading-6 text-stone-800">{value}</dd>
+    </div>
+  );
+}
+
+function NutritionRow({
+  label,
+  primary,
+  secondary,
+  muted = false,
+  last = false,
+}: {
+  label: string;
+  primary?: string;
+  secondary?: string;
+  muted?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={`grid gap-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center ${
+        last ? '' : 'border-b border-stone-200/70'
+      }`}
+    >
+      <dt className={muted ? 'text-sm text-stone-500' : 'text-sm font-medium text-stone-800'}>{label}</dt>
+      <dd className="text-sm font-medium text-stone-900 sm:text-right">
+        {primary || 'Neuvedeno'}
+        {secondary ? <span className="text-stone-500"> / {secondary}</span> : null}
+      </dd>
+    </div>
+  );
+}
+
+function EmptyState({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-[1.5rem] border border-dashed border-stone-300 bg-stone-50/50 px-5 py-6 text-sm leading-6 text-stone-600">
+      {children}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WineIntelligenceEngine, WinePairingEngine } from '@/lib/advanced-analytics';
 import { adminDatabases, Query, ANALYTICS_DB_ID } from '@/lib/appwrite-client';
-import { verifyJwtToken, getUserById } from '@/lib/auth-server';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // Collection IDs
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
@@ -9,32 +9,17 @@ const WINES_COLLECTION_ID = 'wines';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    let user;
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      user = await getUserById(decoded.userId);
-    } catch (authError) {
+    const user = await getRequestSessionUser(request);
+
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const wineryId = searchParams.get('wineryId');
+    const wineryId = user.id;
     const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0];
     const analysisType = searchParams.get('type') || 'intelligence';
-
-    if (!wineryId) {
-      return NextResponse.json({ error: 'Winery ID is required' }, { status: 400 });
-    }
 
     if (analysisType === 'pairing') {
       // Return wine pairing analysis

@@ -1,56 +1,219 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  ClipboardIcon,
+  ClockIcon,
+  DocumentTextIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  KeyIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
+
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { MetricCard } from '@/components/ui/metric-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
+import { Surface } from '@/components/ui/surface';
 import { useRequireAuth } from '@/lib/auth-context';
-import { authFetch } from '@/lib/api-helpers';
-import { KeyIcon, TrashIcon, DocumentTextIcon, ClipboardIcon, ClockIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+
+type ApiScopeValue =
+  | 'wines:read'
+  | 'wines:write'
+  | 'wines:delete'
+  | 'qrcodes:generate'
+  | 'analytics:read';
 
 type ApiKey = {
   id: string;
   name: string;
-  key: string;
+  key?: string;
+  scopes?: ApiScopeValue[];
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
 };
 
+type UsageSummary = {
+  totalRequests: number;
+  successRate: number;
+  averageResponseTime: number;
+  errorRequests: number;
+};
+
+type EndpointUsage = {
+  endpoint: string;
+  count: number;
+  successCount: number;
+  errorCount: number;
+  averageResponseTime: number;
+};
+
+type UsageStats = {
+  summary: UsageSummary;
+  endpoints?: EndpointUsage[];
+};
+
+type ScopeOption = {
+  value: ApiScopeValue;
+  label: string;
+  description: string;
+};
+
+const DEFAULT_SCOPE_OPTIONS: ScopeOption[] = [
+  {
+    value: 'wines:read',
+    label: 'wines:read',
+    description: 'Cteni katalogu, detailu a navazujicich dat o vine.',
+  },
+  {
+    value: 'wines:write',
+    label: 'wines:write',
+    description: 'Zakladani a upravy zaznamu vin.',
+  },
+  {
+    value: 'wines:delete',
+    label: 'wines:delete',
+    description: 'Mazani zaznamu. Pouzivejte jen pro admin nebo synchronizacni job.',
+  },
+  {
+    value: 'qrcodes:generate',
+    label: 'qrcodes:generate',
+    description: 'Generovani QR vystupu pro existujici vina.',
+  },
+  {
+    value: 'analytics:read',
+    label: 'analytics:read',
+    description: 'Cteni souhrnnych nebo wine-level analytics dat.',
+  },
+];
+
+const DEFAULT_SCOPES = DEFAULT_SCOPE_OPTIONS.map((scope) => scope.value);
+
+const endpointCards = [
+  {
+    method: 'GET',
+    path: '/api/v1/wines',
+    scope: 'wines:read',
+    description: 'Vraci seznam vin s podporou page a limit parametru.',
+    example:
+      'curl -X GET "https://etiketa.wine/api/v1/wines?page=1&limit=20" \\\n  -H "Authorization: Bearer etw_xxx"',
+  },
+  {
+    method: 'POST',
+    path: '/api/v1/wines',
+    scope: 'wines:write',
+    description: 'Zaklada novy zaznam vina v katalogu.',
+    example:
+      'curl -X POST "https://etiketa.wine/api/v1/wines" \\\n  -H "Authorization: Bearer etw_xxx" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"name":"Riesling","vintage":2023,"batch":"A001"}\'',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/qrcodes/wine/:wineId',
+    scope: 'qrcodes:generate',
+    description: 'Vraci QR vystup pro konkretni vino, typicky SVG nebo PNG.',
+    example:
+      'curl -X GET "https://etiketa.wine/api/v1/qrcodes/wine/ID_VINA?format=svg" \\\n  -H "Authorization: Bearer etw_xxx"',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/analytics/summary',
+    scope: 'analytics:read',
+    description: 'Vraci souhrnny prehled usage a scan dat za zvolene obdobi.',
+    example:
+      'curl -X GET "https://etiketa.wine/api/v1/analytics/summary?days=30" \\\n  -H "Authorization: Bearer etw_xxx"',
+  },
+];
+
+const methodToneClasses: Record<string, string> = {
+  GET: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  POST: 'bg-[#7c2332]/10 text-[#6f1d2b] border border-[#7c2332]/15',
+  DELETE: 'bg-amber-50 text-amber-700 border border-amber-200',
+};
+
+function formatDate(dateString: string | null, withTime = true) {
+  if (!dateString) return 'Nikdy';
+
+  const formatter = withTime
+    ? {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }
+    : {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      };
+
+  return new Intl.DateTimeFormat('cs-CZ', formatter as Intl.DateTimeFormatOptions).format(
+    new Date(dateString)
+  );
+}
+
+function maskKey(value?: string) {
+  if (!value) return 'Klic je dostupny pouze pri vytvoreni.';
+  return `${value.slice(0, 12)}...${value.slice(-6)}`;
+}
+
+function wasUsedRecently(lastUsedAt: string | null) {
+  if (!lastUsedAt) return false;
+
+  const threshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return new Date(lastUsedAt).getTime() >= threshold;
+}
+
+function sessionFetch(url: string, options: RequestInit = {}) {
+  return fetch(url, {
+    ...options,
+    credentials: 'same-origin',
+  });
+}
+
 export default function ClientApiDashboard() {
-  const { user, token } = useRequireAuth();
+  const { user } = useRequireAuth();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newKeyName, setNewKeyName] = useState('');
+  const [selectedScopes, setSelectedScopes] = useState<ApiScopeValue[]>(DEFAULT_SCOPES);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewKey, setShowNewKey] = useState(false);
-  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<ApiKey | null>(null);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
-  const [usageStats, setUsageStats] = useState<any>(null);
+  const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
+  const [copyState, setCopyState] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchApiKeys() {
-      if (!user || !token) return;
+      if (!user) return;
 
       try {
         setLoading(true);
-        const response = await authFetch('/api/api-keys', token);
+        const response = await sessionFetch('/api/api-keys');
+
         if (response.ok) {
           const data = await response.json();
-          setApiKeys(data.apiKeys);
+          setApiKeys(Array.isArray(data.apiKeys) ? data.apiKeys : []);
+          setError(null);
         } else {
-          setError('Nepodařilo se načíst API klíče');
+          setError('Nepodarilo se nacist API klice.');
         }
       } catch (err) {
         console.error('Error fetching API keys:', err);
-        setError('Nastala chyba při načítání API klíčů');
+        setError('Nastala chyba pri nacitani API klicu.');
       } finally {
         setLoading(false);
       }
     }
 
     async function fetchUsageStats() {
-      if (!user || !token) return;
+      if (!user) return;
+
       try {
-        const response = await authFetch('/api/analytics/api-usage?range=30days', token);
+        const response = await sessionFetch('/api/analytics/api-usage?range=30days');
+
         if (response.ok) {
           const data = await response.json();
           setUsageStats(data);
@@ -62,639 +225,690 @@ export default function ClientApiDashboard() {
 
     fetchApiKeys();
     fetchUsageStats();
-  }, [user, token]);
+  }, [user]);
 
-  const createApiKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token || !newKeyName.trim() || isSubmitting) return;
+  useEffect(() => {
+    if (!copyState) return;
+
+    const timeout = window.setTimeout(() => setCopyState(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [copyState]);
+
+  const activeKeyCount = apiKeys.length;
+  const recentlyUsedKeys = apiKeys.filter((key) => wasUsedRecently(key.lastUsedAt)).length;
+  const latestKey = useMemo(
+    () =>
+      [...apiKeys].sort(
+        (first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
+      )[0] || null,
+    [apiKeys]
+  );
+
+  const createApiKey = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!user || !newKeyName.trim() || !selectedScopes.length || isSubmitting) return;
 
     try {
       setIsSubmitting(true);
-      const response = await authFetch('/api/api-keys', token, {
+      const response = await sessionFetch('/api/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newKeyName.trim() }),
+        body: JSON.stringify({
+          name: newKeyName.trim(),
+          scopes: selectedScopes,
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setApiKeys([...apiKeys, data.apiKey]);
-        setNewKeyName('');
-        setNewlyCreatedKey(data.apiKey.key);
+        setApiKeys((current) => [data.apiKey, ...current]);
+        setNewlyCreatedKey(data.apiKey);
         setShowNewKey(true);
+        setNewKeyName('');
+        setSelectedScopes(DEFAULT_SCOPES);
+        setError(null);
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Nepodařilo se vytvořit API klíč');
+        setError(errorData.message || 'Nepodarilo se vytvorit API klic.');
       }
     } catch (err) {
       console.error('Error creating API key:', err);
-      setError('Nastala chyba při vytváření API klíče');
+      setError('Nastala chyba pri vytvareni API klice.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const deleteApiKey = async (keyId: string) => {
-    if (!token) return;
-    if (!confirm('Opravdu chcete smazat tento API klíč? Tato akce je nevratná.')) return;
+    if (!user) return;
+    if (!window.confirm('Opravdu chcete smazat tento API klic? Tato akce je nevratna.')) return;
 
     try {
-      const response = await authFetch(`/api/api-keys/${keyId}`, token, { method: 'DELETE' });
+      const response = await sessionFetch(`/api/api-keys/${keyId}`, { method: 'DELETE' });
+
       if (response.ok) {
-        setApiKeys(apiKeys.filter(key => key.id !== keyId));
+        setApiKeys((current) => current.filter((key) => key.id !== keyId));
+        setError(null);
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Nepodařilo se smazat API klíč');
+        setError(errorData.message || 'Nepodarilo se smazat API klic.');
       }
     } catch (err) {
       console.error('Error deleting API key:', err);
-      setError('Nastala chyba při mazání API klíče');
+      setError('Nastala chyba pri mazani API klice.');
     }
   };
 
   const toggleShowKey = (keyId: string) => {
-    setShowKeys(prev => ({ ...prev, [keyId]: !prev[keyId] }));
+    setShowKeys((current) => ({ ...current, [keyId]: !current[keyId] }));
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => alert('API klíč byl zkopírován do schránky'))
-      .catch(() => alert('Nepodařilo se zkopírovat API klíč do schránky'));
+  const toggleScope = (scope: ApiScopeValue) => {
+    setSelectedScopes((current) =>
+      current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope]
+    );
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Nikdy';
-    return new Date(dateString).toLocaleString('cs-CZ');
+  const copyToClipboard = async (text: string, feedbackId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState(feedbackId);
+    } catch (err) {
+      console.error('Clipboard write failed:', err);
+      setError('Nepodarilo se zkopirovat text do schranky.');
+    }
   };
 
   if (loading) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center py-12">
-          <div className="flex items-center justify-center space-x-4">
-            <svg className="animate-spin h-8 w-8 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <Surface tone="muted" padding="lg">
+          <div className="flex items-center justify-center gap-3 text-stone-700">
+            <svg className="h-5 w-5 animate-spin text-[#6f1d2b]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
-            <span className="text-xl font-medium text-gray-700">Načítání API klíčů...</span>
+            <span className="text-sm font-medium sm:text-base">Nacitam API access workspace.</span>
           </div>
-        </div>
+        </Surface>
       </div>
     );
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">
-          API přístup
-        </h1>
-        <p className="text-gray-600 text-lg leading-relaxed">
-          Zde můžete spravovat své API klíče pro přístup k systému Etiketa.wine pomocí REST API.
-          API umožňuje integraci s vašimi vlastními systémy pro správu vín, etiket a QR kódů.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative space-y-6 pb-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-52 rounded-[40px] bg-[radial-gradient(circle_at_top_right,_rgba(111,29,43,0.1),_transparent_50%),radial-gradient(circle_at_top_left,_rgba(194,165,139,0.12),_transparent_45%)]"
+        />
 
-      {/* Error message */}
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Chyba</h3>
-              <p className="mt-1 text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
+        <PageHeader
+          eyebrow="API Access"
+          title="Integracni pristup"
+          description="Dashboard ověřuje session cookie, zatimco externi integrace dostavaji vlastni API klic a pracuji pres Authorization hlavicku. Kazda integrace by mela mit vlastni scope profil."
+          meta={
+            <>
+              <Badge tone="burgundy">/api/v1/*</Badge>
+              <Badge tone="neutral">Dashboard: session cookie</Badge>
+              <Badge tone="neutral">API key: Authorization</Badge>
+            </>
+          }
+          actions={
+            <>
+              <SecondaryButton
+                onClick={() =>
+                  copyToClipboard(
+                    'curl -X GET "https://etiketa.wine/api/v1/wines" \\\n  -H "Authorization: Bearer etw_xxx" \\\n  -H "Content-Type: application/json"',
+                    'header-example'
+                  )
+                }
+              >
+                <ClipboardIcon className="h-4 w-4" />
+                {copyState === 'header-example' ? 'Zkopirovano' : 'Kopirovat integracni priklad'}
+              </SecondaryButton>
+            </>
+          }
+        />
 
-      {/* API Key Management */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <KeyIcon className="h-5 w-5 text-blue-500 mr-2" />
-            <h2 className="text-lg font-medium text-gray-900">Správa API klíčů</h2>
-          </div>
-        </div>
-
-        <div className="px-6 py-4">
-          {/* Create new API key form */}
-          <form onSubmit={createApiKey} className="mb-6">
-            <div className="flex space-x-4">
-              <div className="flex-grow">
-                <label htmlFor="keyName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Název klíče
-                </label>
-                <input
-                  type="text"
-                  id="keyName"
-                  value={newKeyName}
-                  onChange={(e) => setNewKeyName(e.target.value)}
-                  placeholder="např. Interní systém, E-shop, apod."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  required
-                />
+        {error ? (
+          <Surface tone="muted" padding="sm">
+            <div className="flex items-start gap-3 text-stone-700">
+              <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700">
+                <ClockIcon className="h-4 w-4" />
               </div>
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !newKeyName.trim()}
-                  className={`px-4 py-2 rounded-md font-medium ${
-                    isSubmitting || !newKeyName.trim()
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-red-600 text-white hover:bg-red-700'
-                  }`}
-                >
-                  {isSubmitting ? 'Vytváření...' : 'Vytvořit klíč'}
-                </button>
+              <div>
+                <p className="text-sm font-semibold text-stone-900">Akce se nepodarila dokoncit</p>
+                <p className="mt-1 text-sm text-stone-600">{error}</p>
               </div>
             </div>
-          </form>
+          </Surface>
+        ) : null}
 
-          {/* Newly created key message */}
-          {showNewKey && newlyCreatedKey && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <KeyIcon className="h-6 w-6 text-green-600" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Aktivni klice"
+            value={activeKeyCount}
+            detail="Jeden klic na jednu integraci nebo provozni job."
+            icon={<KeyIcon className="h-5 w-5" />}
+            tone="accent"
+          />
+          <MetricCard
+            label="Pouziti za 30 dni"
+            value={usageStats?.summary?.totalRequests?.toLocaleString('cs-CZ') || '0'}
+            detail="Souhrn vsech requestu na externi API surface."
+            icon={<DocumentTextIcon className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Uspesnost"
+            value={usageStats?.summary ? `${usageStats.summary.successRate}%` : 'Bez dat'}
+            detail="Pomaha odhalit vadne integrace nebo spatny auth kontrakt."
+            icon={<ClockIcon className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Klice pouzite nedavno"
+            value={recentlyUsedKeys}
+            detail={
+              latestKey
+                ? `Posledni novy klic: ${formatDate(latestKey.createdAt, false)}`
+                : 'Zatim nebyl zalozen zadny API klic.'
+            }
+            icon={<KeyIcon className="h-5 w-5" />}
+            tone={recentlyUsedKeys === 0 && activeKeyCount > 0 ? 'warning' : 'neutral'}
+            badge={recentlyUsedKeys === 0 && activeKeyCount > 0 ? 'Bez provozu' : 'OK'}
+          />
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)]">
+          <div className="space-y-6">
+            <Surface>
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Issue Key
+                </p>
+              <h2 className="mt-2 text-xl font-semibold text-stone-900">Vystaveni noveho klice</h2>
+              <p className="mt-1 text-sm text-stone-600">
+                  Vydavejte samostatny klic pro kazdou integraci. Scope omezte na minimum nutne pro dany tok dat.
+              </p>
+              </div>
+
+              <form onSubmit={createApiKey} className="mt-5 space-y-5">
+                <div>
+                  <label htmlFor="keyName" className="block text-sm font-medium text-stone-700">
+                    Nazev integrace
+                  </label>
+                  <input
+                    id="keyName"
+                    type="text"
+                    value={newKeyName}
+                    onChange={(event) => setNewKeyName(event.target.value)}
+                    placeholder="napr. E-shop export, ERP sync, interni dashboard"
+                    className="mt-2 w-full rounded-[18px] border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition-colors focus:border-[#7c2332]/40"
+                    required
+                  />
                 </div>
-                <div className="ml-3 flex-1">
-                  <h3 className="text-sm font-medium text-green-800">Nový API klíč byl vytvořen</h3>
-                  <p className="mt-1 text-sm text-green-700 mb-3">
-                    Toto je jediný okamžik, kdy uvidíte celý klíč. Uložte si ho někam bezpečně:
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono break-all">
-                      {newlyCreatedKey}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(newlyCreatedKey)}
-                      className="px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                      title="Kopírovat do schránky"
+
+                <div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-stone-700">Scope profil</h3>
+                      <p className="mt-1 text-sm text-stone-500">
+                        Scope selection je soucasti requestu pri vytvoreni klice. Umoznuje oddelit cteni, zapis i QR generovani.
+                      </p>
+                    </div>
+                    <SecondaryButton
+                      type="button"
+                      onClick={() => setSelectedScopes(DEFAULT_SCOPES)}
+                    >
+                      Vybrat doporucene minimum
+                    </SecondaryButton>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {DEFAULT_SCOPE_OPTIONS.map((scope) => {
+                      const checked = selectedScopes.includes(scope.value);
+
+                      return (
+                        <label
+                          key={scope.value}
+                          className={`rounded-[20px] border px-4 py-4 transition-colors ${
+                            checked
+                              ? 'border-[#7c2332]/25 bg-[#7c2332]/6'
+                              : 'border-stone-200 bg-stone-50/70 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleScope(scope.value)}
+                              className="mt-1 h-4 w-4 rounded border-stone-300 text-[#6f1d2b] focus:ring-[#7c2332]"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-stone-900">{scope.label}</p>
+                              <p className="mt-1 text-sm leading-6 text-stone-600">{scope.description}</p>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-stone-200/80 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap gap-2">
+                    {selectedScopes.map((scope) => (
+                      <Badge key={scope} tone="burgundy">
+                        {scope}
+                      </Badge>
+                    ))}
+                  </div>
+                  <PrimaryButton
+                    type="submit"
+                    disabled={isSubmitting || !newKeyName.trim() || selectedScopes.length === 0}
+                  >
+                    <KeyIcon className="h-4 w-4" />
+                    {isSubmitting ? 'Vytvarim klic' : 'Vytvorit API klic'}
+                  </PrimaryButton>
+                </div>
+              </form>
+            </Surface>
+
+            {showNewKey && newlyCreatedKey ? (
+              <Surface tone="accent">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                      Newly Issued Key
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold text-stone-900">Ulozte si plnou hodnotu nyni</h2>
+                    <p className="mt-1 text-sm text-stone-600">
+                      Cely API klic uvidite pouze pri vytvoreni. Potom zustane v seznamu uz jen metadata a hash-only storage na serveru.
+                    </p>
+                  </div>
+                  <SecondaryButton type="button" onClick={() => setShowNewKey(false)}>
+                    Zavrit
+                  </SecondaryButton>
+                </div>
+
+                <div className="mt-4 rounded-[22px] border border-[#7c2332]/15 bg-white/90 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-stone-900">{newlyCreatedKey.name}</p>
+                      <code className="mt-3 block overflow-x-auto rounded-[18px] bg-stone-950 px-4 py-3 text-sm text-stone-50">
+                        {newlyCreatedKey.key}
+                      </code>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(newlyCreatedKey.scopes?.length ? newlyCreatedKey.scopes : DEFAULT_SCOPES).map((scope) => (
+                          <Badge key={scope} tone="neutral">
+                            {scope}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <SecondaryButton
+                      type="button"
+                      onClick={() => copyToClipboard(newlyCreatedKey.key || '', 'new-key')}
                     >
                       <ClipboardIcon className="h-4 w-4" />
-                    </button>
+                      {copyState === 'new-key' ? 'Zkopirovano' : 'Kopirovat'}
+                    </SecondaryButton>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowNewKey(false)}
-                  className="text-green-400 hover:text-green-600"
-                >
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
+              </Surface>
+            ) : null}
 
-          {/* API keys list */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Vaše API klíče</h3>
-            
-            {apiKeys.length === 0 ? (
-              <p className="text-gray-500 text-sm">Zatím nemáte žádné API klíče. Vytvořte si svůj první klíč pomocí formuláře výše.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Název</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Klíč</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vytvořeno</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poslední použití</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akce</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {apiKeys.map((key) => (
-                      <tr key={key.id}>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {key.name}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <code 
-                              className="font-mono bg-gray-50 px-2 py-1 rounded text-xs"
-                              title={key.key ? "API klíč" : "Klíč je dostupný pouze při vytvoření z bezpečnostních důvodů"}
-                            >
-                              {key.key ? 
-                                (showKeys[key.id] ? key.key : `${key.key.substring(0, 10)}...`) :
-                                "••••••••••••••••••••••••"
-                              }
-                            </code>
-                            {key.key && (
-                              <button
-                                onClick={() => toggleShowKey(key.id)}
-                                className="ml-2 text-gray-400 hover:text-gray-600"
-                                title={showKeys[key.id] ? "Skrýt klíč" : "Zobrazit klíč"}
-                              >
-                                {showKeys[key.id] ? (
-                                  <EyeSlashIcon className="h-4 w-4" />
-                                ) : (
-                                  <EyeIcon className="h-4 w-4" />
-                                )}
-                              </button>
-                            )}
-                            {key.key && (
-                              <button
-                                onClick={() => copyToClipboard(key.key)}
-                                className="ml-2 text-gray-400 hover:text-gray-600"
-                                title="Kopírovat do schránky"
-                              >
-                                <ClipboardIcon className="h-4 w-4" />
-                              </button>
-                            )}
+            <Surface>
+              <div className="flex flex-col gap-2 border-b border-stone-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                    Key Inventory
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-stone-900">Aktualni klice a provozni stav</h2>
+                  <p className="mt-1 text-sm text-stone-600">
+                    Sledujte, kdy byl klic vydan, zda se pouziva, a ktere scopes nese.
+                  </p>
+                </div>
+              </div>
+
+              {apiKeys.length === 0 ? (
+                <div className="mt-6">
+                  <EmptyState
+                    icon={<KeyIcon className="h-6 w-6" />}
+                    title="Zatim neni vydan zadny API klic"
+                    description="Vytvorte prvni klic pro konkretni integraci. Doporuceni je jeden klic na jeden consumer a scope omezene podle use-casu."
+                  />
+                </div>
+              ) : (
+                <div className="mt-3 divide-y divide-stone-200/80">
+                  {apiKeys.map((key) => {
+                    const keyScopes = key.scopes?.length ? key.scopes : DEFAULT_SCOPES;
+                    const isVisible = showKeys[key.id];
+
+                    return (
+                      <div key={key.id} className="py-4">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-base font-semibold text-stone-900">{key.name}</h3>
+                              {wasUsedRecently(key.lastUsedAt) ? (
+                                <Badge tone="success">Aktivni za 30 dni</Badge>
+                              ) : (
+                                <Badge tone="neutral">Bez nedavne aktivity</Badge>
+                              )}
+                              {key.expiresAt ? <Badge tone="warning">Expirace {formatDate(key.expiresAt, false)}</Badge> : null}
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {keyScopes.map((scope) => (
+                                <Badge key={`${key.id}-${scope}`} tone="neutral">
+                                  {scope}
+                                </Badge>
+                              ))}
+                            </div>
+
+                            <div className="mt-4 rounded-[18px] bg-stone-50 px-4 py-3">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                                Hodnota klice
+                              </p>
+                              <code className="mt-2 block break-all text-sm text-stone-800">
+                                {isVisible && key.key ? key.key : maskKey(key.key)}
+                              </code>
+                              <p className="mt-2 text-xs text-stone-500">
+                                {key.key
+                                  ? 'Plna hodnota je v tomto klientu dostupna pouze bezprostredne po vytvoreni.'
+                                  : 'Server vraci u starsich klicu pouze metadata. Klic proto uchovavejte mimo aplikaci pri vydani.'}
+                              </p>
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(key.createdAt)}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(key.lastUsedAt)}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => deleteApiKey(key.id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Smazat klíč"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* API Usage Statistics */}
-      {usageStats && (
-        <div className="mt-8 bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">API Statistiky (posledních 30 dní)</h2>
-          </div>
-          
-          <div className="px-6 py-4">
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <div className="text-2xl font-bold text-blue-600">{usageStats.summary.totalRequests.toLocaleString()}</div>
-                </div>
-                <p className="text-sm text-blue-600">Celkem požadavků</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <div className="text-2xl font-bold text-green-600">{usageStats.summary.successRate}%</div>
-                </div>
-                <p className="text-sm text-green-600">Úspěšnost</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <div className="text-2xl font-bold text-purple-600">{usageStats.summary.averageResponseTime}ms</div>
-                </div>
-                <p className="text-sm text-purple-600">Průměrná odezva</p>
-              </div>
-              <div className="bg-red-50 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <div className="text-2xl font-bold text-red-600">{usageStats.summary.errorRequests.toLocaleString()}</div>
-                </div>
-                <p className="text-sm text-red-600">Chyby</p>
-              </div>
-            </div>
+                          <div className="min-w-[220px] space-y-3 rounded-[20px] border border-stone-200/80 bg-stone-50/80 p-4">
+                            <dl className="space-y-2">
+                              <div className="flex items-start justify-between gap-4">
+                                <dt className="text-sm text-stone-500">Vytvoreno</dt>
+                                <dd className="text-right text-sm font-medium text-stone-900">
+                                  {formatDate(key.createdAt)}
+                                </dd>
+                              </div>
+                              <div className="flex items-start justify-between gap-4">
+                                <dt className="text-sm text-stone-500">Posledni pouziti</dt>
+                                <dd className="text-right text-sm font-medium text-stone-900">
+                                  {formatDate(key.lastUsedAt)}
+                                </dd>
+                              </div>
+                            </dl>
 
-            {/* Top Endpoints */}
-            {usageStats.endpoints && usageStats.endpoints.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Nejpoužívanější endpointy</h3>
-                <div className="space-y-2">
-                  {usageStats.endpoints.slice(0, 5).map((endpoint: any, index: number) => (
-                    <div key={endpoint.endpoint} className="flex items-center justify-between bg-gray-50 rounded p-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-sm font-medium text-gray-900">#{index + 1}</div>
-                        <code className="text-sm font-mono text-gray-800">{endpoint.endpoint}</code>
-                        <span className="text-xs text-gray-600">{endpoint.averageResponseTime}ms avg</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-gray-900">{endpoint.count.toLocaleString()}</div>
-                        <div className="text-xs text-gray-600">
-                          {endpoint.successCount} úspěch / {endpoint.errorCount} chyb
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              {key.key ? (
+                                <>
+                                  <SecondaryButton type="button" onClick={() => toggleShowKey(key.id)}>
+                                    {isVisible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                                    {isVisible ? 'Skryt' : 'Zobrazit'}
+                                  </SecondaryButton>
+                                  <SecondaryButton
+                                    type="button"
+                                    onClick={() => copyToClipboard(key.key || '', `key-${key.id}`)}
+                                  >
+                                    <ClipboardIcon className="h-4 w-4" />
+                                    {copyState === `key-${key.id}` ? 'Zkopirovano' : 'Kopirovat'}
+                                  </SecondaryButton>
+                                </>
+                              ) : null}
+                              <SecondaryButton type="button" onClick={() => deleteApiKey(key.id)}>
+                                <TrashIcon className="h-4 w-4" />
+                                Smazat
+                              </SecondaryButton>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-            )}
+              )}
+            </Surface>
           </div>
-        </div>
-      )}
 
-      {/* API Documentation */}
-      <div className="mt-8 bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <DocumentTextIcon className="h-5 w-5 text-blue-500 mr-2" />
-            <h2 className="text-lg font-medium text-gray-900">API Dokumentace</h2>
-          </div>
-        </div>
-        
-        <div className="px-6 py-4 space-y-8">
-          {/* Authentication */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">🔐 Autentizace</h3>
-            <p className="text-gray-700 mb-4">
-              Pro přístup k API můžete použít API klíč dvěma způsoby:
-            </p>
-            
-            <div className="space-y-4">
-              {/* Method 1: Header */}
-              <div>
-                <h4 className="text-md font-medium text-gray-800 mb-2">1. V hlavičce požadavku (doporučeno)</h4>
-                <div className="bg-gray-50 p-3 rounded border">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Příklad:</span>
-                    <button
-                      onClick={() => copyToClipboard('curl -X GET "https://etiketa.wine/api/v1/wines" \\\n  -H "X-API-Key: vas_api_klic" \\\n  -H "Content-Type: application/json"')}
-                      className="text-xs text-gray-500 hover:text-gray-700 underline"
-                    >
-                      Kopírovat
-                    </button>
-                  </div>
-                  <pre className="text-sm overflow-x-auto text-gray-800 font-mono">
-{`curl -X GET "https://etiketa.wine/api/v1/wines" \\
-  -H "X-API-Key: vas_api_klic" \\
-  -H "Content-Type: application/json"`}
-                  </pre>
-                </div>
-              </div>
-
-              {/* Method 2: URL Parameter */}
-              <div>
-                <h4 className="text-md font-medium text-gray-800 mb-2">2. V URL parametru (pro rychlé testování)</h4>
-                <div className="bg-gray-50 p-3 rounded border">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-600">Příklad:</span>
-                    <button
-                      onClick={() => copyToClipboard('https://etiketa.wine/api/v1/wines?key=vas_api_klic&page=1&limit=10')}
-                      className="text-xs text-gray-500 hover:text-gray-700 underline"
-                    >
-                      Kopírovat
-                    </button>
-                  </div>
-                  <pre className="text-sm overflow-x-auto text-gray-800 font-mono">
-{`https://etiketa.wine/api/v1/wines?key=vas_api_klic&page=1&limit=10`}
-                  </pre>
-                </div>
-                <p className="text-sm text-amber-600 mt-2">
-                  ⚠️ <strong>Pozor:</strong> Používejte URL parametr pouze pro testování. V produkci doporučujeme hlavičku X-API-Key.
+          <div className="space-y-6">
+            <Surface tone="accent">
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Auth Contract
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-stone-900">Header-only pristup</h2>
+                <p className="mt-1 text-sm text-stone-600">
+                  Dashboard pouziva session cookie. Externi API akceptuje klic v hlavicce `Authorization`. Query string nepouzivejte.
                 </p>
               </div>
-            </div>
+
+              <div className="mt-4 rounded-[22px] bg-stone-950 px-4 py-4 text-sm text-stone-50">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
+{`curl -X GET "https://etiketa.wine/api/v1/wines" \\
+  -H "Authorization: Bearer etw_xxx" \\
+  -H "Content-Type: application/json"`}
+                </pre>
+              </div>
+
+              <div className="mt-4 space-y-3 text-sm text-stone-600">
+                <div className="rounded-[20px] border border-stone-200/80 bg-white/80 px-4 py-4">
+                  <p className="font-semibold text-stone-900">Pravidlo 1</p>
+                  <p className="mt-1">Jeden klic patri jedne integraci. Nezdilejte jeden klic mezi e-shopem, ERP a internim reportem.</p>
+                </div>
+                <div className="rounded-[20px] border border-stone-200/80 bg-white/80 px-4 py-4">
+                  <p className="font-semibold text-stone-900">Pravidlo 2</p>
+                  <p className="mt-1">Authorization hlavicka je jediny podporovany transport pro API klic. Klic nepatri do URL, query ani logu.</p>
+                </div>
+                <div className="rounded-[20px] border border-stone-200/80 bg-white/80 px-4 py-4">
+                  <p className="font-semibold text-stone-900">Pravidlo 3</p>
+                  <p className="mt-1">Pri kompromitaci klic smazte a vydejte novy. Stary klic se po smazani uz neobnovi.</p>
+                </div>
+              </div>
+            </Surface>
+
+            <Surface>
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Scope Strategy
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-stone-900">Doporuceny scope model</h2>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {DEFAULT_SCOPE_OPTIONS.map((scope) => (
+                  <div key={scope.value} className="rounded-[20px] border border-stone-200/80 bg-stone-50/70 px-4 py-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="burgundy">{scope.value}</Badge>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">{scope.description}</p>
+                  </div>
+                ))}
+                <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-4">
+                  <p className="text-sm font-semibold text-amber-800">Poznamka k sirokym opravnenim</p>
+                  <p className="mt-1 text-sm leading-6 text-amber-700">
+                    Scope `*` existuje v backend kontraktu, ale pro bezny provoz ho nepouzivejte. Vydavejte uzke scope profily a klice oddelujte podle systemu.
+                  </p>
+                </div>
+              </div>
+            </Surface>
+
+            {usageStats ? (
+              <Surface tone="muted">
+                <div className="border-b border-stone-200/80 pb-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                    Usage Snapshot
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-stone-900">Poslednich 30 dni</h2>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[20px] bg-white/85 px-4 py-4">
+                    <p className="text-sm text-stone-500">Prumerna odezva</p>
+                    <p className="mt-1 text-2xl font-semibold text-stone-900">
+                      {usageStats.summary.averageResponseTime} ms
+                    </p>
+                  </div>
+                  <div className="rounded-[20px] bg-white/85 px-4 py-4">
+                    <p className="text-sm text-stone-500">Chybove requesty</p>
+                    <p className="mt-1 text-2xl font-semibold text-stone-900">
+                      {usageStats.summary.errorRequests.toLocaleString('cs-CZ')}
+                    </p>
+                  </div>
+                </div>
+
+                {usageStats.endpoints && usageStats.endpoints.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {usageStats.endpoints.slice(0, 4).map((endpoint) => (
+                      <div
+                        key={endpoint.endpoint}
+                        className="rounded-[20px] border border-stone-200/80 bg-white/85 px-4 py-4"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <code className="block truncate text-sm font-semibold text-stone-900">
+                              {endpoint.endpoint}
+                            </code>
+                            <p className="mt-1 text-sm text-stone-500">
+                              {endpoint.averageResponseTime} ms avg
+                            </p>
+                          </div>
+                          <div className="text-sm text-stone-600">
+                            {endpoint.count.toLocaleString('cs-CZ')} req
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm text-stone-500">
+                          {endpoint.successCount} uspech / {endpoint.errorCount} chyb
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </Surface>
+            ) : null}
           </div>
+        </div>
 
-          {/* Available Endpoints */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">📋 Dostupné endpointy</h3>
-            <div className="space-y-6">
-              
-              {/* Wines API */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-800 mb-3">🍷 Wines API</h4>
-                <div className="space-y-4">
-                  
-                  {/* GET /api/v1/wines */}
-                  <div className="bg-green-50 border border-green-200 rounded p-3">
-                    <div className="flex items-center mb-2">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-mono mr-2">GET</span>
-                      <code className="text-sm font-mono">/api/v1/wines</code>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">Získá seznam všech vín uživatele s podporou stránkování</p>
-                    <div className="text-xs text-gray-600">
-                      <strong>Parametry:</strong> page (číslo stránky), limit (počet položek na stránku, max 100)
-                    </div>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => copyToClipboard('curl -X GET "https://etiketa.wine/api/v1/wines?page=1&limit=10&key=vas_api_klic"')}
-                        className="text-xs text-green-600 hover:text-green-800 underline"
-                      >
-                        Kopírovat příklad
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* GET /api/v1/wines/:id */}
-                  <div className="bg-green-50 border border-green-200 rounded p-3">
-                    <div className="flex items-center mb-2">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-mono mr-2">GET</span>
-                      <code className="text-sm font-mono">/api/v1/wines/:id</code>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">Získá detail konkrétního vína podle ID</p>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => copyToClipboard('curl -X GET "https://etiketa.wine/api/v1/wines/ID_VINA?key=vas_api_klic"')}
-                        className="text-xs text-green-600 hover:text-green-800 underline"
-                      >
-                        Kopírovat příklad
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* POST /api/v1/wines */}
-                  <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                    <div className="flex items-center mb-2">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono mr-2">POST</span>
-                      <code className="text-sm font-mono">/api/v1/wines</code>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">Vytvoří nové víno</p>
-                    <div className="text-xs text-gray-600 mb-2">
-                      <strong>Povinné pole:</strong> name, vintage, batch<br/>
-                      <strong>Volitelné:</strong> alcoholContent, energyValueKJ, energyValueKcal, fat, saturatedFat, carbs, sugars, protein, salt, ingredients, additionalInfo, allergens, wineRegion, wineSubregion, wineVillage, wineTract, wineryName
-                    </div>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => copyToClipboard('curl -X POST "https://etiketa.wine/api/v1/wines" \\\n  -H "X-API-Key: vas_api_klic" \\\n  -H "Content-Type: application/json" \\\n  -d \'{"name": "Riesling", "vintage": 2023, "batch": "A001", "alcoholContent": 12.5}\'')}
-                        className="text-xs text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Kopírovat příklad
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* QR Codes API */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-800 mb-3">🔗 QR Codes API</h4>
-                <div className="space-y-4">
-                  
-                  {/* GET /api/v1/qrcodes/wine/:wineId */}
-                  <div className="bg-green-50 border border-green-200 rounded p-3">
-                    <div className="flex items-center mb-2">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-mono mr-2">GET</span>
-                      <code className="text-sm font-mono">/api/v1/qrcodes/wine/:wineId</code>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">Vygeneruje QR kód pro konkrétní víno ve formátu SVG</p>
-                    <div className="text-xs text-gray-600">
-                      <strong>Parametry:</strong> size (velikost QR kódu, výchozí 200), format (svg/png, výchozí svg)
-                    </div>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => copyToClipboard('curl -X GET "https://etiketa.wine/api/v1/qrcodes/wine/ID_VINA?size=300&format=svg&key=vas_api_klic"')}
-                        className="text-xs text-green-600 hover:text-green-800 underline"
-                      >
-                        Kopírovat příklad
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Analytics API */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-800 mb-3">📊 Analytics API</h4>
-                <div className="space-y-4">
-                  
-                  {/* GET /api/v1/analytics/summary */}
-                  <div className="bg-green-50 border border-green-200 rounded p-3">
-                    <div className="flex items-center mb-2">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-mono mr-2">GET</span>
-                      <code className="text-sm font-mono">/api/v1/analytics/summary</code>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">Získá souhrnné analytické údaje pro všechna vína uživatele</p>
-                    <div className="text-xs text-gray-600">
-                      <strong>Parametry:</strong> days (počet dní zpět, výchozí 30)
-                    </div>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => copyToClipboard('curl -X GET "https://etiketa.wine/api/v1/analytics/summary?days=7&key=vas_api_klic"')}
-                        className="text-xs text-green-600 hover:text-green-800 underline"
-                      >
-                        Kopírovat příklad
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* GET /api/v1/analytics/wine/:wineId */}
-                  <div className="bg-green-50 border border-green-200 rounded p-3">
-                    <div className="flex items-center mb-2">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-mono mr-2">GET</span>
-                      <code className="text-sm font-mono">/api/v1/analytics/wine/:wineId</code>
-                    </div>
-                    <p className="text-sm text-gray-700 mb-2">Získá detailní analytické údaje pro konkrétní víno</p>
-                    <div className="text-xs text-gray-600">
-                      <strong>Parametry:</strong> days (počet dní zpět, výchozí 30)
-                    </div>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => copyToClipboard('curl -X GET "https://etiketa.wine/api/v1/analytics/wine/ID_VINA?days=30&key=vas_api_klic"')}
-                        className="text-xs text-green-600 hover:text-green-800 underline"
-                      >
-                        Kopírovat příklad
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+          <Surface>
+            <div className="border-b border-stone-200/80 pb-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                Endpoint Families
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-stone-900">Co ma byt za kazdym klicem povoleno</h2>
+              <p className="mt-1 text-sm text-stone-600">
+                Dokumentace je zjednodusena na hlavni operacni surface. Kazdy endpoint ukazuje metodu, path a potrebny scope.
+              </p>
             </div>
-          </div>
 
-          {/* Response Format */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">📄 Formát odpovědi</h3>
-            <p className="text-gray-700 mb-3">
-              Všechny API odpovědi jsou ve formátu JSON. Struktura úspěšné odpovědi:
-            </p>
-            <div className="bg-gray-50 p-3 rounded border">
-              <pre className="text-sm overflow-x-auto text-gray-800 font-mono">
+            <div className="mt-4 space-y-4">
+              {endpointCards.map((endpoint) => (
+                <div key={`${endpoint.method}-${endpoint.path}`} className="rounded-[22px] border border-stone-200/80 bg-stone-50/70 px-4 py-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                            methodToneClasses[endpoint.method] || methodToneClasses.GET
+                          }`}
+                        >
+                          {endpoint.method}
+                        </span>
+                        <code className="text-sm font-semibold text-stone-900">{endpoint.path}</code>
+                        <Badge tone="neutral">{endpoint.scope}</Badge>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">{endpoint.description}</p>
+                    </div>
+                    <SecondaryButton
+                      type="button"
+                      onClick={() => copyToClipboard(endpoint.example, `${endpoint.method}-${endpoint.path}`)}
+                    >
+                      <ClipboardIcon className="h-4 w-4" />
+                      {copyState === `${endpoint.method}-${endpoint.path}` ? 'Zkopirovano' : 'Kopirovat'}
+                    </SecondaryButton>
+                  </div>
+                  <pre className="mt-3 overflow-x-auto rounded-[18px] bg-stone-950 px-4 py-3 text-sm text-stone-50">
+{endpoint.example}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </Surface>
+
+          <div className="space-y-6">
+            <Surface tone="muted">
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Response Model
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-stone-900">Co cist z odpovedi</h2>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Uspesna odpoved</p>
+                  <pre className="mt-2 overflow-x-auto rounded-[18px] bg-stone-950 px-4 py-3 text-sm text-stone-50">
 {`{
   "success": true,
-  "data": {
-    // Vlastní data odpovědi
-  },
-  "pagination": {  // Pouze u stránkovaných odpovědí
+  "data": {},
+  "pagination": {
     "page": 1,
-    "limit": 10,
-    "total": 25,
-    "totalPages": 3
+    "limit": 20,
+    "total": 120,
+    "totalPages": 6
   }
 }`}
-              </pre>
-            </div>
-            
-            <p className="text-gray-700 mt-4 mb-3">Struktura chybové odpovědi:</p>
-            <div className="bg-red-50 p-3 rounded border border-red-200">
-              <pre className="text-sm overflow-x-auto text-gray-800 font-mono">
+                  </pre>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Chybova odpoved</p>
+                  <pre className="mt-2 overflow-x-auto rounded-[18px] bg-stone-950 px-4 py-3 text-sm text-stone-50">
 {`{
   "success": false,
   "error": "Popis chyby",
   "code": "ERROR_CODE"
 }`}
-              </pre>
-            </div>
-          </div>
-
-          {/* Rate Limits */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">⏱️ Limity požadavků</h3>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium text-blue-800">Základní účet</h4>
-                  <p className="text-sm text-blue-700">60 požadavků za hodinu</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-blue-800">Premium účet</h4>
-                  <p className="text-sm text-blue-700">300 požadavků za hodinu</p>
+                  </pre>
                 </div>
               </div>
-              <p className="text-sm text-blue-700 mt-3">
-                Při překročení limitu obdržíte HTTP status 429. Hlavičky odpovědi obsahují informace o limitu:
-                <code className="bg-blue-100 px-1 py-0.5 rounded text-xs ml-1">X-RateLimit-Limit</code>,
-                <code className="bg-blue-100 px-1 py-0.5 rounded text-xs ml-1">X-RateLimit-Remaining</code>,
-                <code className="bg-blue-100 px-1 py-0.5 rounded text-xs ml-1">X-RateLimit-Reset</code>
-              </p>
-            </div>
-          </div>
+            </Surface>
 
-          {/* Contact */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <ClockIcon className="h-6 w-6 text-amber-600 mr-3 mt-1" />
-              <div>
-                <h3 className="text-lg font-medium text-amber-800 mb-1">Potřebujete pomoc?</h3>
-                <p className="text-amber-700 mb-3">
-                  Pokud máte specifické požadavky nebo potřebujete pomoc s integrací,
-                  kontaktujte nás na <a href="mailto:info@etiketa.wine" className="text-amber-800 underline hover:text-amber-900 font-medium">info@etiketa.wine</a>.
+            <Surface>
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Limits and Support
                 </p>
-                <div className="space-y-2">
-                  <div className="p-2 bg-amber-100 rounded border border-amber-200">
-                    <p className="text-sm text-amber-800">
-                      <strong>Tip:</strong> Pro testování API doporučujeme použít nástroje jako Postman, Insomnia nebo curl.
-                    </p>
-                  </div>
-                  <div className="p-2 bg-amber-100 rounded border border-amber-200">
-                    <p className="text-sm text-amber-800">
-                      <strong>Postman Collection:</strong> Připravujeme předpřipravenou kolekci pro Postman s vašimi API klíči.
-                    </p>
-                  </div>
+                <h2 className="mt-2 text-xl font-semibold text-stone-900">Provozni poznamky</h2>
+              </div>
+
+              <div className="mt-4 space-y-4 text-sm leading-6 text-stone-600">
+                <div className="rounded-[20px] border border-stone-200/80 bg-stone-50/70 px-4 py-4">
+                  <p className="font-semibold text-stone-900">Rate limiting</p>
+                  <p className="mt-1">
+                    Zakladni ucet pocita s 60 requesty za hodinu, Neomezene s 300 requesty za hodinu. Pri limitu vraci API `429` a hlavicky `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`.
+                  </p>
+                </div>
+                <div className="rounded-[20px] border border-stone-200/80 bg-stone-50/70 px-4 py-4">
+                  <p className="font-semibold text-stone-900">Doporuceny rollout</p>
+                  <p className="mt-1">
+                    Nejdrive overte `wines:read`, teprve potom zapojte zapis nebo mazani. Pomuze to oddelit auth chyby od problemu v business logice integrace.
+                  </p>
+                </div>
+                <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800">
+                  <p className="font-semibold">Potrebujete pomoc s integraci?</p>
+                  <p className="mt-1">
+                    Pro specificky use-case nebo revizi scope profilu piste na{' '}
+                    <a href="mailto:info@etiketa.wine" className="font-medium underline">
+                      info@etiketa.wine
+                    </a>
+                    .
+                  </p>
                 </div>
               </div>
-            </div>
+            </Surface>
           </div>
         </div>
       </div>

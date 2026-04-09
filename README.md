@@ -1,117 +1,116 @@
-# VinařstvíQR - Systém pro generování QR kódů pro etikety vín
+# etiketa.wine
 
-Systém pro jednoduché a efektivní splnění legislativních požadavků na označování vín QR kódy s výživovými údaji a složením.
+`etiketa.wine` je Next.js aplikace pro česká vinařství. Aktuální stack je App Router + React 19 + TypeScript + Appwrite, s veřejnými stránkami vína, dashboardem a interními API route handlery.
 
-## O projektu
+## Stack
 
-VinařstvíQR je webová aplikace, která umožňuje vinařstvím vytvářet a spravovat QR kódy pro etikety vín. Od roku 2023 je v EU povinné uvádět na etiketách vín výživové údaje a seznam složek, které mohou být poskytnuty prostřednictvím QR kódu.
-
-### Hlavní funkce
-
-- Registrace a přihlášení vinařství
-- Správa vín a jejich údajů
-- Automatické generování QR kódů
-- Veřejně dostupné stránky s informacemi o víně
-- Splnění legislativních požadavků EU
-
-## Technologie
-
-- [Next.js](https://nextjs.org/) 15.x - React framework
-- [TypeScript](https://www.typescriptlang.org/) - Typový systém
-- [Prisma](https://www.prisma.io/) - ORM pro práci s databází
-- [PostgreSQL](https://www.postgresql.org/) - Databázový systém
-- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
-- [React Hook Form](https://react-hook-form.com/) - Správa formulářů
-- [Zod](https://zod.dev/) - Validace dat
-- [QRCode](https://www.npmjs.com/package/qrcode) - Generování QR kódů
+- [Next.js 15](https://nextjs.org/)
+- [React 19](https://react.dev/)
+- [TypeScript 5](https://www.typescriptlang.org/)
+- [Appwrite](https://appwrite.io/)
+- [Tailwind CSS 4](https://tailwindcss.com/)
+- [Zod](https://zod.dev/)
+- [React Hook Form](https://react-hook-form.com/)
+- [Vitest](https://vitest.dev/)
 
 ## Požadavky
 
-- Node.js 18.x nebo novější
-- PostgreSQL 14.x nebo novější
-- Yarn nebo npm
+- Node.js 20
+- npm 10
+- Lokální nebo cloudové Appwrite prostředí
 
-## Instalace
+## Rychlý start
 
-1. Klonujte repozitář:
+1. Nainstalujte závislosti:
    ```bash
-   git clone https://github.com/vase-uzivatelske-jmeno/vinarstvibadin_etikety.git
-   cd vinarstvibadin_etikety
-   ```
-
-2. Nainstalujte závislosti:
-   ```bash
-   yarn install
-   # nebo
    npm install
    ```
 
-3. Vytvořte soubor `.env` s připojením k databázi:
-   ```
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/wine_qr_codes?schema=public"
-   JWT_SECRET="vas-tajny-klic-zde"
-   NEXT_PUBLIC_BASE_URL="http://localhost:3232"
+2. Vytvořte lokální env soubor podle `.env.example`:
+   ```bash
+   cp .env.example .env.local
    ```
 
-4. Inicializujte databázi:
+3. Doplňte Appwrite a runtime proměnné:
    ```bash
-   yarn db:migrate
-   # nebo
-   npm run db:migrate
+   APPWRITE_ENDPOINT="https://your-appwrite/v1"
+   APPWRITE_PROJECT_ID="your-project-id"
+   APPWRITE_KEY="your-appwrite-api-key"
+
+   NEXT_PUBLIC_APPWRITE_ENDPOINT="https://your-appwrite/v1"
+   NEXT_PUBLIC_APPWRITE_PROJECT_ID="your-project-id"
+   NEXT_PUBLIC_APPWRITE_PROJECT_NAME="etiketa.wine"
+   NEXT_PUBLIC_APP_URL="http://localhost:3232"
+
+   JWT_SECRET="change-me"
+   CRON_SECRET="change-me"
+   ENCRYPTION_KEY="change-me"
    ```
 
-5. (Volitelně) Naplňte databázi testovacími daty:
+4. Spusťte aplikaci:
    ```bash
-   yarn db:seed
-   # nebo
-   npm run db:seed
-   ```
-
-6. Spusťte vývojový server:
-   ```bash
-   yarn dev
-   # nebo
    npm run dev
    ```
 
-7. Otevřete [http://localhost:3232](http://localhost:3232) ve vašem prohlížeči.
+5. Otevřete [http://localhost:3232](http://localhost:3232).
 
-## Struktura projektu
+## Skripty
 
+- `npm run dev` - vývojový server
+- `npm run build` - produkční build
+- `npm run start` - spuštění buildu
+- `npm run lint` - ESLint kontrola
+- `npm run typecheck` - TypeScript kontrola
+- `npm run test` - Vitest smoke testy
+- `npm run test:watch` - Vitest watch mód
+- `npm run appwrite:migrate` - migrace Appwrite struktur a dat mezi prostředími
+- `npm run appwrite:setup:winery-profiles` - vytvoření kolekce `winery_profiles` pro dedicated profile path
+
+## Testy
+
+Vitest smoke testy jsou v `tests/` a ověřují základní Appwrite env kontrakt. Stejný adresář obsahuje i starší pomocné Node skripty, které nejsou součástí Vitest discovery.
+
+## CI
+
+GitHub Actions workflow v `.github/workflows/ci.yml` běží na Node 20 a kontroluje `lint`, `typecheck`, `test` a `build`.
+
+## Deploy na Coolify
+
+- Produkční image se staví z root [Dockerfile](/Users/mpmp/development/vinarstvibadin_etikety/Dockerfile) přes `npm ci` na Node 20.
+- Coolify service musí používat port `3232`.
+- Liveness endpoint je `/api/health`.
+- Readiness endpoint je `/api/ready`.
+
+### Build-time proměnné
+
+Tyto proměnné musí být dostupné už při buildu image:
+
+```bash
+APPWRITE_ENDPOINT=
+APPWRITE_PROJECT_ID=
+APPWRITE_KEY=
+NEXT_PUBLIC_APPWRITE_ENDPOINT=
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=
+NEXT_PUBLIC_APPWRITE_PROJECT_NAME=
+NEXT_PUBLIC_APP_URL=
 ```
-/
-├── prisma/             # Prisma schema a migrace
-├── public/             # Statické soubory
-└── src/
-    ├── app/            # Next.js App Router
-    │   ├── api/        # API routes
-    │   ├── dashboard/  # Dashboard pages
-    │   ├── [winery]/   # Veřejné stránky s informacemi o víně
-    │   └── ...
-    ├── components/     # React komponenty
-    ├── lib/            # Sdílené knihovny a utility
-    └── types/          # TypeScript typy
+
+### Runtime proměnné
+
+Tyto proměnné musí být dostupné při startu služby:
+
+```bash
+APPWRITE_ENDPOINT=
+APPWRITE_PROJECT_ID=
+APPWRITE_KEY=
+JWT_SECRET=
+CRON_SECRET=
+ENCRYPTION_KEY=
+NEXT_PUBLIC_APPWRITE_ENDPOINT=
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=
+NEXT_PUBLIC_APPWRITE_PROJECT_NAME=
+NEXT_PUBLIC_APP_URL=
+ADMIN_EMAILS=
+IP_INFO_KEY=
+ENABLE_INTERNAL_ROUTES=false
 ```
-
-## Legislativní požadavky
-
-Od 8. prosince 2023 je v EU povinné uvádět na etiketách vín výživové údaje a seznam složek. Tyto informace mohou být poskytnuty prostřednictvím QR kódu.
-
-### Požadované informace v QR kódu
-
-1. **Výživové údaje (na 100 ml)**:
-   - Energetická hodnota (kJ/kcal)
-   - Množství tuků, nasycených mastných kyselin, sacharidů, cukrů, bílkovin a soli
-
-2. **Seznam složek**:
-   - Musí začínat slovem "Složení:"
-   - Obsahuje hrozny, antioxidanty (např. oxid siřičitý), regulátory kyselosti a další
-
-3. **Další povinné údaje**:
-   - Přesná identifikace vína (název, ročník, šarže, obsah alkoholu)
-   - Informace o plniči/výrobci
-   - Odkaz na vinařskou oblast, podoblast, obec a trať
-
-## Licence
-
-Tento projekt je licencován pod MIT licencí - viz soubor [LICENSE](LICENSE) pro detaily.

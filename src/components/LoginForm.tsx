@@ -27,7 +27,6 @@ export default function LoginForm() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -39,14 +38,7 @@ export default function LoginForm() {
       setSuccess('Registrace proběhla úspěšně. Nyní se můžete přihlásit.');
     }
     
-    // Check if demo login was requested
-    if (searchParams.get('demo') === 'true') {
-      // Auto-fill demo credentials
-      setValue('email', 'demo@etiketa.wine');
-      setValue('password', 'demo123456');
-      setSuccess('Demo účet je připraven k přihlášení. Stačí kliknout na tlačítko "Přihlásit se".');
-    }
-  }, [searchParams, setValue]);
+  }, [searchParams]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
@@ -71,14 +63,14 @@ export default function LoginForm() {
       // Get redirectTo from URL query parameters or default to dashboard
       const redirectTo = searchParams.get('redirectTo') || '/dashboard';
       
-      console.log('Login successful, result:', { 
+      console.log('Login successful, result:', {
         token: result.token ? 'present' : 'missing',
-        user: result.user ? 'present' : 'missing' 
+        user: result.user ? 'present' : 'missing',
       });
-      
-      if (result.token && result.user) {
+
+      if (result.user) {
         // Use our auth context to set the authenticated state
-        login(result.token, result.user);
+        login(result.token ?? 'session', result.user);
         
         // Log the redirection
         console.log('Redirecting to:', redirectTo);

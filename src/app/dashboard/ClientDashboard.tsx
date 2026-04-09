@@ -1,465 +1,674 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth-context';
-import { authFetch } from '@/lib/api-helpers';
-import MembershipStatusWidget from '@/components/MembershipStatusWidget';
 
-type Wine = {
+import MembershipStatusWidget from '@/components/MembershipStatusWidget';
+import { Badge } from '@/components/ui/badge';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { MetricCard } from '@/components/ui/metric-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { Surface } from '@/components/ui/surface';
+import { authFetch } from '@/lib/api-helpers';
+import { useAuth } from '@/lib/auth-context';
+
+export type DashboardWine = {
   id: string;
   name: string;
-  vintage?: string;
+  vintage?: number | string;
   batch?: string;
   createdAt: string;
+  updatedAt?: string;
+  winerySlug?: string;
 };
 
 type Winery = {
-  name: string;
+  name?: string;
+  displayName?: string;
+  slug?: string;
+  email?: string;
   _count?: {
     wines: number;
   };
 };
 
-type DashboardData = {
-  winery: Winery | null;
-  allWines: Wine[];
+type DashboardOverviewProfile = {
+  displayName: string;
+  slug?: string;
+  email?: string;
+  locale?: string;
+  isAdmin?: boolean;
+  isDemo?: boolean;
 };
 
-export default function ClientDashboard() {
-  const { user, token } = useAuth();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+type DashboardOverview = {
+  profile: DashboardOverviewProfile;
+  metrics: {
+    totalWines: number;
+  };
+  recentWines: DashboardWine[];
+};
+
+export type DashboardHomeData = {
+  winery: Winery | null;
+  allWines: DashboardWine[];
+  overview?: DashboardOverview | null;
+};
+
+type ClientDashboardProps = {
+  initialData?: DashboardHomeData | null;
+};
+
+type WorkspaceModule = {
+  title: string;
+  description: string;
+  href: string;
+  icon: ReactNode;
+  badge?: ReactNode;
+};
+
+type QueueStep = {
+  title: string;
+  description: string;
+  href: string;
+  badge: ReactNode;
+};
+
+function formatShortDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString('cs-CZ', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function ArrowIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 5v14m-7-7h14" />
+    </svg>
+  );
+}
+
+function BottleIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M10 3h4m-3 0v4l-3 3.5V19a2 2 0 002 2h4a2 2 0 002-2v-8.5L13 7V3"
+      />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function TagIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M7 7h.01M3 11l8.586 8.586a2 2 0 002.828 0l6.172-6.172a2 2 0 000-2.828L11 2H4a1 1 0 00-1 1v8z"
+      />
+    </svg>
+  );
+}
+
+function WarningIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M12 9v3.75m0 3h.008v.008H12v-.008zm8.25-.75a8.25 8.25 0 11-16.5 0 8.25 8.25 0 0116.5 0z"
+      />
+    </svg>
+  );
+}
+
+function QrIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M4 4h5v5H4V4zm11 0h5v5h-5V4zM4 15h5v5H4v-5zm11 5v-2m0-4v-1m0-4h5v5h-2m-3 6h5m-8 0h1m-1-8h1m-5 3h5"
+      />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M4 19h16M7 16V9m5 7V5m5 11v-4"
+      />
+    </svg>
+  );
+}
+
+function KeyIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M15 7a5 5 0 11-9.584 2H3v4h4v3h3v3h4l1.126-1.126A5 5 0 0015 7z"
+      />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M10.325 4.317a1 1 0 011.35-.936l.866.347a1 1 0 00.95-.083l.762-.508a1 1 0 011.213.126l1.414 1.414a1 1 0 01.126 1.213l-.508.762a1 1 0 00-.083.95l.347.866a1 1 0 01-.936 1.35h-.865a1 1 0 00-.965.738l-.246.985a1 1 0 01-.97.777h-2a1 1 0 01-.97-.777l-.246-.985A1 1 0 009.54 9.848h-.865a1 1 0 01-.936-1.35l.347-.866a1 1 0 00-.083-.95l-.508-.762a1 1 0 01.126-1.213L9.035 3.29a1 1 0 011.213-.126l.762.508a1 1 0 00.95.083l.866-.347a1 1 0 011.35.936v.865a1 1 0 00.738.965l.985.246a1 1 0 01.777.97v2a1 1 0 01-.777.97l-.985.246a1 1 0 00-.738.965v.865z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+    </svg>
+  );
+}
+
+export default function ClientDashboard({ initialData = null }: ClientDashboardProps) {
+  const { user, token, isLoading: authLoading } = useAuth();
+  const [data, setData] = useState<DashboardHomeData | null>(initialData);
+  const [loading, setLoading] = useState(!initialData);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasServerSeed = Boolean(initialData);
+
+  useEffect(() => {
+    if (!initialData) {
+      return;
+    }
+
+    setData((current) => current ?? initialData);
+    setLoading(false);
+  }, [initialData]);
 
   useEffect(() => {
     async function fetchDashboardData() {
-      if (!user || !token) return;
+      if (authLoading) {
+        return;
+      }
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const hasRenderableData = hasServerSeed;
+
+      if (hasRenderableData) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
       try {
-        // Fetch dashboard data from API
         const response = await authFetch('/api/dashboard', token);
-        
-        if (response.ok) {
-          const dashboardData = await response.json();
-          setData(dashboardData);
-        } else {
-          setError('Failed to load dashboard data');
+
+        if (!response.ok) {
+          setError(
+            hasRenderableData
+              ? 'Nepodarilo se obnovit dashboard. Zobrazuji posledni dostupny prehled.'
+              : 'Nepodarilo se nacist operativni prehled dashboardu.'
+          );
+          return;
         }
+
+        const dashboardData = (await response.json()) as DashboardHomeData;
+        setData(dashboardData);
+        setError(null);
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
-        setError('An error occurred while loading dashboard data');
+        setError(
+          hasRenderableData
+            ? 'Synchronizace dashboardu selhala. Zobrazuji posledni dostupna data.'
+            : 'Pri nacitani dashboardu doslo k chybe.'
+        );
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
       }
     }
 
     fetchDashboardData();
-  }, [user, token]);
+  }, [authLoading, hasServerSeed, token, user]);
 
-  if (loading) {
+  if (loading && !data) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="relative max-w-7xl mx-auto">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl text-center">
-            <div className="flex items-center justify-center space-x-3">
-              <svg className="animate-spin h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span className="text-lg font-medium text-gray-700">Načítám dashboard...</span>
-            </div>
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+        <Surface tone="muted" padding="lg">
+          <div className="flex items-center justify-center gap-3 text-stone-700">
+            <svg className="h-5 w-5 animate-spin text-[#6f1d2b]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <span className="text-sm font-medium sm:text-base">Nacitam operativni prehled.</span>
           </div>
-        </div>
+        </Surface>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="relative max-w-7xl mx-auto">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-red-200/60 shadow-2xl">
-            <div className="flex items-center space-x-3 text-red-700">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <div>
-                <p className="font-medium">{error}</p>
-                <p className="text-sm opacity-80">Používám záložní data z přihlášení.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Create fallback data if API call failed
-  const fallbackData: DashboardData = {
-    winery: {
-      name: user?.name || 'User',
-      _count: { wines: 0 }
+  const dashboardData = data;
+  const allWines = [...(dashboardData?.allWines ?? [])].sort(
+    (first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime()
+  );
+  const overview = dashboardData?.overview ?? null;
+  const recentWines = overview?.recentWines?.length ? overview.recentWines : allWines.slice(0, 5);
+  const totalWines = overview?.metrics.totalWines ?? dashboardData?.winery?._count?.wines ?? allWines.length;
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentCount = allWines.filter((wine) => new Date(wine.createdAt) >= thirtyDaysAgo).length;
+  const missingBatchCount = allWines.filter((wine) => !wine.batch).length;
+  const readyForQrCount = Math.max(totalWines - missingBatchCount, 0);
+  const latestWine = allWines[0] || recentWines[0] || null;
+  const wineryName =
+    overview?.profile.displayName ||
+    dashboardData?.winery?.displayName ||
+    dashboardData?.winery?.name ||
+    user?.name ||
+    'Vase vinarstvi';
+  const winerySlug = overview?.profile.slug || dashboardData?.winery?.slug || user?.slug || null;
+  const operationalStatus =
+    totalWines === 0 ? 'Priprava katalogu' : missingBatchCount > 0 ? 'Vyžaduje doplneni' : 'Pripraveno pro QR';
+  const workspaceHref = latestWine ? `/dashboard/wines/${latestWine.id}` : '/dashboard/wines/new';
+  const modules: WorkspaceModule[] = [
+    {
+      title: 'Catalog',
+      description: 'Seznam vsech vin, filtrace a rychly vstup do detailu.',
+      href: '/dashboard/wines',
+      icon: <BottleIcon />,
+      badge: <Badge tone="neutral">{totalWines} polozek</Badge>,
     },
-    allWines: []
-  };
+    {
+      title: 'Wine Workspace',
+      description: latestWine
+        ? `Pokracujte v detailu ${latestWine.name} a navazujicich upravach.`
+        : 'Zalozte prvni vino a otevrite pracoviste pro detail, sarze a etiketu.',
+      href: workspaceHref,
+      icon: <TagIcon />,
+      badge: latestWine ? <Badge tone="burgundy">Posledni zaznam</Badge> : <Badge tone="warning">Start</Badge>,
+    },
+    {
+      title: 'QR & Export',
+      description: 'Pripravte QR kody, podklady pro tisk a navazujici vystupy.',
+      href: '/dashboard/qrcodes',
+      icon: <QrIcon />,
+      badge: <Badge tone="neutral">Delivery</Badge>,
+    },
+    {
+      title: 'Analytics',
+      description: 'Overte nacteni verejnych etiket a pohyb kolem vin v terenu.',
+      href: '/dashboard/analytics',
+      icon: <ChartIcon />,
+    },
+    {
+      title: 'API Access',
+      description: 'Spravujte integracni klice a kontrolujte pripravenost napojeni.',
+      href: '/dashboard/api',
+      icon: <KeyIcon />,
+    },
+    {
+      title: 'Settings',
+      description: 'Profil vinarstvi, kontaktni udaje a provozni nastaveni uctu.',
+      href: '/dashboard/settings',
+      icon: <SettingsIcon />,
+      badge: winerySlug ? <Badge tone="neutral">/{winerySlug}</Badge> : undefined,
+    },
+  ];
 
-  // Use API data or fallback data
-  const dashboardData = data || fallbackData;
+  const queue: QueueStep[] = [
+    {
+      title: totalWines === 0 ? 'Zalozte prvni zaznam vina' : 'Otevrete aktivni Wine Workspace',
+      description:
+        totalWines === 0
+          ? 'Bez prvniho vina neni z ceho generovat QR vystupy ani verejnou etiketu.'
+          : latestWine
+            ? `Navazte na posledni upravy u ${latestWine.name} a dotahnete detail do provozniho stavu.`
+            : 'Pokračujte do detailu vina a zkontrolujte povinne udaje pred dalsim krokem.',
+      href: totalWines === 0 ? '/dashboard/wines/new' : workspaceHref,
+      badge: totalWines === 0 ? <Badge tone="warning">Start</Badge> : <Badge tone="burgundy">Workspace</Badge>,
+    },
+    {
+      title: missingBatchCount > 0 ? 'Doplnte chybejici sarze' : 'Katalog je pripraveny na dalsi krok',
+      description:
+        missingBatchCount > 0
+          ? `${missingBatchCount} zaznamu porad nema sarzi. To je nejrychlejsi provozni oprava pred exportem.`
+          : 'Aktualni zaznamy maji vyplnenou sarzi a nehrozi blokace v navazujicim QR workflow.',
+      href: '/dashboard/wines',
+      badge:
+        missingBatchCount > 0 ? (
+          <Badge tone="warning">{missingBatchCount} bez sarze</Badge>
+        ) : (
+          <Badge tone="success">Hotovo</Badge>
+        ),
+    },
+    {
+      title: totalWines > 0 ? 'Pripravte QR nebo export' : 'Dokoncete katalog pred exportem',
+      description:
+        totalWines > 0
+          ? 'Jakmile jsou data v poradku, pokracujte do QR & Export a pripravte podklady pro etikety.'
+          : 'Export a verejna etiketa davaji smysl az po zalozeni prvniho vina a doplneni zakladnich udaju.',
+      href: totalWines > 0 ? '/dashboard/qrcodes' : '/dashboard/wines/new',
+      badge: <Badge tone="burgundy">Dalsi krok</Badge>,
+    },
+  ];
 
   return (
-    <div className="px-3 sm:px-4 lg:px-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="md:flex md:items-center md:justify-between mb-6 sm:mb-8">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-            Dashboard
-          </h1>
-          <p className="mt-1 text-sm sm:text-base text-gray-600 truncate">Vítejte zpět, {dashboardData.winery?.name || user?.name}</p>
-        </div>
-        <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Link
-            href="/dashboard/wines/new"
-            className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 w-full sm:w-auto"
-          >
-            <span className="flex items-center justify-center space-x-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span className="text-sm sm:text-base">Přidat nové víno</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </span>
-          </Link>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+      <div className="relative space-y-6 pb-10">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-56 rounded-[40px] bg-[radial-gradient(circle_at_top_right,_rgba(111,29,43,0.1),_transparent_50%),radial-gradient(circle_at_top_left,_rgba(194,165,139,0.12),_transparent_45%)]"
+        />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-6 sm:mb-8">
-        {/* Total Wines Card */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
+        <PageHeader
+          eyebrow="Dashboard Home"
+          title="Operativni prehled"
+          description={`Dnesni pracovni prehled pro ${wineryName}. Tady zkontrolujete katalog, doplnite sarze a navazete na QR nebo verejnou etiketu.`}
+          meta={
+            <>
+              <Badge tone="burgundy">{wineryName}</Badge>
+              <Badge tone="neutral">{operationalStatus}</Badge>
+              {winerySlug ? <Badge tone="neutral">/{winerySlug}</Badge> : null}
+              {isRefreshing ? <Badge tone="neutral">Synchronizuji</Badge> : null}
+            </>
+          }
+          actions={
+            <>
+              <PrimaryButton href="/dashboard/wines/new">
+                <PlusIcon />
+                Pridat vino
+              </PrimaryButton>
+              <SecondaryButton href="/dashboard/wines">
+                Otevrit katalog
+                <ArrowIcon />
+              </SecondaryButton>
+            </>
+          }
+        />
+
+        {error ? (
+          <Surface tone="muted" padding="sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3 text-stone-700">
+                <div className="mt-0.5 text-amber-700">
+                  <WarningIcon />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">{error}</p>
+                  <p className="mt-1 text-sm text-stone-600">
+                    Pokud potrebujete overit profil nebo membership stav, pokracujte do nastaveni a systemovych modulu.
+                  </p>
                 </div>
               </div>
-              <div className="ml-3 sm:ml-4 flex-1 min-w-0">
-                <dt className="text-xs sm:text-sm font-medium text-gray-600 truncate">
-                  Celkový počet vín
-                </dt>
-                <dd className="mt-1 text-2xl sm:text-3xl font-bold text-gray-900">
-                  {dashboardData.winery?._count?.wines || 0}
-                </dd>
-              </div>
+              <SecondaryButton href="/dashboard/settings">Otevrit nastaveni</SecondaryButton>
             </div>
-            <div className="mt-3 sm:mt-4">
-              <Link
-                href="/dashboard/wines"
-                className="text-red-600 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors duration-200 flex items-center space-x-1"
-              >
-                <span>Zobrazit všechna vína</span>
-                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
+          </Surface>
+        ) : null}
 
-        {/* Account Info Card */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard
+                label="Celkem vin"
+                value={totalWines}
+                detail="Aktivni katalog pro etikety, QR a verejne stranky."
+                icon={<BottleIcon />}
+                tone="accent"
+              />
+              <MetricCard
+                label="Pridano za 30 dni"
+                value={recentCount}
+                detail="Rychly signal, jak rychle se katalog meni."
+                icon={<ClockIcon />}
+              />
+              <MetricCard
+                label="Pripraveno pro QR"
+                value={readyForQrCount}
+                detail={
+                  readyForQrCount > 0
+                    ? 'Zaznamy se sarzi, ktere muzou pokracovat do dalsiho kroku.'
+                    : 'Nejdriv doplnte zakladni provozni data.'
+                }
+                icon={<QrIcon />}
+                tone={readyForQrCount > 0 ? 'neutral' : 'warning'}
+                badge={readyForQrCount > 0 ? 'Ready' : 'Pozor'}
+              />
+              <MetricCard
+                label="Bez sarze"
+                value={missingBatchCount}
+                detail={
+                  missingBatchCount > 0
+                    ? 'Tyto zaznamy jeste potrebuji doplnit sarzi.'
+                    : 'Vsechny aktualni zaznamy maji sarzi vyplnenou.'
+                }
+                icon={<TagIcon />}
+                tone={missingBatchCount > 0 ? 'warning' : 'neutral'}
+                badge={missingBatchCount > 0 ? 'Akce' : 'OK'}
+              />
+            </div>
+
+            <Surface>
+              <div className="flex flex-col gap-4 border-b border-stone-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                    Recent Wines
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-stone-900">Posledni zaznamy v katalogu</h2>
+                  <p className="mt-1 text-sm text-stone-600">
+                    Nejrychlejsi vstup do detailu vina, kontroly sarze a dalsi navazujici prace.
+                  </p>
                 </div>
+                <SecondaryButton href="/dashboard/wines">
+                  Cely katalog
+                  <ArrowIcon />
+                </SecondaryButton>
               </div>
-              <div className="ml-3 sm:ml-4 flex-1 min-w-0">
-                <dt className="text-xs sm:text-sm font-medium text-gray-600">
-                  Vinařství
-                </dt>
-                <dd className="mt-1 text-base sm:text-lg font-bold text-gray-900 truncate">
-                  {dashboardData.winery?.name || user?.name}
-                </dd>
-                <p className="text-xs sm:text-sm text-gray-500 truncate">
-                  {user?.email}
+
+              {recentWines.length > 0 ? (
+                <div className="mt-3 divide-y divide-stone-200/80">
+                  {recentWines.map((wine) => (
+                    <Link
+                      key={wine.id}
+                      href={`/dashboard/wines/${wine.id}`}
+                      className="flex flex-col gap-3 py-4 transition-colors duration-200 hover:bg-stone-50/70 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate text-base font-semibold text-stone-900">{wine.name}</h3>
+                          {wine.vintage ? <Badge tone="success">Rocnik {wine.vintage}</Badge> : null}
+                          {wine.batch ? (
+                            <Badge tone="neutral">Sarze {wine.batch}</Badge>
+                          ) : (
+                            <Badge tone="warning">Chybi sarze</Badge>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-stone-500">Vytvoreno {formatShortDate(wine.createdAt)}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm font-medium text-[#6f1d2b]">
+                        Otevrit detail
+                        <ArrowIcon />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-6">
+                  <EmptyState
+                    icon={<BottleIcon />}
+                    title="Katalog je zatim prazdny"
+                    description="Zacnete prvnim vinem. Jakmile zalozite zaznam, dashboard se prepne z uvodniho stavu do operativniho workspace."
+                    action={
+                      <PrimaryButton href="/dashboard/wines/new">
+                        <PlusIcon />
+                        Pridat prvni vino
+                      </PrimaryButton>
+                    }
+                  />
+                </div>
+              )}
+            </Surface>
+
+            <Surface tone="muted">
+              <div className="flex flex-col gap-2 border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Operational Queue
+                </p>
+                <h2 className="text-xl font-semibold text-stone-900">Co je na rade</h2>
+                <p className="text-sm text-stone-600">
+                  Tri prakticke kroky, ktere drzi katalog pripraveny pro etikety, QR a dalsi distribuci dat.
                 </p>
               </div>
-            </div>
-            <div className="mt-3 sm:mt-4">
-              <Link
-                href="/dashboard/settings"
-                className="text-blue-600 hover:text-blue-700 font-medium text-xs sm:text-sm transition-colors duration-200 flex items-center space-x-1"
-              >
-                <span>Upravit nastavení</span>
-                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
 
-        {/* Membership Status Widget */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative backdrop-blur-2xl rounded-3xl border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-300">
-            <MembershipStatusWidget />
-          </div>
-        </div>
-      </div>
-
-      {/* All Wines */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Všechna vína</h2>
-        {dashboardData.allWines.length > 0 ? (
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-            <div className="relative bg-white/80 backdrop-blur-2xl rounded-3xl border border-gray-200/60 shadow-lg max-h-96 overflow-hidden">
-              <div className="overflow-y-auto max-h-96">
-                {dashboardData.allWines.map((wine, index) => (
-                  <Link 
-                    key={wine.id} 
-                    href={`/dashboard/wines/${wine.id}`} 
-                    className="block hover:bg-white/60 transition-colors duration-200"
+              <div className="mt-4 divide-y divide-stone-200/80">
+                {queue.map((step, index) => (
+                  <Link
+                    key={step.title}
+                    href={step.href}
+                    className="flex flex-col gap-4 py-4 transition-colors duration-200 hover:bg-white/60 sm:flex-row sm:items-start"
                   >
-                    <div className={`px-6 py-4 ${index > 0 ? 'border-t border-gray-200/50' : ''}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
-                            {wine.name}
-                          </h3>
-                          <div className="flex items-center space-x-4 mt-1">
-                            {wine.batch && (
-                              <span className="text-sm text-gray-600">
-                                Šarže: {wine.batch}
-                              </span>
-                            )}
-                            <span className="text-sm text-gray-500">
-                              Vytvořeno {new Date(wine.createdAt).toLocaleDateString('cs-CZ')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          {wine.vintage && (
-                            <span className="px-3 py-1 text-xs font-semibold bg-green-100/80 text-green-800 rounded-full">
-                              Ročník {wine.vintage}
-                            </span>
-                          )}
-                          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#6f1d2b] shadow-sm">
+                      0{index + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold text-stone-900">{step.title}</h3>
+                        {step.badge}
                       </div>
+                      <p className="mt-1 text-sm leading-6 text-stone-600">{step.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-[#6f1d2b]">
+                      Otevrit
+                      <ArrowIcon />
                     </div>
                   </Link>
                 ))}
               </div>
-            </div>
+            </Surface>
           </div>
-        ) : (
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-            <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-lg text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Zatím nemáte přidaná žádná vína</h3>
-              <p className="text-gray-600 mb-6">Začněte přidáním prvního vína do vaší databáze</p>
-              <Link
-                href="/dashboard/wines/new"
-                className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30"
-              >
-                <span className="flex items-center space-x-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Přidat první víno</span>
-                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Quick Guide */}
-      <div className="relative mb-6 sm:mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
-        <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-gray-200/60 shadow-lg">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 lg:mb-8">
-            Rychlý průvodce
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-4 lg:gap-8">
-            <div className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <span className="text-white font-bold text-lg sm:text-xl">1</span>
-              </div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">
-                Přidejte víno
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600">
-                Vytvořte nový záznam pro vaše víno s výživovými údaji a složením.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <span className="text-white font-bold text-lg sm:text-xl">2</span>
-              </div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">
-                Vygenerujte QR kód
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600">
-                Po přidání vína si stáhněte QR kód pro umístění na etiketu.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <span className="text-white font-bold text-lg sm:text-xl">3</span>
-              </div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">
-                Umístěte na etiketu
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600">
-                Použijte vygenerovaný QR kód na etiketě vašeho vína.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Feature Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        {/* Analytics Card */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-purple-200/60 shadow-lg">
-            <div className="flex items-center mb-3 sm:mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="ml-3 sm:ml-4 text-lg sm:text-xl font-semibold text-gray-900">
-                Analytika
-              </h3>
-            </div>
-            <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-              Sledujte statistiky načtení QR kódů vašich vín a získejte cenné informace o zájmu spotřebitelů.
-            </p>
-            <Link
-              href="/dashboard/analytics"
-              className="text-purple-600 hover:text-purple-700 font-medium text-sm sm:text-base flex items-center space-x-1 transition-colors duration-200"
-            >
-              <span>Zobrazit analýzu</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-
-        {/* API Access Card */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/80 to-white/60 rounded-2xl sm:rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-orange-200/60 shadow-lg">
-            <div className="flex items-center mb-3 sm:mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h3 className="ml-3 sm:ml-4 text-lg sm:text-xl font-semibold text-gray-900">
-                API přístup
-              </h3>
-            </div>
-            <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-              Získejte přístup k API pro integraci dat o vínech do svých aplikací nebo webových stránek.
-            </p>
-            <Link
-              href="/dashboard/api"
-              className="text-orange-600 hover:text-orange-700 font-medium text-sm sm:text-base flex items-center space-x-1 transition-colors duration-200"
-            >
-              <span>Spravovat API klíče</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      {/* Partner Services - CTA Banners */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
-          Naše služby
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* Byte Development Banner */}
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
-            <div className="relative bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
-              <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-3">
-                  Vývoj webových stránek
-                </h3>
-                <p className="text-blue-100 mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed">
-                  Byte Development - profesionální tvorba moderních webových stránek a aplikací pro vaše podnikání.
+          <div className="space-y-6">
+            <Surface tone="accent">
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Workspace Modules
                 </p>
-                <a
-                  href="https://bytedevelopment.cz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white border border-white/20 py-2 px-4 sm:py-3 sm:px-6 rounded-xl sm:rounded-2xl font-medium hover:bg-white/20 transition-all duration-200 space-x-1 sm:space-x-2 text-sm sm:text-base"
-                >
-                  <span>Navštívit stránky</span>
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-          </div>
-          
-          {/* Parcel View Banner */}
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-green-600 via-teal-600 to-emerald-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
-            <div className="relative bg-gradient-to-r from-green-500 to-teal-600 rounded-2xl sm:rounded-3xl shadow-lg overflow-hidden">
-              <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-3">
-                  Promo záběry dronem
-                </h3>
-                <p className="text-green-100 mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed">
-                  Parcel View - profesionální letecké snímky a videa pro prezentaci vašeho vinařství a vinic.
+                <h2 className="mt-2 text-xl font-semibold text-stone-900">Navazujici moduly</h2>
+                <p className="mt-1 text-sm text-stone-600">
+                  Sekce, ktere navazuji na katalog a operativni praci bez stareho promo balastu.
                 </p>
-                <a
-                  href="https://parcelview.cz"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white border border-white/20 py-2 px-4 sm:py-3 sm:px-6 rounded-xl sm:rounded-2xl font-medium hover:bg-white/20 transition-all duration-200 space-x-1 sm:space-x-2 text-sm sm:text-base"
-                >
-                  <span>Zobrazit ukázky</span>
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
               </div>
+
+              <div className="mt-4 space-y-3">
+                {modules.map((module) => (
+                  <Link
+                    key={module.title}
+                    href={module.href}
+                    className="group flex items-start gap-4 rounded-[22px] border border-stone-200/80 bg-white/80 px-4 py-4 transition-colors duration-200 hover:border-[#7c2332]/20 hover:bg-white"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7c2332]/10 text-[#6f1d2b]">
+                      {module.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-stone-900">{module.title}</p>
+                        {module.badge}
+                      </div>
+                      <p className="mt-1 text-sm leading-6 text-stone-600">{module.description}</p>
+                    </div>
+                    <div className="pt-1 text-stone-400 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-[#6f1d2b]">
+                      <ArrowIcon />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Surface>
+
+            <Surface>
+              <div className="border-b border-stone-200/80 pb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7c2332]">
+                  Operational Watchlist
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-stone-900">Stav workspace</h2>
+              </div>
+
+              <dl className="mt-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-sm text-stone-500">Vinarstvi</dt>
+                  <dd className="text-right text-sm font-medium text-stone-900">{wineryName}</dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-sm text-stone-500">Slug</dt>
+                  <dd className="text-right text-sm font-medium text-stone-900">{winerySlug ? `/${winerySlug}` : 'Zatim bez slugu'}</dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-sm text-stone-500">Posledni zapis</dt>
+                  <dd className="text-right text-sm font-medium text-stone-900">
+                    {latestWine ? `${latestWine.name} (${formatShortDate(latestWine.createdAt)})` : 'Zatim bez zaznamu'}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-sm text-stone-500">Pripraveno pro QR</dt>
+                  <dd className="text-right text-sm font-medium text-stone-900">{readyForQrCount}</dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-sm text-stone-500">Vyžaduje doplneni</dt>
+                  <dd className="text-right text-sm font-medium text-stone-900">{missingBatchCount}</dd>
+                </div>
+              </dl>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <SecondaryButton href={workspaceHref}>Otevrit Wine Workspace</SecondaryButton>
+                <SecondaryButton href="/dashboard/settings">Profil a nastaveni</SecondaryButton>
+              </div>
+            </Surface>
+
+            <div className="rounded-[30px] border border-stone-200/80 bg-[#f6f1ea]/85 p-2 shadow-[0_18px_45px_rgba(58,41,36,0.06)]">
+              <MembershipStatusWidget />
             </div>
           </div>
         </div>

@@ -1,263 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { verifyJwtToken, getUserById, updateUserPrefs, createSlug } from '@/lib/auth-server';
-import { Client, Account } from 'appwrite';
-import { getAppwriteAdminHeaders, getAppwriteUrl, getServerAppwriteEnv } from '@/lib/appwrite-env';
+import { WineryProfileUpdateInputSchema } from '@/server/schemas/winery-profile';
+import {
+  WineryProfileRestrictionError,
+  WineryProfileSlugConflictError,
+  serializeWineryProfileForAuth,
+  updateWineryProfile,
+} from '@/server/services/winery-profiles';
+import { getRequestSessionUser } from '@/server/auth/session';
 
-// Schema for profile update validation
-const profileUpdateSchema = z.object({
-  name: z.string().min(1, { message: 'Název vinařství je povinný' }),
-  email: z.string().email({ message: 'Zadejte platný email' }),
-  slug: z.string().min(1, { message: 'Slug je povinný' })
-    .regex(/^[a-z0-9-]+$/, { message: 'Slug může obsahovat pouze malá písmena, číslice a pomlčky' }),
-  updateField: z.enum(['name', 'email', 'slug', 'all']), // Specify which field to update
-});
+function buildSuccessMessage(changedFields: Array<'displayName' | 'slug' | 'locale' | 'settings'>) {
+  if (changedFields.includes('displayName') && changedFields.includes('slug')) {
+    return 'Profil byl úspěšně aktualizován';
+  }
+
+  if (changedFields.includes('displayName')) {
+    return 'Název vinařství byl úspěšně aktualizován';
+  }
+
+  if (changedFields.includes('slug')) {
+    return 'Slug vinařství byl úspěšně aktualizován';
+  }
+
+  if (changedFields.includes('locale')) {
+    return 'Jazyk profilu byl úspěšně aktualizován';
+  }
+
+  if (changedFields.includes('settings')) {
+    return 'Nastavení profilu bylo úspěšně aktualizováno';
+  }
+
+  return 'Žádné změny nebyly provedeny';
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
-        { status: 401 }
+        { status: 401 },
       );
     }
-    
-    // Parse request body
+
     const body = await request.json();
-    
-    // Validate request data
-    const result = profileUpdateSchema.safeParse(body);
-    
+    const result = WineryProfileUpdateInputSchema.safeParse(body);
+
     if (!result.success) {
       return NextResponse.json(
         { message: 'Neplatné údaje', errors: result.error.format() },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
-    const { name, email, slug, updateField } = result.data;
-    
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      
-      // Get user by ID for validation
-      const user = await getUserById(decoded.userId);
-      
-      // Check 6-month restriction for name/slug changes separately
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      
-      if (updateField === 'name' || updateField === 'all') {
-        const lastNameUpdate = user.prefs?.lastWineryNameUpdate;
-        if (lastNameUpdate) {
-          const lastNameUpdateDate = new Date(lastNameUpdate);
-          if (lastNameUpdateDate > sixMonthsAgo) {
-            const nextAllowedDate = new Date(lastNameUpdateDate);
-            nextAllowedDate.setMonth(nextAllowedDate.getMonth() + 6);
-            
-            return NextResponse.json(
-              { 
-                message: `Název vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od ${nextAllowedDate.toLocaleDateString('cs-CZ')}`,
-                nextAllowedDate: nextAllowedDate.toISOString(),
-                restrictedField: 'name'
-              },
-              { status: 429 }
-            );
-          }
-        }
-      }
-      
-      if (updateField === 'slug' || updateField === 'all') {
-        const lastSlugUpdate = user.prefs?.lastWinerySlugUpdate;
-        if (lastSlugUpdate) {
-          const lastSlugUpdateDate = new Date(lastSlugUpdate);
-          if (lastSlugUpdateDate > sixMonthsAgo) {
-            const nextAllowedDate = new Date(lastSlugUpdateDate);
-            nextAllowedDate.setMonth(nextAllowedDate.getMonth() + 6);
-            
-            return NextResponse.json(
-              { 
-                message: `Slug vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od ${nextAllowedDate.toLocaleDateString('cs-CZ')}`,
-                nextAllowedDate: nextAllowedDate.toISOString(),
-                restrictedField: 'slug'
-              },
-              { status: 429 }
-            );
-          }
-        }
-      }
-      
-      // Create client for admin operations
-      const serverEnv = getServerAppwriteEnv();
-      const client = new Client()
-        .setEndpoint(serverEnv.endpoint)
-        .setProject(serverEnv.projectId);
-      
-      // Set API key for admin operations
-      if (serverEnv.apiKey) {
-        const adminClient = client as any;
-        if (typeof adminClient.setKey === 'function') {
-          adminClient.setKey(serverEnv.apiKey);
-        } else if (typeof adminClient.setApiKey === 'function') {
-          adminClient.setApiKey(serverEnv.apiKey);
-        } else {
-          adminClient.headers = {
-            ...(adminClient.headers || {}),
-            'X-Appwrite-Key': serverEnv.apiKey,
-          };
-        }
-      }
-      
-      // Update based on the specified field
-      let nameUpdated = false;
-      let slugUpdated = false;
-      let nameUpdateTried = false;
-      
-      // Try to update name directly first if requested
-      if (updateField === 'name' || updateField === 'all') {
-        nameUpdateTried = true;
-        
-        try {
-          // Use direct API call to update the user name
-          const updateResponse = await fetch(getAppwriteUrl(`/users/${user.$id}/name`), {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...getAppwriteAdminHeaders(),
-            },
-            body: JSON.stringify({ 
-              name: name 
-            }),
-          });
-          
-          if (updateResponse.ok) {
-            console.log('Name updated successfully via direct API call');
-            nameUpdated = true;
-          } else {
-            const errorText = await updateResponse.text();
-            console.error(`Failed to update name directly: ${updateResponse.status}`, errorText);
-            // Will fall back to preferences method
-          }
-        } catch (directUpdateError) {
-          console.error('Error updating name directly:', directUpdateError);
-          // Will fall back to preferences method
-        }
-      }
-      
-      // Update slug or store name in preferences as backup if direct update failed
-      if ((updateField === 'slug' || updateField === 'all') || 
-          (nameUpdateTried && !nameUpdated)) {
-        
-        const prefsToUpdate: Record<string, any> = {};
-        
-        // Add slug to update if needed
-        if (updateField === 'slug' || updateField === 'all') {
-          prefsToUpdate.slug = slug;
-        }
-        
-        // Add name to preferences if direct update failed
-        if (nameUpdateTried && !nameUpdated) {
-          prefsToUpdate.displayName = name;
-        }
-        
-        // Only update if we have something to update
-        if (Object.keys(prefsToUpdate).length > 0) {
-          try {
-            await updateUserPrefs(prefsToUpdate, user.$id);
-            
-            console.log('Preferences updated successfully');
-            
-            if (prefsToUpdate.slug) {
-              slugUpdated = true;
-            }
-            
-            if (prefsToUpdate.displayName) {
-              nameUpdated = true;
-            }
-          } catch (prefsError) {
-            console.error('Error updating preferences:', prefsError);
-            
-            if (updateField === 'slug' && prefsToUpdate.slug) {
-              throw new Error('Aktualizace slugu selhala');
-            }
-            
-            if (updateField === 'name' && prefsToUpdate.displayName) {
-              throw new Error('Aktualizace jména selhala');
-            }
-          }
-        }
-      }
-      
-      // Update timestamps separately for name and slug changes
-      const timestampUpdates: Record<string, any> = {};
-      const currentTimestamp = new Date().toISOString();
-      
-      if (nameUpdated) {
-        timestampUpdates.lastWineryNameUpdate = currentTimestamp;
-      }
-      
-      if (slugUpdated) {
-        timestampUpdates.lastWinerySlugUpdate = currentTimestamp;
-      }
-      
-      if (Object.keys(timestampUpdates).length > 0) {
-        try {
-          await updateUserPrefs(timestampUpdates, decoded.userId);
-        } catch (timestampError) {
-          console.error('Error updating timestamps:', timestampError);
-        }
-      }
-      
-      // Get the updated user to ensure we return the latest data
-      const updatedUser = await getUserById(decoded.userId);
-      
-      // Determine the name to use in the response
-      const responseName = nameUpdated ? name : (updatedUser.prefs?.displayName || updatedUser.name);
-      
-      // Determine the slug to use in the response
-      const responseSlug = slugUpdated ? slug : (updatedUser.prefs?.slug || createSlug(updatedUser.name));
-      
-      // Prepare response message based on what was updated
-      let message = '';
-      if (nameUpdated && slugUpdated) {
-        message = 'Profil byl úspěšně aktualizován';
-      } else if (nameUpdated) {
-        message = 'Jméno bylo úspěšně aktualizováno';
-      } else if (slugUpdated) {
-        message = 'Slug byl úspěšně aktualizován';
-      } else {
-        message = 'Žádné změny nebyly provedeny';
-      }
-      
-      // Return updated user information
-      return NextResponse.json({ 
-        message: message,
-        user: {
-          id: updatedUser.$id,
-          name: responseName,
-          email: updatedUser.email,
-          slug: responseSlug,
-          hasCustomQRPrefs: !!updatedUser.prefs?.qrPresets,
-          prefsLastUpdated: updatedUser.prefs?.$updatedAt || null
-        }
-      });
-    } catch (tokenError) {
-      console.error('Token error:', tokenError);
-      return NextResponse.json(
-        { message: 'Neplatný token nebo vypršela platnost přihlášení' },
-        { status: 401 }
-      );
-    }
+
+    const { profile, changedFields } = await updateWineryProfile(
+      sessionUser.id,
+      result.data,
+    );
+
+    return NextResponse.json({
+      message: buildSuccessMessage(changedFields),
+      user: serializeWineryProfileForAuth(profile),
+      profile,
+    });
   } catch (error) {
+    if (error instanceof WineryProfileRestrictionError) {
+      return NextResponse.json(
+        {
+          message: error.message,
+          nextAllowedDate: error.nextAllowedDate,
+          restrictedField: error.restrictedField,
+        },
+        { status: 429 },
+      );
+    }
+
+    if (error instanceof WineryProfileSlugConflictError) {
+      return NextResponse.json(
+        {
+          message: error.message,
+          conflictingOwnerUserId: error.conflictingOwnerUserId,
+          slug: error.slug,
+        },
+        { status: 409 },
+      );
+    }
+
     console.error('Profile update error:', error);
     return NextResponse.json(
       { message: 'Aktualizace profilu selhala' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

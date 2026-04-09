@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { authFetch } from '@/lib/api-helpers';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,319 +12,486 @@ interface DashboardLayoutProps {
 interface NavItem {
   name: string;
   href: string;
+  summary: string;
   icon: React.ReactNode;
+  matches: (pathname: string) => boolean;
 }
 
-// Check if user is admin
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
 const ADMIN_EMAILS = [
   'admin@etiketa.wine',
   'ondrej.zaplatilek@gmail.com',
   'ondrej.zaplatilek@bytedev.cz'
 ];
 
-// Main navigation items - now always show all tabs
-const getNavigation = (isAdmin: boolean, userPlan?: string): NavItem[] => {
-  const baseNavigation: NavItem[] = [
+const exactMatch = (href: string) => (pathname: string) => pathname === href;
+const prefixMatch = (href: string) => (pathname: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
+const wineWorkspaceMatch = (pathname: string) =>
+  pathname.startsWith('/dashboard/wines/') && pathname !== '/dashboard/wines';
+
+const createNavigation = (isAdmin: boolean): NavSection[] => {
+  const sections: NavSection[] = [
     {
-      name: 'Přehled',
-      href: '/dashboard',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-      ),
+      title: 'Workspace',
+      items: [
+        {
+          name: 'Dashboard Home',
+          href: '/dashboard',
+          summary: 'Přehled účtu, katalogu a dalších kroků.',
+          matches: exactMatch('/dashboard'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2 7-7 7 7 2 2M5 10v9a1 1 0 001 1h3m10-10v9a1 1 0 01-1 1h-3m-6 0h6" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Catalog',
+          href: '/dashboard/wines',
+          summary: 'Seznam vín, šarží a základní stav katalogu.',
+          matches: exactMatch('/dashboard/wines'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 4h11a2 2 0 012 2v13a1 1 0 01-1.447.894L12 17l-5.553 2.894A1 1 0 015 19V6a2 2 0 012-2z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Wine Workspace',
+          href: '/dashboard/wines/new',
+          summary: 'Detail, editace a příprava nového nebo rozpracovaného vína.',
+          matches: wineWorkspaceMatch,
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 4h6m-5 4h4m-5 4h6m-3 8V5m0 15l4-4m-4 4l-4-4" />
+            </svg>
+          ),
+        },
+      ],
     },
     {
-      name: 'Vína',
-      href: '/dashboard/wines',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
+      title: 'Delivery',
+      items: [
+        {
+          name: 'QR & Export',
+          href: '/dashboard/qrcodes',
+          summary: 'QR výstupy, stažení podkladů a příprava pro etikety.',
+          matches: prefixMatch('/dashboard/qrcodes'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 5h4v4H5V5zm10 0h4v4h-4V5zM5 15h4v4H5v-4zm10 0h1m-1-5h4m-9 9v-4m4 4h5m-5 0v-5" />
+            </svg>
+          ),
+        },
+      ],
     },
     {
-      name: 'QR kódy',
-      href: '/dashboard/qrcodes',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-        </svg>
-      ),
+      title: 'Intelligence',
+      items: [
+        {
+          name: 'Analytics',
+          href: '/dashboard/analytics',
+          summary: 'Sledování načtení QR a chování kolem veřejných etiket.',
+          matches: prefixMatch('/dashboard/analytics'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 19V9m7 10V5m7 14v-7" />
+            </svg>
+          ),
+        },
+        {
+          name: 'API Access',
+          href: '/dashboard/api',
+          summary: 'Klíče, integrace a technický přístup do systému.',
+          matches: prefixMatch('/dashboard/api'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 14l-2 2a3 3 0 11-4-4l2-2m8 0l2-2a3 3 0 114 4l-2 2m-8 0l4-4" />
+            </svg>
+          ),
+        },
+      ],
     },
     {
-      name: 'Analytika',
-      href: '/dashboard/analytics',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
+      title: 'System',
+      items: [
+        {
+          name: 'Settings',
+          href: '/dashboard/settings',
+          summary: 'Profil vinařství, heslo a základní nastavení účtu.',
+          matches: prefixMatch('/dashboard/settings'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317a1 1 0 011.9 0l.345 1.38a1 1 0 00.95.757h1.41a1 1 0 01.949.684l.48 1.435a1 1 0 00.694.657l1.39.347a1 1 0 01.001 1.94l-1.39.347a1 1 0 00-.694.657l-.48 1.435a1 1 0 01-.95.684h-1.409a1 1 0 00-.95.757l-.345 1.38a1 1 0 01-1.9 0l-.345-1.38a1 1 0 00-.95-.757H8.07a1 1 0 01-.95-.684l-.48-1.435a1 1 0 00-.694-.657l-1.39-.347a1 1 0 01.001-1.94l1.39-.347a1 1 0 00.694-.657l.48-1.435a1 1 0 01.95-.684h1.409a1 1 0 00.95-.757l.345-1.38z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+            </svg>
+          ),
+        },
+      ],
     },
-    {
-      name: 'API přístup',
-      href: '/dashboard/api',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Nastavení',
-      href: '/dashboard/settings',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      ),
-    }
   ];
 
   if (isAdmin) {
-    baseNavigation.push({
-      name: 'Admin',
-      href: '/dashboard/admin',
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
+    sections.push({
+      title: 'Admin',
+      items: [
+        {
+          name: 'Admin Ops',
+          href: '/dashboard/admin',
+          summary: 'Správa uživatelů, členství a interních provozních zásahů.',
+          matches: prefixMatch('/dashboard/admin'),
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3l7 4v5c0 4.5-2.9 7.9-7 9-4.1-1.1-7-4.5-7-9V7l7-4z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.5 12.5l1.8 1.8 3.2-3.8" />
+            </svg>
+          ),
+        },
+      ],
     });
   }
 
-  return baseNavigation;
+  return sections;
 };
+
+const findActiveItem = (sections: NavSection[], pathname: string) => {
+  for (const section of sections) {
+    for (const item of section.items) {
+      if (item.matches(pathname)) {
+        return { section, item };
+      }
+    }
+  }
+
+  return { section: sections[0], item: sections[0].items[0] };
+};
+
+function UserInitial({ name }: { name?: string }) {
+  const initial = name?.trim().charAt(0).toUpperCase() || 'U';
+
+  return (
+    <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[color:var(--brand)] text-sm font-semibold text-white shadow-[0_18px_50px_rgba(125,31,43,0.20)]">
+      {initial}
+    </div>
+  );
+}
+
+function MobileNavItem({
+  item,
+  pathname,
+  onClick,
+}: {
+  item: NavItem;
+  pathname: string;
+  onClick: () => void;
+}) {
+  const active = item.matches(pathname);
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+        className={`block rounded-[1.25rem] border px-4 py-3 transition ${
+        active
+          ? 'border-[rgba(125,31,43,0.18)] bg-[rgba(125,31,43,0.08)] text-[color:var(--brand-strong)]'
+          : 'border-transparent bg-white/40 text-[color:var(--foreground)] hover:border-[color:var(--border)] hover:bg-white/80'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`mt-0.5 ${active ? 'text-[color:var(--brand)]' : 'text-[color:var(--muted)]'}`}
+        >
+          {item.icon}
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold">{item.name}</div>
+          <div className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+            {item.summary}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function DesktopNavItem({
+  item,
+  pathname,
+}: {
+  item: NavItem;
+  pathname: string;
+}) {
+  const active = item.matches(pathname);
+
+  return (
+    <Link
+      href={item.href}
+      className={`group flex items-start gap-3 rounded-[1.2rem] border px-4 py-3 transition ${
+        active
+          ? 'border-[rgba(125,31,43,0.18)] bg-[rgba(125,31,43,0.08)] text-[color:var(--brand-strong)] shadow-[0_18px_50px_rgba(52,25,12,0.06)]'
+          : 'border-transparent text-[color:var(--foreground)] hover:border-[color:var(--border)] hover:bg-white/80'
+      }`}
+    >
+      <span
+        className={`mt-0.5 transition ${
+          active ? 'text-[color:var(--brand)]' : 'text-[color:var(--muted)] group-hover:text-[color:var(--foreground)]'
+        }`}
+      >
+        {item.icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{item.name}</span>
+        <span className="mt-1 block text-xs leading-5 text-[color:var(--muted)]">
+          {item.summary}
+        </span>
+      </span>
+    </Link>
+  );
+}
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout, isDemo } = useAuth();
-  
+
   const isAdmin = user?.email ? ADMIN_EMAILS.includes(user.email) : false;
-  const navigation = getNavigation(isAdmin);
+  const navigation = createNavigation(isAdmin);
+  const active = findActiveItem(navigation, pathname);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Ambient Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-white to-gray-100"></div>
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-gradient-to-r from-red-100/60 to-red-200/40 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-gradient-to-l from-red-200/50 to-red-300/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-2/3 left-2/3 w-64 h-64 bg-gradient-to-br from-red-150/40 to-red-100/30 rounded-full blur-3xl animate-pulse delay-500"></div>
-        <div className="absolute inset-0 opacity-[0.03]" 
-             style={{
-               backgroundImage: `radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.1) 1px, transparent 0)`,
-               backgroundSize: '50px 50px'
-             }}>
-        </div>
+    <div className="relative min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(125,31,43,0.08),transparent_28%),radial-gradient(circle_at_top_right,rgba(165,101,30,0.07),transparent_24%),linear-gradient(180deg,rgba(255,252,248,0.4),rgba(255,252,248,0.75))]" />
+        <div className="absolute left-0 top-0 h-[22rem] w-[22rem] rounded-full bg-[rgba(125,31,43,0.06)] blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-[24rem] w-[24rem] rounded-full bg-[rgba(165,101,30,0.08)] blur-3xl" />
       </div>
 
-      {/* Mobile menu */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
-          {/* Off-canvas menu backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
-            aria-hidden="true" 
+          <div
+            className="absolute inset-0 bg-[rgba(36,20,15,0.36)] backdrop-blur-sm"
+            aria-hidden="true"
             onClick={() => setIsMobileMenuOpen(false)}
-          ></div>
+          />
 
-          {/* Off-canvas menu */}
-          <div className="relative flex flex-col h-full max-w-xs w-full bg-white shadow-xl">
-            {/* Close button inside the menu */}
-            <div className="absolute top-0 right-0 p-3 z-10">
+          <div className="relative flex h-full w-full max-w-sm flex-col border-r border-[color:var(--border)] bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(248,241,233,0.96))] p-5 shadow-[0_24px_80px_rgba(36,20,15,0.18)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[color:var(--border)] pb-5">
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[color:var(--brand)] text-base font-semibold text-white shadow-[0_18px_50px_rgba(125,31,43,0.20)]">
+                  E
+                </div>
+                <div>
+                  <p className="font-display text-2xl leading-none">etiketa.wine</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-[color:var(--muted)]">
+                    dashboard shell
+                  </p>
+                </div>
+              </Link>
+
               <button
                 type="button"
-                className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
                 onClick={() => setIsMobileMenuOpen(false)}
+                className="grid h-10 w-10 place-items-center rounded-full border border-[color:var(--border)] bg-white/80 text-[color:var(--foreground)] transition hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"
               >
                 <span className="sr-only">Zavřít menu</span>
-                <svg className="h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {/* Header */}
-            <div className="flex-shrink-0 flex items-center px-4 py-6 pt-14">
-              <Link href="/dashboard" className="flex items-center space-x-3" onClick={() => setIsMobileMenuOpen(false)}>
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-800 rounded-xl blur-sm opacity-75"></div>
-                  <div className="relative w-8 h-8 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center shadow-2xl">
-                    <span className="text-white font-bold text-sm">E</span>
-                  </div>
-                </div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  etiketa.wine
-                </h1>
-              </Link>
-            </div>
-            
-            {/* Navigation */}
-            <div className="flex-1 overflow-y-auto px-4">
-              <nav className="space-y-1 pb-6">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`${
-                      pathname === item.href
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-transparent'
-                    } group flex items-center px-3 py-3 text-base font-medium rounded-lg transition-all duration-200 border`}
-                  >
-                    <div className={`${
-                      pathname === item.href
-                        ? 'text-red-600'
-                        : 'text-gray-500 group-hover:text-gray-700'
-                    } mr-3 flex-shrink-0 transition-colors duration-200`}>
-                      {item.icon}
-                    </div>
-                    {item.name}
-                  </Link>
-                ))}
-              </nav>
+            <div className="mt-5 rounded-[1.5rem] border border-[color:var(--border)] bg-white/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-[color:var(--muted)]">
+                Aktuální sekce
+              </p>
+              <p className="mt-2 text-lg font-semibold text-[color:var(--foreground)]">
+                {active.item.name}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+                {active.item.summary}
+              </p>
             </div>
 
-            {/* Footer - User info */}
-            <div className="flex-shrink-0 border-t border-gray-200 p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">{user?.name?.charAt(0) || 'U'}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.name || 'User'}
+            <nav className="mt-6 flex-1 space-y-6 overflow-y-auto pr-1">
+              {navigation.map((section) => (
+                <div key={section.title}>
+                  <p className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.26em] text-[color:var(--muted)]">
+                    {section.title}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">
+                  <div className="space-y-2">
+                    {section.items.map((item) => (
+                      <MobileNavItem
+                        key={item.name}
+                        item={item}
+                        pathname={pathname}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            <div className="mt-6 rounded-[1.5rem] border border-[color:var(--border)] bg-white/75 p-4">
+              <div className="flex items-center gap-3">
+                <UserInitial name={user?.name} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[color:var(--foreground)]">
+                    {user?.name || 'Účet'}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--muted)]">
                     {user?.email}
                   </p>
                 </div>
               </div>
+              <button
+                onClick={logout}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[color:var(--border)] bg-white/80 px-4 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"
+              >
+                Odhlásit
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Static sidebar for desktop */}
-      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 z-40">
-        <div className="flex flex-col flex-grow bg-white/60 backdrop-blur-xl border-r border-gray-200/50 pt-6 pb-4 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-6 mb-8">
-            <Link href="/dashboard" className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-red-600 to-red-800 rounded-xl blur-sm opacity-75"></div>
-                <div className="relative w-10 h-10 bg-gradient-to-br from-red-600 to-red-800 rounded-xl flex items-center justify-center shadow-2xl">
-                  <span className="text-white font-bold text-lg">E</span>
-                </div>
+      <div className="relative hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[19rem] lg:flex-col">
+        <aside className="flex h-full flex-col border-r border-[color:var(--border)] bg-[linear-gradient(180deg,rgba(255,251,247,0.92),rgba(248,241,233,0.9))] px-5 py-6 backdrop-blur-xl">
+          <div className="rounded-[1.9rem] border border-[color:var(--border)] bg-white/72 p-5 shadow-[0_24px_80px_rgba(36,20,15,0.08)]">
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[color:var(--brand)] text-lg font-semibold text-white shadow-[0_18px_50px_rgba(125,31,43,0.20)]">
+                E
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                etiketa.wine
-              </h1>
-            </Link>
-          </div>
-          
-          <div className="flex-1 flex flex-col px-4">
-            <nav className="flex-1 space-y-2">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`${
-                    pathname === item.href
-                      ? 'bg-red-50/80 text-red-700 border-red-200/50 shadow-sm'
-                      : 'text-gray-700 hover:bg-white/60 hover:text-gray-900 border-transparent hover:shadow-sm'
-                  } group flex items-center px-4 py-3 text-sm font-medium rounded-2xl transition-all duration-200 backdrop-blur-sm border`}
-                >
-                  <div className={`${
-                    pathname === item.href
-                      ? 'text-red-600'
-                      : 'text-gray-500 group-hover:text-gray-700'
-                  } mr-3 flex-shrink-0 transition-colors duration-200`}>
-                    {item.icon}
-                  </div>
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="lg:pl-72 flex flex-col min-h-screen relative">
-        {/* Top navigation - Fixed header */}
-        <header className="sticky top-0 z-40 flex-shrink-0 flex h-14 sm:h-16 bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
-          {/* Mobile menu button */}
-          <button
-            type="button"
-            className="flex items-center justify-center w-14 sm:w-16 text-gray-600 hover:text-gray-900 hover:bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500/50 lg:hidden transition-colors"
-            onClick={() => setIsMobileMenuOpen(true)}
-          >
-            <span className="sr-only">Otevřít menu</span>
-            <svg className="h-5 w-5 sm:h-6 sm:w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          {/* Mobile logo - shown only on mobile when menu is closed */}
-          <div className="flex-1 flex items-center lg:hidden px-2">
-            <Link href="/dashboard" className="flex items-center space-x-2">
-              <div className="relative">
-                <div className="w-6 h-6 bg-gradient-to-br from-red-600 to-red-800 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-xs">E</span>
-                </div>
+              <div>
+                <p className="font-display text-3xl leading-none">etiketa.wine</p>
+                <p className="mt-1 text-[11px] uppercase tracking-[0.28em] text-[color:var(--muted)]">
+                  app workspace
+                </p>
               </div>
-              <h1 className="text-base font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                etiketa.wine
-              </h1>
             </Link>
-          </div>
 
-          {/* Desktop content area - hidden on mobile */}
-          <div className="hidden lg:flex flex-1 items-center px-4">
-            {/* Breadcrumb or page title could go here */}
-          </div>
+            <div className="mt-5 border-t border-[color:var(--border)] pt-4">
+              <p className="text-sm leading-6 text-[color:var(--muted)]">
+                Operativní shell pro katalog, QR, analytiku a technický přístup.
+              </p>
+            </div>
 
-          {/* Right side content */}
-          <div className="flex items-center space-x-2 sm:space-x-3 px-2 sm:px-4">
-            {/* Demo account indicator */}
             {isDemo && (
-              <div className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full border border-orange-200">
-                <span className="hidden sm:inline">DEMO ÚČET</span>
-                <span className="sm:hidden">DEMO</span>
+              <div className="mt-4 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-800">
+                Demo účet
               </div>
             )}
-            
-            {/* Profile section */}
-            <div className="flex items-center space-x-2">
-              {/* User name - hidden on mobile */}
-              <div className="text-sm font-medium text-gray-700 hidden md:block truncate max-w-32 lg:max-w-none">
-                {user?.name || ''}
+          </div>
+
+          <nav className="mt-6 flex-1 space-y-6 overflow-y-auto pr-1">
+            {navigation.map((section) => (
+              <div key={section.title}>
+                <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-[color:var(--muted)]">
+                  {section.title}
+                </p>
+                <div className="space-y-2">
+                  {section.items.map((item) => (
+                    <DesktopNavItem key={item.name} item={item} pathname={pathname} />
+                  ))}
+                </div>
               </div>
-              
-              {/* Logout button */}
-              <button 
+            ))}
+          </nav>
+
+          <div className="mt-6 rounded-[1.6rem] border border-[color:var(--border)] bg-white/72 p-4 shadow-[0_18px_50px_rgba(36,20,15,0.06)]">
+            <div className="flex items-center gap-3">
+              <UserInitial name={user?.name} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[color:var(--foreground)]">
+                  {user?.name || 'Účet'}
+                </p>
+                <p className="truncate text-xs text-[color:var(--muted)]">
+                  {user?.email}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[color:var(--border)] bg-white/85 px-4 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"
+            >
+              Odhlásit
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <div className="relative flex min-h-screen flex-col lg:pl-[19rem]">
+        <header className="sticky top-0 z-40 border-b border-[color:var(--border)] bg-[rgba(255,251,247,0.78)] backdrop-blur-xl">
+          <div className="flex min-h-[4.5rem] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+            <button
+              type="button"
+              className="grid h-11 w-11 place-items-center rounded-full border border-[color:var(--border)] bg-white/78 text-[color:var(--foreground)] transition hover:border-[color:var(--brand)] hover:text-[color:var(--brand)] lg:hidden"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <span className="sr-only">Otevřít menu</span>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[color:var(--muted)]">
+                {active.section.title}
+              </p>
+              <div className="mt-1 flex flex-col gap-1 lg:flex-row lg:items-baseline lg:gap-3">
+                <h1 className="truncate text-xl font-semibold text-[color:var(--foreground)]">
+                  {active.item.name}
+                </h1>
+                <p className="truncate text-sm text-[color:var(--muted)]">
+                  {active.item.summary}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <span className="hidden rounded-full border border-[color:var(--border)] bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--muted)] sm:inline-flex">
+                  Admin
+                </span>
+              )}
+              {isDemo && (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-800">
+                  Demo
+                </span>
+              )}
+              <div className="hidden min-w-0 text-right md:block">
+                <p className="truncate text-sm font-semibold text-[color:var(--foreground)]">
+                  {user?.name || 'Účet'}
+                </p>
+                <p className="truncate text-xs text-[color:var(--muted)]">
+                  {user?.email}
+                </p>
+              </div>
+              <button
                 onClick={logout}
-                className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-auto sm:px-3 bg-white/70 hover:bg-white/90 backdrop-blur-sm border border-gray-200/60 rounded-lg sm:rounded-xl text-gray-700 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                className="inline-flex items-center justify-center rounded-full border border-[color:var(--border)] bg-white/82 px-4 py-2 text-sm font-semibold text-[color:var(--foreground)] transition hover:border-[color:var(--brand)] hover:text-[color:var(--brand)]"
                 title="Odhlásit"
               >
-                <span className="hidden sm:inline text-sm font-medium mr-1">Odhlásit</span>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                <span className="hidden sm:inline">Odhlásit</span>
+                <svg className="h-4 w-4 sm:ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H9m4 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h5a2 2 0 012 2v1" />
                 </svg>
               </button>
             </div>
           </div>
         </header>
 
-        {/* Main content */}
-        <main className="flex-1">
-          <div className="py-4 sm:py-6 lg:py-8">
-            {children}
-          </div>
+        <main className="relative flex-1 px-0 pb-8 pt-4 sm:pt-6 lg:pt-8">
+          {children}
         </main>
       </div>
     </div>

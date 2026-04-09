@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { verifyJwtToken, getUserById } from '@/lib/auth-server';
-import { Client } from 'appwrite';
+import { getUserById } from '@/lib/auth-server';
 import { getAppwriteAdminHeaders, getAppwriteUrl, getServerAppwriteEnv } from '@/lib/appwrite-env';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // Schema for password change validation
 const passwordChangeSchema = z.object({
@@ -12,11 +12,9 @@ const passwordChangeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
@@ -38,72 +36,51 @@ export async function POST(request: NextRequest) {
     
     const { currentPassword, newPassword } = result.data;
     
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      
-      // Get user by ID
-      const user = await getUserById(decoded.userId);
-      
-      // First verify the current password by creating a session
-      // This endpoint doesn't require JWT, just the credentials
-      try {
-        const serverEnv = getServerAppwriteEnv();
+    const user = await getUserById(sessionUser.id);
 
-        // We try to create a session to validate the current password
-        const sessionResponse = await fetch(getAppwriteUrl('/account/sessions/email'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Appwrite-Project': serverEnv.projectId,
-          },
-          body: JSON.stringify({
-            email: user.email,
-            password: currentPassword
-          }),
-        });
-        
-        if (!sessionResponse.ok) {
-          // If we can't create a session, the current password is wrong
-          return NextResponse.json(
-            { message: 'Současné heslo není správné' },
-            { status: 401 }
-          );
-        }
-        
-        // Current password is correct, proceed to change password using direct API call
-        const updateResponse = await fetch(getAppwriteUrl(`/users/${user.$id}/password`), {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAppwriteAdminHeaders(),
-          },
-          body: JSON.stringify({ 
-            password: newPassword 
-          }),
-        });
-        
-        if (!updateResponse.ok) {
-          const errorText = await updateResponse.text();
-          console.error(`Error updating password: ${updateResponse.status}`, errorText);
-          throw new Error('Změna hesla selhala.');
-        }
-        
-        console.log('Password updated successfully');
-        
-        // Return success response
-        return NextResponse.json({ message: 'Heslo bylo úspěšně změněno' });
-        
-      } catch (authError) {
-        console.error('Auth error:', authError);
-        throw new Error('Ověření současného hesla selhalo');
+    try {
+      const serverEnv = getServerAppwriteEnv();
+
+      const sessionResponse = await fetch(getAppwriteUrl('/account/sessions/email'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Appwrite-Project': serverEnv.projectId,
+        },
+        body: JSON.stringify({
+          email: user.email,
+          password: currentPassword,
+        }),
+      });
+
+      if (!sessionResponse.ok) {
+        return NextResponse.json(
+          { message: 'Současné heslo není správné' },
+          { status: 401 }
+        );
       }
-    } catch (tokenError) {
-      console.error('Token error:', tokenError);
-      return NextResponse.json(
-        { message: 'Neplatný token nebo vypršela platnost přihlášení' },
-        { status: 401 }
-      );
+
+      const updateResponse = await fetch(getAppwriteUrl(`/users/${user.$id}/password`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAppwriteAdminHeaders(),
+        },
+        body: JSON.stringify({
+          password: newPassword,
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        console.error(`Error updating password: ${updateResponse.status}`, errorText);
+        throw new Error('Změna hesla selhala.');
+      }
+
+      return NextResponse.json({ message: 'Heslo bylo úspěšně změněno' });
+    } catch (authError) {
+      console.error('Auth error:', authError);
+      throw new Error('Ověření současného hesla selhalo');
     }
   } catch (error) {
     console.error('Password change error:', error);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GeographicAnalyzer } from '@/lib/advanced-analytics';
 import { adminDatabases, Query, ANALYTICS_DB_ID } from '@/lib/appwrite-client';
-import { verifyJwtToken, getUserById } from '@/lib/auth-server';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // Collection IDs
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
@@ -9,31 +9,17 @@ const REGIONAL_SCAN_STATS_COLLECTION_ID = 'regional_scan_stats';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      await getUserById(decoded.userId);
-    } catch (authError) {
+    const user = await getRequestSessionUser(request);
+
+    if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const wineryId = searchParams.get('wineryId');
+    const wineryId = user.id;
     const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0];
     const analysisType = searchParams.get('type') || 'overview';
-
-    if (!wineryId) {
-      return NextResponse.json({ error: 'Winery ID is required' }, { status: 400 });
-    }
 
     // Get scan events data
     const scanEvents = await adminDatabases.listDocuments(

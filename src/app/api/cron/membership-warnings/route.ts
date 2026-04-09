@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMemberships } from '@/lib/appwrite';
+import { getAllMemberships, type Membership } from '@/lib/appwrite';
 import { isExpiringWithinDays, sendExpirationWarning } from '@/lib/membership-notifications';
+import { requireCronAuth } from '@/server/http/cron-auth';
 
 // This endpoint can be called by a cron service to send expiration warnings
 export async function GET(request: NextRequest) {
   try {
-    // Verify the request is from an authorized source using URL parameter
-    const { searchParams } = new URL(request.url);
-    const providedKey = searchParams.get('key');
-    const expectedToken = process.env.CRON_SECRET || 'default-cron-secret';
-    
-    if (providedKey !== expectedToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const unauthorizedResponse = requireCronAuth(request);
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
     }
     
     console.log('Cron job triggered: Checking for memberships needing expiration warnings...');
@@ -33,35 +30,36 @@ export async function GET(request: NextRequest) {
       // Process each membership
       for (const membership of memberships) {
         processedCount++;
+        const cronMembership = membership as Membership & { $id: string };
         
         // Only process active memberships
-        if (!membership.isActive) {
+        if (!cronMembership.isActive) {
           continue;
         }
         
         // Check if membership is expiring within any of our warning periods
         for (const days of warningDays) {
           // Only process memberships with valid IDs
-          if (membership.$id && isExpiringWithinDays(membership as any, days)) {
+          if (cronMembership.$id && isExpiringWithinDays(cronMembership, days)) {
             
             // Check if we've already sent a warning for this period
             // In a real implementation, you'd want to track this in the database
             // For now, we'll just send warnings for memberships expiring in exactly these days
             
-            const expiresAt = new Date(membership.expiresAt);
+            const expiresAt = new Date(cronMembership.expiresAt);
             const today = new Date();
             const diffTime = expiresAt.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
             if (diffDays === days) {
               try {
-                const success = await sendExpirationWarning(membership as any, days);
+                const success = await sendExpirationWarning(cronMembership, days);
                 if (success) {
                   warningsSent++;
-                  console.log(`Sent ${days}-day expiration warning for user ${membership.appwriteUserId}`);
+                  console.log(`Sent ${days}-day expiration warning for user ${cronMembership.appwriteUserId}`);
                 }
               } catch (error) {
-                console.error(`Error sending warning for membership ${membership.$id}:`, error);
+                console.error(`Error sending warning for membership ${cronMembership.$id}:`, error);
               }
               
               break; // Only send one warning per membership per run

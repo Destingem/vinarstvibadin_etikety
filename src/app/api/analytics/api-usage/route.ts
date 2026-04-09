@@ -1,40 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
 import { adminDatabases, API_DB_ID, Query } from '@/lib/appwrite-client';
 import { API_USAGE_COLLECTION_ID } from '@/lib/api-middleware';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // GET /api/analytics/api-usage - Get API usage statistics for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    let verifiedToken;
-    try {
-      verifiedToken = verifyJwtToken(token);
-    } catch (error) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    if (!verifiedToken) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = verifiedToken.userId;
+
+    const userId = sessionUser.id;
     const { searchParams } = new URL(request.url);
     const range = searchParams.get('range') || '30days';
     

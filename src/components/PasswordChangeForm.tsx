@@ -1,28 +1,49 @@
 "use client";
 
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth-context';
-import { account } from '@/lib/appwrite-client';
 
-const passwordChangeSchema = z.object({
-  currentPassword: z.string().min(1, { message: 'Současné heslo je povinné' }),
-  newPassword: z.string().min(6, { message: 'Heslo musí mít alespoň 6 znaků' }),
-  confirmPassword: z.string().min(1, { message: 'Potvrzení hesla je povinné' }),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: 'Hesla se neshodují',
-  path: ['confirmPassword'],
-});
+const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, { message: 'Soucasne heslo je povinne' }),
+    newPassword: z.string().min(6, { message: 'Heslo musi mit alespon 6 znaku' }),
+    confirmPassword: z.string().min(1, { message: 'Potvrzeni hesla je povinne' }),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Hesla se neshoduji',
+    path: ['confirmPassword'],
+  });
 
 type PasswordChangeFormData = z.infer<typeof passwordChangeSchema>;
 
+function SurfaceMessage({
+  tone,
+  children,
+}: {
+  tone: 'error' | 'success';
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border px-4 py-3 text-sm ${
+        tone === 'error'
+          ? 'border-red-200 bg-red-50 text-red-700'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function PasswordChangeForm() {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { user } = useAuth();
 
   const {
     register,
@@ -35,7 +56,7 @@ export default function PasswordChangeForm() {
 
   const onSubmit = async (data: PasswordChangeFormData) => {
     if (!user) {
-      setError('Nejste přihlášeni');
+      setError('Nejste prihlaseni');
       return;
     }
 
@@ -44,38 +65,28 @@ export default function PasswordChangeForm() {
     setSuccess(null);
 
     try {
-      // First try to update password directly using client-side API
-      try {
-        await account.updatePassword(data.newPassword, data.currentPassword);
-        console.log('Password updated successfully using client-side API');
-        reset();
-        setSuccess('Heslo bylo úspěšně změněno');
-      } catch (clientError) {
-        console.error('Client-side password update failed, falling back to server method:', clientError);
-        
-        // Fall back to server method if client-side fails
-        const response = await fetch('/api/auth/password-change', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
-          },
-          body: JSON.stringify({
-            currentPassword: data.currentPassword,
-            newPassword: data.newPassword,
-          }),
-        });
+      const response = await fetch('/api/auth/password-change', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        }),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Změna hesla selhala');
-        }
+      const result = await response.json();
 
-        reset();
-        setSuccess('Heslo bylo úspěšně změněno');
+      if (!response.ok) {
+        throw new Error(result.message || 'Zmena hesla selhala');
       }
+
+      reset();
+      setSuccess(result.message || 'Heslo bylo uspesne zmeneno');
     } catch (err: any) {
-      setError(err.message || 'Nastala chyba při změně hesla');
+      setError(err.message || 'Nastala chyba pri zmene hesla');
     } finally {
       setIsSubmitting(false);
     }
@@ -83,99 +94,140 @@ export default function PasswordChangeForm() {
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 text-green-700 rounded-2xl">
-          {success}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Current Password */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <label htmlFor="currentPassword" className="block text-sm font-semibold text-gray-700 mb-3">
-              Současné heslo
-            </label>
-            <input
-              id="currentPassword"
-              type="password"
-              {...register('currentPassword')}
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-              placeholder="••••••••"
-            />
-            {errors.currentPassword && (
-              <p className="mt-2 text-sm text-red-600">{errors.currentPassword.message}</p>
-            )}
-          </div>
-        </div>
-
-        {/* New Password */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 mb-3">
-              Nové heslo
-            </label>
-            <input
-              id="newPassword"
-              type="password"
-              {...register('newPassword')}
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-              placeholder="••••••••"
-            />
-            {errors.newPassword && (
-              <p className="mt-2 text-sm text-red-600">{errors.newPassword.message}</p>
-            )}
-            <p className="mt-2 text-xs text-gray-500">
-              Heslo musí mít alespoň 6 znaků.
+      <section className="rounded-[28px] border border-stone-200 bg-[linear-gradient(135deg,rgba(255,249,243,0.98),rgba(248,239,232,0.92))] p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_repeat(2,minmax(0,14rem))]">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8A1538]/70">
+              Account security
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#2b1f1a]">
+              Zmena hesla bez legacy form dojmu
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6b5a54]">
+              Jediny krok je potvrdit stavajici pristup a zvolit nove heslo. Po ulozeni je zmena okamzite aktivni pro dalsi prihlaseni.
             </p>
           </div>
-        </div>
-
-        {/* Confirm Password */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-3">
-              Potvrdit nové heslo
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              {...register('confirmPassword')}
-              className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-              placeholder="••••••••"
-            />
-            {errors.confirmPassword && (
-              <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
-            )}
+          <div className="rounded-2xl border border-stone-200 bg-white/75 p-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Okamzity efekt</div>
+            <div className="mt-2 text-sm font-medium text-[#2b1f1a]">Plati po ulozeni</div>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white/75 p-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Doporuceni</div>
+            <div className="mt-2 text-sm font-medium text-[#2b1f1a]">Delsi heslo + cislice + symboly</div>
           </div>
         </div>
+      </section>
 
-        {/* Submit Button */}
+      {error ? <SurfaceMessage tone="error">{error}</SurfaceMessage> : null}
+      {success ? <SurfaceMessage tone="success">{success}</SurfaceMessage> : null}
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <section className="rounded-[28px] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <label htmlFor="currentPassword" className="text-sm font-semibold text-[#2b1f1a]">
+                Soucasne heslo
+              </label>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6b5a54]">
+                Potvrzuje, ze heslo meni opravnene prihlaseny uzivatel. Bez nej zmenu neprovedeme.
+              </p>
+            </div>
+          </div>
+
+          <input
+            id="currentPassword"
+            type="password"
+            autoComplete="current-password"
+            {...register('currentPassword')}
+            className="mt-4 w-full rounded-2xl border border-stone-300 bg-[#fffdfb] px-4 py-3 text-[#2b1f1a] outline-none transition focus:border-[#8A1538] focus:ring-2 focus:ring-[#ead8cf]"
+            placeholder="••••••••"
+          />
+          {errors.currentPassword ? (
+            <p className="mt-2 text-sm text-red-600">{errors.currentPassword.message}</p>
+          ) : null}
+        </section>
+
+        <section className="rounded-[28px] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8A1538]">
+              Nove heslo
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6b5a54]">
+              Zvolte heslo, ktere nepouzivate u jinych sluzeb. Pokud pristup sdili vice lidi, poslete nove heslo jen zabezpecenym kanalem.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[24px] border border-stone-200 bg-[#fbf7f3] p-5">
+              <label htmlFor="newPassword" className="text-sm font-semibold text-[#2b1f1a]">
+                Nove heslo
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                autoComplete="new-password"
+                {...register('newPassword')}
+                className="mt-3 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-[#2b1f1a] outline-none transition focus:border-[#8A1538] focus:ring-2 focus:ring-[#ead8cf]"
+                placeholder="••••••••"
+              />
+              {errors.newPassword ? <p className="mt-2 text-sm text-red-600">{errors.newPassword.message}</p> : null}
+              <p className="mt-3 text-sm leading-6 text-[#6b5a54]">
+                Doporucujeme kombinaci malych a velkych pismen, cisel a symbolu.
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-stone-200 bg-[#fbf7f3] p-5">
+              <label htmlFor="confirmPassword" className="text-sm font-semibold text-[#2b1f1a]">
+                Potvrzeni noveho hesla
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                {...register('confirmPassword')}
+                className="mt-3 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-[#2b1f1a] outline-none transition focus:border-[#8A1538] focus:ring-2 focus:ring-[#ead8cf]"
+                placeholder="••••••••"
+              />
+              {errors.confirmPassword ? (
+                <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
+              ) : null}
+              <p className="mt-3 text-sm leading-6 text-[#6b5a54]">
+                Druhe pole slouzi jen jako kontrola. Po ulozeni se hodnoty vymazou.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-[#e7d9d1] bg-[#fbf7f3] p-5 shadow-[0_18px_60px_rgba(58,34,27,0.06)] sm:p-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-[#eadfd8] bg-white/80 p-4 text-sm leading-6 text-[#6b5a54]">
+              Po ulozeni se heslo zmeni okamzite.
+            </div>
+            <div className="rounded-2xl border border-[#eadfd8] bg-white/80 p-4 text-sm leading-6 text-[#6b5a54]">
+              Aktualni session muze pokracovat, ale dalsi prihlaseni uz pouziji nove heslo.
+            </div>
+            <div className="rounded-2xl border border-[#eadfd8] bg-white/80 p-4 text-sm leading-6 text-[#6b5a54]">
+              Pokud pristup sdili tym, informujte ostatni jen pres bezpecny kanal.
+            </div>
+          </div>
+        </section>
+
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#8A1538] px-8 text-sm font-semibold text-white transition hover:bg-[#73102f] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? (
-              <span className="flex items-center space-x-2">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <span className="flex items-center gap-2">
+                <svg className="h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Měním heslo...</span>
+                <span>Menim heslo...</span>
               </span>
             ) : (
-              'Změnit heslo'
+              'Zmenit heslo'
             )}
           </button>
         </div>

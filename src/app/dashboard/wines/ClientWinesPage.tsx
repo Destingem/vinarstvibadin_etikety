@@ -1,14 +1,35 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
-import { useSearchParams } from 'next/navigation';
 import ImportExportWines from '@/components/ImportExportWines';
 import { Wine as WineType } from '@/types';
 
-type Wine = WineType;
+type NullableWineFields = {
+  vintage?: number | null;
+  batch?: string | null;
+  alcoholContent?: number | null;
+  energyValueKJ?: number | null;
+  energyValueKcal?: number | null;
+  fat?: number | null;
+  saturatedFat?: number | null;
+  carbs?: number | null;
+  sugars?: number | null;
+  protein?: number | null;
+  salt?: number | null;
+  ingredients?: string | null;
+  additionalInfo?: string | null;
+  allergens?: string | null;
+  wineRegion?: string | null;
+  wineSubregion?: string | null;
+  wineVillage?: string | null;
+  wineTract?: string | null;
+};
+
+type Wine = Omit<WineType, keyof NullableWineFields> & NullableWineFields;
 
 type Pagination = {
   page: number;
@@ -22,18 +43,43 @@ type WinesData = {
   pagination: Pagination;
 };
 
-export default function ClientWinesPage() {
-  const { user, token } = useAuth();
+type ClientWinesPageProps = {
+  initialData?: WinesData | null;
+};
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('cs-CZ', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function formatAlcohol(value?: number | null) {
+  return value ? `${value}% obj.` : 'Bez údaje';
+}
+
+function getLabelTone(ready: boolean) {
+  return ready
+    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+    : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+}
+
+export default function ClientWinesPage({ initialData }: ClientWinesPageProps) {
+  const { token } = useAuth();
   const searchParams = useSearchParams();
-  const [data, setData] = useState<WinesData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<WinesData | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredWines, setFilteredWines] = useState<Wine[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<keyof Wine>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [filteredWines, setFilteredWines] = useState<Wine[]>(initialData?.wines ?? []);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const pageParam = Number(searchParams.get('page') || '1');
+    return Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  });
+  const [sortField, setSortField] = useState<keyof Wine>('updatedAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterVintage, setFilterVintage] = useState<number | null>(null);
   const [filterAlcohol, setFilterAlcohol] = useState<number | null>(null);
   const [filterBatch, setFilterBatch] = useState<string | null>(null);
@@ -41,872 +87,822 @@ export default function ClientWinesPage() {
   const [filterDateFrom, setFilterDateFrom] = useState<string | null>(null);
   const [filterDateTo, setFilterDateTo] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [showBackupModal, setShowBackupModal] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [showTransferPanel, setShowTransferPanel] = useState(false);
   const itemsPerPage = 10;
 
-  // Get page from URL or default to 1
-  const page = searchParams.get('page') ? parseInt(searchParams.get('page') as string) : 1;
-  // URL search is no longer used for filtering, kept for compatibility
-  const search = searchParams.get('search') || '';
-
-  // Handle wine deletion
-  const handleDeleteWine = async (wineId: string) => {
-    if (!token) return;
-    
-    // Confirm before deleting
-    if (!confirm('Opravdu chcete smazat toto víno?')) {
+  const fetchWines = useCallback(async () => {
+    if (!token) {
       return;
     }
-    
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await authFetch('/api/wines?limit=1000', token);
+
+      if (!response.ok) {
+        throw new Error('Nepodařilo se načíst katalog vín.');
+      }
+
+      const winesData = await response.json();
+      setData(winesData);
+      setFilteredWines(winesData.wines);
+    } catch (err: any) {
+      console.error('Error fetching wines:', err);
+      setError(err.message || 'Při načítání katalogu došlo k chybě.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!initialData) {
+      return;
+    }
+
+    setData(initialData);
+    setFilteredWines(initialData.wines);
+    setLoading(false);
+  }, [initialData]);
+
+  const handleDeleteWine = async (wineId: string) => {
+    if (!token) {
+      return;
+    }
+
+    if (!confirm('Opravdu chcete toto víno odstranit z katalogu?')) {
+      return;
+    }
+
     setDeletingId(wineId);
     setError(null);
-    
+
     try {
       const response = await authFetch(`/api/wines/${wineId}`, token, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Nastala chyba při mazání vína');
+        throw new Error(errorData.message || 'Mazání vína selhalo.');
       }
-      
-      // Refresh wines list
-      fetchWines();
+
+      await fetchWines();
     } catch (err: any) {
       console.error('Error deleting wine:', err);
-      setError(err.message || 'Nastala chyba při mazání vína');
+      setError(err.message || 'Mazání vína selhalo.');
     } finally {
       setDeletingId(null);
     }
   };
-  
-  // Fetch wines data - now fetches all wines for client-side filtering
-  const fetchWines = async () => {
-    if (!token) return;
 
-    setLoading(true);
-    try {
-      // Fetch all wines without a search parameter
-      const response = await authFetch(`/api/wines?limit=1000`, token);
-      
-      if (response.ok) {
-        const winesData = await response.json();
-        setData(winesData);
-        setFilteredWines(winesData.wines); // Initialize filtered wines with all wines
-      } else {
-        setError('Failed to load wines');
-      }
-    } catch (err) {
-      console.error('Error fetching wines:', err);
-      setError('An error occurred while loading wines');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Filter and sort wines
   useEffect(() => {
-    if (!data) return;
-    
-    // Start with all wines
+    if (!data) {
+      return;
+    }
+
     let filtered = [...data.wines];
-    
-    // Apply search filter if term exists
+
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(wine => {
-        const nameMatch = wine.name.toLowerCase().includes(searchLower);
-        const vintageMatch = wine.vintage?.toString().includes(searchLower);
-        const batchMatch = wine.batch?.toLowerCase().includes(searchLower);
-        
-        return nameMatch || vintageMatch || batchMatch;
+      filtered = filtered.filter((wine) => {
+        return (
+          wine.name.toLowerCase().includes(searchLower) ||
+          wine.vintage?.toString().includes(searchLower) ||
+          wine.batch?.toLowerCase().includes(searchLower) ||
+          wine.wineRegion?.toLowerCase().includes(searchLower)
+        );
       });
     }
-    
-    // Apply vintage filter if selected
+
     if (filterVintage !== null) {
-      filtered = filtered.filter(wine => wine.vintage === filterVintage);
+      filtered = filtered.filter((wine) => wine.vintage === filterVintage);
     }
-    
-    // Apply alcohol content filter if selected
+
     if (filterAlcohol !== null) {
-      filtered = filtered.filter(wine => wine.alcoholContent === filterAlcohol);
+      filtered = filtered.filter((wine) => wine.alcoholContent === filterAlcohol);
     }
-    
-    // Apply batch filter if selected
-    if (filterBatch !== null && filterBatch !== '') {
-      filtered = filtered.filter(wine => wine.batch === filterBatch);
+
+    if (filterBatch) {
+      filtered = filtered.filter((wine) => wine.batch === filterBatch);
     }
-    
-    // Apply region filter if selected
-    if (filterRegion !== null && filterRegion !== '') {
-      filtered = filtered.filter(wine => wine.wineRegion === filterRegion);
+
+    if (filterRegion) {
+      filtered = filtered.filter((wine) => wine.wineRegion === filterRegion);
     }
-    
-    // Apply date range filters if selected
-    if (filterDateFrom !== null && filterDateFrom !== '') {
+
+    if (filterDateFrom) {
       const fromDate = new Date(filterDateFrom);
-      filtered = filtered.filter(wine => new Date(wine.createdAt) >= fromDate);
+      filtered = filtered.filter((wine) => new Date(wine.createdAt) >= fromDate);
     }
-    
-    if (filterDateTo !== null && filterDateTo !== '') {
+
+    if (filterDateTo) {
       const toDate = new Date(filterDateTo);
-      // Set time to end of day for inclusive filtering
       toDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(wine => new Date(wine.createdAt) <= toDate);
+      filtered = filtered.filter((wine) => new Date(wine.createdAt) <= toDate);
     }
-    
-    // Sort the filtered wines
+
     filtered.sort((a, b) => {
-      // Handle undefined or null values for proper comparison
       const aValue = a[sortField] ?? '';
       const bValue = b[sortField] ?? '';
-      
-      // Compare the values based on their types
+
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
-          ? aValue.localeCompare(bValue, 'cs') 
+        return sortDirection === 'asc'
+          ? aValue.localeCompare(bValue, 'cs')
           : bValue.localeCompare(aValue, 'cs');
-      } else {
-        // For numbers and other types
-        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
       }
+
+      if (aValue < bValue) {
+        return sortDirection === 'asc' ? -1 : 1;
+      }
+
+      if (aValue > bValue) {
+        return sortDirection === 'asc' ? 1 : -1;
+      }
+
+      return 0;
     });
-    
+
     setFilteredWines(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [searchTerm, data, sortField, sortDirection, filterVintage, filterAlcohol, filterBatch, filterRegion, filterDateFrom, filterDateTo]);
-  
-  // Toggle sort when a column header is clicked
+    setCurrentPage(1);
+  }, [
+    data,
+    filterAlcohol,
+    filterBatch,
+    filterDateFrom,
+    filterDateTo,
+    filterRegion,
+    filterVintage,
+    searchTerm,
+    sortDirection,
+    sortField,
+  ]);
+
+  useEffect(() => {
+    if (initialData) {
+      return;
+    }
+
+    fetchWines();
+  }, [fetchWines, initialData]);
+
   const handleSort = (field: keyof Wine) => {
     if (sortField === field) {
-      // Toggle direction if clicking the same field
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new field and default to ascending
-      setSortField(field);
-      setSortDirection('asc');
+      setSortDirection((previous) => (previous === 'asc' ? 'desc' : 'asc'));
+      return;
     }
+
+    setSortField(field);
+    setSortDirection(field === 'updatedAt' || field === 'createdAt' ? 'desc' : 'asc');
   };
-  
-  // Get unique values for filters
+
   const getUniqueVintages = () => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
+
     const vintages = data.wines
-      .map(wine => wine.vintage)
-      .filter((vintage): vintage is number => vintage !== null && vintage !== undefined);
+      .map((wine) => wine.vintage)
+      .filter((value): value is number => value !== null && value !== undefined);
+
     return Array.from(new Set(vintages)).sort((a, b) => a - b);
   };
-  
+
   const getUniqueAlcoholContents = () => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
+
     const alcoholContents = data.wines
-      .map(wine => wine.alcoholContent)
-      .filter((content): content is number => content !== null && content !== undefined);
+      .map((wine) => wine.alcoholContent)
+      .filter((value): value is number => value !== null && value !== undefined);
+
     return Array.from(new Set(alcoholContents)).sort((a, b) => a - b);
   };
-  
+
   const getUniqueBatches = () => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
+
     const batches = data.wines
-      .map(wine => wine.batch)
-      .filter((batch): batch is string => batch !== null && batch !== undefined && batch !== '');
+      .map((wine) => wine.batch)
+      .filter((value): value is string => Boolean(value));
+
     return Array.from(new Set(batches)).sort();
   };
-  
+
   const getUniqueRegions = () => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
+
     const regions = data.wines
-      .map(wine => wine.wineRegion)
-      .filter((region): region is string => region !== null && region !== undefined && region !== '');
+      .map((wine) => wine.wineRegion)
+      .filter((value): value is string => Boolean(value));
+
     return Array.from(new Set(regions)).sort();
   };
-  
-  // Get date range for date filters
+
   const getDateRange = () => {
-    if (!data || data.wines.length === 0) return { min: '', max: '' };
-    
-    const dates = data.wines.map(wine => new Date(wine.createdAt).getTime());
-    const minDate = new Date(Math.min(...dates));
-    const maxDate = new Date(Math.max(...dates));
-    
+    if (!data || data.wines.length === 0) {
+      return { min: '', max: '' };
+    }
+
+    const dates = data.wines.map((wine) => new Date(wine.createdAt).getTime());
+
     return {
-      min: minDate.toISOString().split('T')[0],
-      max: maxDate.toISOString().split('T')[0]
+      min: new Date(Math.min(...dates)).toISOString().split('T')[0],
+      max: new Date(Math.max(...dates)).toISOString().split('T')[0],
     };
   };
-  
-  // Close modals when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        setShowBackupModal(false);
-      }
-    }
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
-  // Fetch wines only once or when token changes
-  useEffect(() => {
-    fetchWines();
-  }, [token]);
+  const clearFilters = () => {
+    setFilterVintage(null);
+    setFilterAlcohol(null);
+    setFilterBatch(null);
+    setFilterRegion(null);
+    setFilterDateFrom(null);
+    setFilterDateTo(null);
+  };
+
+  const activeFilters = [
+    filterVintage !== null ? { label: `Ročník ${filterVintage}`, onRemove: () => setFilterVintage(null) } : null,
+    filterAlcohol !== null ? { label: `Alkohol ${filterAlcohol}%`, onRemove: () => setFilterAlcohol(null) } : null,
+    filterBatch ? { label: `Šarže ${filterBatch}`, onRemove: () => setFilterBatch(null) } : null,
+    filterRegion ? { label: `Region ${filterRegion}`, onRemove: () => setFilterRegion(null) } : null,
+    filterDateFrom ? { label: `Od ${formatDate(filterDateFrom)}`, onRemove: () => setFilterDateFrom(null) } : null,
+    filterDateTo ? { label: `Do ${formatDate(filterDateTo)}`, onRemove: () => setFilterDateTo(null) } : null,
+  ].filter(Boolean) as Array<{ label: string; onRemove: () => void }>;
+
+  const totalItems = filteredWines.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentWines = filteredWines.slice(startIndex, endIndex);
+
+  const totalCatalog = data?.wines.length ?? 0;
+  const qrReadyCount = data?.wines.filter((wine) => Boolean(wine.winerySlug)).length ?? 0;
+  const completedCount =
+    data?.wines.filter((wine) => Boolean(wine.alcoholContent) && Boolean(wine.ingredients)).length ?? 0;
+  const searchPanelMessage = showTransferPanel
+    ? 'Datový přenos je otevřený níže. Po importu se katalog automaticky obnoví.'
+    : 'Detail otevírá pracovní prostor vína. QR a úpravy zůstávají dostupné přímo z katalogu.';
 
   if (loading) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-gray-200/60 shadow-2xl text-center">
-            <div className="flex items-center justify-center space-x-3">
-              <svg className="animate-spin h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span className="text-lg font-medium text-gray-700">Načítám vína...</span>
-            </div>
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+        <div className="rounded-[2rem] border border-stone-200 bg-white/80 px-6 py-16 shadow-xl shadow-stone-200/40 backdrop-blur-xl">
+          <div className="flex items-center justify-center gap-3 text-stone-700">
+            <svg className="h-6 w-6 animate-spin text-[#8A1538]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-lg font-medium">Načítám katalog vín…</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // Calculate pagination for filtered wines
-  const totalItems = filteredWines.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  
-  // Get current page's items
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentWines = filteredWines.slice(startIndex, endIndex);
-  
-  // Create pagination object
-  const pagination = {
-    page: currentPage,
-    limit: itemsPerPage,
-    totalCount: totalItems,
-    totalPages: totalPages
-  };
-
   return (
-    <div className="px-3 sm:px-4 lg:px-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-            Správa vín
-          </h1>
-          <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600">
-            Seznam všech vašich vín, pro která můžete generovat QR kódy
-          </p>
+    <div className="mx-auto max-w-7xl px-3 pb-10 sm:px-4 lg:px-8">
+      <section className="relative overflow-hidden rounded-[2rem] border border-stone-200 bg-[radial-gradient(circle_at_top_left,_rgba(138,21,56,0.14),_transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(250,247,242,0.92))] px-5 py-6 shadow-xl shadow-stone-200/40 sm:px-8 sm:py-8">
+        <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top_right,_rgba(156,114,82,0.16),_transparent_56%)] lg:block" />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#8A1538]/70">Katalog</p>
+            <h1 className="mt-3 font-serif text-3xl text-stone-900 sm:text-4xl">Katalog a další krok pro každé víno</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600 sm:text-base">
+              Hledejte, filtrujte a otevírejte vína rovnou do pracovního prostoru, QR výstupu nebo úprav etikety.
+              Import a export katalogu držíme hned po ruce, aby další krok nebyl schovaný mimo tuto plochu.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="rounded-3xl border border-white/70 bg-white/70 px-4 py-4 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Celkem vín</p>
+              <p className="mt-2 text-3xl font-semibold text-stone-900">{totalCatalog}</p>
+            </div>
+            <div className="rounded-3xl border border-white/70 bg-white/70 px-4 py-4 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Připraveno pro QR</p>
+              <p className="mt-2 text-3xl font-semibold text-stone-900">{qrReadyCount}</p>
+            </div>
+            <div className="rounded-3xl border border-white/70 bg-white/70 px-4 py-4 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-stone-500">Se základní etiketou</p>
+              <p className="mt-2 text-3xl font-semibold text-stone-900">{completedCount}</p>
+            </div>
+          </div>
         </div>
-        
-        {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 lg:gap-3">
-          {/* Primary action - Add wine */}
+
+        <div className="relative mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href="/dashboard/wines/new"
-            className="order-1 sm:order-4 group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2.5 sm:px-6 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 w-full sm:w-auto"
+            className="inline-flex items-center justify-center rounded-2xl bg-[#8A1538] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#73102f]"
           >
-            <span className="flex items-center justify-center space-x-2">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              <span className="text-sm sm:text-base">Přidat víno</span>
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </span>
+            Přidat víno
           </Link>
-          
-          {/* Secondary actions */}
-          <div className="order-2 sm:order-1 flex gap-2 sm:gap-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex-1 sm:flex-none relative inline-flex items-center justify-center px-3 py-2.5 sm:px-4 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              <svg className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-              </svg>
-              <span className="hidden sm:inline">Filtry</span>
-              <span className="sm:hidden">Filtr</span>
-              {(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) && (
-                <span className="ml-1 sm:ml-2 inline-flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
-                  {(filterVintage !== null ? 1 : 0) + (filterAlcohol !== null ? 1 : 0) + (filterBatch !== null ? 1 : 0) + (filterRegion !== null ? 1 : 0) + ((filterDateFrom !== null || filterDateTo !== null) ? 1 : 0)}
-                </span>
-              )}
-            </button>
-            
-            <button
-              onClick={() => setShowBackupModal(!showBackupModal)}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center px-3 py-2.5 sm:px-4 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-white/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50"
-            >
-              <svg className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h1a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h1v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
-              </svg>
-              <span className="hidden sm:inline">Import/Export</span>
-              <span className="sm:hidden">I/E</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => setShowFilters((previous) => !previous)}
+            className="inline-flex items-center justify-center rounded-2xl border border-stone-200 bg-white/75 px-5 py-3 text-sm font-medium text-stone-700 transition hover:bg-white"
+          >
+            {showFilters ? 'Skrýt filtry' : 'Zobrazit filtry'}
+            {activeFilters.length > 0 ? ` (${activeFilters.length})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowTransferPanel((previous) => !previous)}
+            className="inline-flex items-center justify-center rounded-2xl border border-stone-200 bg-white/75 px-5 py-3 text-sm font-medium text-stone-700 transition hover:bg-white"
+          >
+            {showTransferPanel ? 'Skrýt datový přenos' : 'Otevřít datový přenos'}
+          </button>
+        </div>
+
+        <div className="relative mt-6 grid gap-3 border-t border-stone-200/70 pt-5 text-sm text-stone-600 sm:grid-cols-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Nový záznam</p>
+            <p className="mt-2">Přidejte víno, pokud zakládáte novou etiketu nebo nový pracovní záznam.</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Pokračovat v práci</p>
+            <p className="mt-2">Detail otevírá hlavní workspace vína. Odtud pokračujete do QR, exportu i úprav.</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Přesun katalogu</p>
+            <p className="mt-2">Import a export použijte pro zálohu, obnovu nebo přenos katalogu mezi prostředími.</p>
           </div>
         </div>
-      </div>
-      
-      {/* Search box */}
-      <div className="mb-4 sm:mb-6">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-xl sm:rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-gray-200/50">
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-4">
-              <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              name="search"
-              id="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 sm:pl-12 sm:pr-12 py-2.5 sm:py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500 text-gray-900 text-sm sm:text-base"
-              placeholder="Hledat podle názvu, ročníku nebo šarže..."
-            />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4 text-gray-500 hover:text-red-600 transition-colors duration-200"
-                title="Vymazat hledání"
-              >
-                <svg className="h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+      </section>
+
+      <section className="mt-6 rounded-[2rem] border border-stone-200 bg-white/80 p-4 shadow-lg shadow-stone-200/30 backdrop-blur-xl sm:p-6">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-end">
+          <div>
+            <label htmlFor="search" className="mb-2 block text-sm font-medium text-stone-700">
+              Hledat v katalogu
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-stone-400">
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                 </svg>
-              </button>
-            )}
+              </div>
+              <input
+                id="search"
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 py-3 pl-11 pr-11 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
+                placeholder="Název, ročník, šarže nebo oblast"
+              />
+              {searchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-stone-400 transition hover:text-[#8A1538]"
+                >
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              ) : null}
+            </div>
           </div>
-          {filteredWines.length === 0 && (searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo) ? (
-            <p className="mt-3 text-sm font-medium text-red-600 flex items-center space-x-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <span>Žádné výsledky pro zadané filtry</span>
-            </p>
-          ) : (searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo) ? (
-            <p className="mt-3 text-sm font-medium text-green-600 flex items-center space-x-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
-              </svg>
-              <span>Nalezeno {filteredWines.length} výsledků</span>
-            </p>
-          ) : null}
+
+          <div className="rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-600">
+            <p className="font-medium text-stone-900">{totalItems} položek po filtrování</p>
+            <p className="mt-1">{searchPanelMessage}</p>
           </div>
         </div>
-      </div>
-      
-      {/* Collapsible Filters */}
-      {showFilters && (
-        <div className="mb-6 relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/70 backdrop-blur-xl p-6 rounded-3xl border border-blue-200/50 shadow-lg transition-all duration-300">
-            <h4 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-              <div className="w-2 h-2 bg-blue-600 rounded-full mr-3"></div>
-              Pokročilé filtry
-            </h4>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Vintage filter */}
+
+        {activeFilters.length > 0 ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {activeFilters.map((filter) => (
+              <button
+                key={filter.label}
+                type="button"
+                onClick={filter.onRemove}
+                className="inline-flex items-center gap-2 rounded-full bg-[#8A1538]/8 px-3 py-1.5 text-xs font-medium text-[#8A1538] transition hover:bg-[#8A1538]/12"
+              >
+                {filter.label}
+                <span aria-hidden="true">×</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-700"
+            >
+              Vymazat vše
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      {showFilters ? (
+        <section className="mt-6 rounded-[2rem] border border-stone-200 bg-white/80 p-4 shadow-lg shadow-stone-200/30 backdrop-blur-xl sm:p-6">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <label htmlFor="vintage-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              <h2 className="text-lg font-semibold text-stone-900">Filtry katalogu</h2>
+              <p className="mt-1 text-sm text-stone-600">Zužte katalog podle šarže, regionu nebo období založení.</p>
+            </div>
+            <button
+              type="button"
+              onClick={clearFilters}
+              disabled={activeFilters.length === 0}
+              className="rounded-2xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Resetovat
+            </button>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div>
+              <label htmlFor="vintage-filter" className="mb-2 block text-sm font-medium text-stone-700">
                 Ročník
               </label>
               <select
                 id="vintage-filter"
                 value={filterVintage ?? ''}
-                onChange={(e) => setFilterVintage(e.target.value ? parseInt(e.target.value) : null)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                onChange={(event) => setFilterVintage(event.target.value ? parseInt(event.target.value, 10) : null)}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
               >
                 <option value="">Všechny ročníky</option>
-                {getUniqueVintages().map(vintage => (
-                  <option key={vintage} value={vintage}>{vintage}</option>
+                {getUniqueVintages().map((vintage) => (
+                  <option key={vintage} value={vintage}>
+                    {vintage}
+                  </option>
                 ))}
               </select>
             </div>
-            
-            {/* Alcohol content filter */}
+
             <div>
-              <label htmlFor="alcohol-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="alcohol-filter" className="mb-2 block text-sm font-medium text-stone-700">
                 Obsah alkoholu
               </label>
               <select
                 id="alcohol-filter"
                 value={filterAlcohol ?? ''}
-                onChange={(e) => setFilterAlcohol(e.target.value ? parseFloat(e.target.value) : null)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                onChange={(event) => setFilterAlcohol(event.target.value ? parseFloat(event.target.value) : null)}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
               >
                 <option value="">Všechny hodnoty</option>
-                {getUniqueAlcoholContents().map(content => (
-                  <option key={content} value={content}>{content}%</option>
+                {getUniqueAlcoholContents().map((content) => (
+                  <option key={content} value={content}>
+                    {content}%
+                  </option>
                 ))}
               </select>
             </div>
-            
-            {/* Batch filter */}
+
             <div>
-              <label htmlFor="batch-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="batch-filter" className="mb-2 block text-sm font-medium text-stone-700">
                 Šarže
               </label>
               <select
                 id="batch-filter"
                 value={filterBatch ?? ''}
-                onChange={(e) => setFilterBatch(e.target.value || null)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                onChange={(event) => setFilterBatch(event.target.value || null)}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
               >
                 <option value="">Všechny šarže</option>
-                {getUniqueBatches().map(batch => (
-                  <option key={batch} value={batch}>{batch}</option>
+                {getUniqueBatches().map((batch) => (
+                  <option key={batch} value={batch}>
+                    {batch}
+                  </option>
                 ))}
               </select>
             </div>
-            
-            {/* Region filter */}
+
             <div>
-              <label htmlFor="region-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="region-filter" className="mb-2 block text-sm font-medium text-stone-700">
                 Region
               </label>
               <select
                 id="region-filter"
                 value={filterRegion ?? ''}
-                onChange={(e) => setFilterRegion(e.target.value || null)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                onChange={(event) => setFilterRegion(event.target.value || null)}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
               >
                 <option value="">Všechny regiony</option>
-                {getUniqueRegions().map(region => (
-                  <option key={region} value={region}>{region}</option>
+                {getUniqueRegions().map((region) => (
+                  <option key={region} value={region}>
+                    {region}
+                  </option>
                 ))}
               </select>
             </div>
-            
-            {/* Date range from */}
+
             <div>
-              <label htmlFor="date-from-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                Datum od
+              <label htmlFor="date-from-filter" className="mb-2 block text-sm font-medium text-stone-700">
+                Vytvořeno od
               </label>
               <input
-                type="date"
                 id="date-from-filter"
+                type="date"
                 value={filterDateFrom ?? ''}
-                onChange={(e) => setFilterDateFrom(e.target.value || null)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                onChange={(event) => setFilterDateFrom(event.target.value || null)}
                 max={filterDateTo || getDateRange().max}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
               />
             </div>
-            
-            {/* Date range to */}
+
             <div>
-              <label htmlFor="date-to-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                Datum do
+              <label htmlFor="date-to-filter" className="mb-2 block text-sm font-medium text-stone-700">
+                Vytvořeno do
               </label>
               <input
-                type="date"
                 id="date-to-filter"
+                type="date"
                 value={filterDateTo ?? ''}
-                onChange={(e) => setFilterDateTo(e.target.value || null)}
-                className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 text-gray-900"
+                onChange={(event) => setFilterDateTo(event.target.value || null)}
                 min={filterDateFrom || getDateRange().min}
+                className="w-full rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-[#8A1538]/40 focus:bg-white focus:ring-2 focus:ring-[#8A1538]/15"
               />
             </div>
-            
+          </div>
+        </section>
+      ) : null}
+
+      {showTransferPanel ? (
+        <section className="mt-6">
+          <ImportExportWines />
+        </section>
+      ) : null}
+
+      {error ? (
+        <div className="mt-6 rounded-3xl border border-red-200 bg-red-50/80 px-5 py-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      {!data || data.wines.length === 0 ? (
+        <section className="mt-6 overflow-hidden rounded-[2rem] border border-stone-200 bg-white/80 p-6 shadow-lg shadow-stone-200/30 backdrop-blur-xl sm:p-10">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-stone-100 text-stone-500">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
             </div>
-            
-            {/* Reset button */}
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => {
-                  setFilterVintage(null);
-                  setFilterAlcohol(null);
-                  setFilterBatch(null);
-                  setFilterRegion(null);
-                  setFilterDateFrom(null);
-                  setFilterDateTo(null);
-                }}
-                className={`px-6 py-3 text-sm font-medium rounded-2xl transition-all duration-200 ${
-                  (filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) 
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30' 
-                    : 'bg-white/60 backdrop-blur-sm border border-gray-200/60 text-gray-500 cursor-not-allowed'
-                }`}
-                disabled={filterVintage === null && filterAlcohol === null && filterBatch === null && filterRegion === null && filterDateFrom === null && filterDateTo === null}
+            <h2 className="mt-5 font-serif text-3xl text-stone-900">Začněte prvním vínem</h2>
+            <p className="mt-3 text-sm leading-6 text-stone-600 sm:text-base">
+              Jakmile přidáte první záznam, otevře se vám detail vína, QR kód i export. Pokud už katalog máte jinde,
+              můžete ho rovnou naimportovat.
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link
+                href="/dashboard/wines/new"
+                className="inline-flex items-center justify-center rounded-2xl bg-[#8A1538] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#73102f]"
               >
-                {(filterVintage !== null || filterAlcohol !== null || filterBatch !== null || filterRegion !== null || filterDateFrom !== null || filterDateTo !== null) && (
-                  <svg className="w-4 h-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                )}
-                Resetovat filtry
+                Přidat první víno
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowTransferPanel(true)}
+                className="inline-flex items-center justify-center rounded-2xl border border-stone-200 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+              >
+                Otevřít datový přenos
               </button>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Wine list */}
-      <div className="mt-8 flex flex-col">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl rounded-3xl border border-gray-200/60 shadow-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200/50">
-                <thead className="bg-gradient-to-r from-gray-50/80 to-white/60">
-                  <tr>
-                    <th 
-                      scope="col" 
-                      className="py-4 pl-6 pr-3 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group hover:bg-white/60 transition-colors duration-200"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center">
-                        <span>Název</span>
-                        <span className="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                          {sortField === 'name' ? (
-                            sortDirection === 'asc' ? (
-                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                              </svg>
-                            )
-                          ) : (
-                            <svg className="h-4 w-4 opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group hover:bg-white/60 transition-colors duration-200"
-                      onClick={() => handleSort('vintage')}
-                    >
-                      <div className="flex items-center">
-                        <span>Ročník</span>
-                        <span className="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                          {sortField === 'vintage' ? (
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d={sortDirection === 'asc' ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"} clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="h-4 w-4 opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group"
-                      onClick={() => handleSort('batch')}
-                    >
-                      <div className="flex items-center">
-                        <span>Šarže</span>
-                        <span className="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                          {sortField === 'batch' ? (
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d={sortDirection === 'asc' ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"} clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="h-4 w-4 opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group"
-                      onClick={() => handleSort('alcoholContent')}
-                    >
-                      <div className="flex items-center">
-                        <span>Alkohol</span>
-                        <span className="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                          {sortField === 'alcoholContent' ? (
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d={sortDirection === 'asc' ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"} clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="h-4 w-4 opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group"
-                      onClick={() => handleSort('wineRegion')}
-                    >
-                      <div className="flex items-center">
-                        <span>Region</span>
-                        <span className="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                          {sortField === 'wineRegion' ? (
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d={sortDirection === 'asc' ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"} clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="h-4 w-4 opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                    <th 
-                      scope="col" 
-                      className="px-3 py-4 text-left text-sm font-semibold text-gray-900 cursor-pointer select-none group"
-                      onClick={() => handleSort('createdAt')}
-                    >
-                      <div className="flex items-center">
-                        <span>Datum</span>
-                        <span className="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible">
-                          {sortField === 'createdAt' ? (
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d={sortDirection === 'asc' ? "M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" : "M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"} clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg className="h-4 w-4 opacity-0 group-hover:opacity-100" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                      </div>
-                    </th>
-                    <th scope="col" className="relative py-4 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Akce</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200/50 bg-white/40">
-                  {currentWines.length > 0 ? (
-                    currentWines.map((wine) => (
-                      <tr key={wine.$id} className="hover:bg-white/60 transition-colors duration-200">
-                        <td className="whitespace-nowrap py-4 pl-6 pr-3 text-sm">
-                          <div className="font-medium text-gray-900">{wine.name}</div>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {wine.vintage || '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {wine.batch || '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {wine.alcoholContent ? `${wine.alcoholContent}%` : '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {wine.wineRegion || '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(wine.createdAt).toLocaleDateString('cs-CZ')}
-                        </td>
-                        <td className="whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            <Link
-                              href={`/dashboard/wines/${wine.$id}`}
-                              className="px-3 py-1.5 bg-blue-50/80 text-blue-700 rounded-xl hover:bg-blue-100/80 transition-colors duration-200 text-xs font-medium"
-                            >
-                              Detail
-                            </Link>
-                            <Link
-                              href={`/dashboard/wines/${wine.$id}/edit`}
-                              className="px-3 py-1.5 bg-orange-50/80 text-orange-700 rounded-xl hover:bg-orange-100/80 transition-colors duration-200 text-xs font-medium"
-                            >
-                              Upravit
-                            </Link>
-                            <Link
-                              href={`/dashboard/qrcodes?wineId=${wine.$id}`}
-                              className="px-3 py-1.5 bg-green-50/80 text-green-700 rounded-xl hover:bg-green-100/80 transition-colors duration-200 text-xs font-medium"
-                            >
-                              QR kód
-                            </Link>
-                            <button
-                              onClick={() => handleDeleteWine(wine.$id)}
-                              disabled={deletingId === wine.$id}
-                              className="px-3 py-1.5 bg-red-50/80 text-red-700 rounded-xl hover:bg-red-100/80 disabled:bg-gray-50/80 disabled:text-gray-400 transition-colors duration-200 text-xs font-medium"
-                            >
-                              {deletingId === wine.$id ? 'Mazání...' : 'Smazat'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
+        </section>
+      ) : (
+        <section className="mt-6 overflow-hidden rounded-[2rem] border border-stone-200 bg-white/80 shadow-lg shadow-stone-200/30 backdrop-blur-xl">
+          <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4 sm:px-6">
+            <div>
+              <h2 className="text-lg font-semibold text-stone-900">Katalog vín</h2>
+              <p className="mt-1 text-sm text-stone-600">
+                {startIndex + 1}-{Math.min(endIndex, totalItems)} z {totalItems} položek
+              </p>
+            </div>
+            <div className="hidden text-sm text-stone-500 sm:block">Detail = workspace, QR = výstup, Upravit = zásah do etikety</div>
+          </div>
+
+          {currentWines.length === 0 ? (
+            <div className="px-5 py-12 text-center sm:px-6">
+              <div className="mx-auto max-w-xl">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+                  <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 17v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4m6 0a2 2 0 002 2h2a2 2 0 002-2m-6 0V9a2 2 0 012-2h2a2 2 0 012 2v8m0 0a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v12z" />
+                  </svg>
+                </div>
+                <h3 className="mt-5 text-xl font-semibold text-stone-900">Filtr nic nevrátil</h3>
+                <p className="mt-2 text-sm text-stone-600">
+                  Zkuste upravit hledání nebo resetovat aktivní filtry. Katalogová data zůstala beze změny.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    clearFilters();
+                  }}
+                  className="mt-5 inline-flex items-center justify-center rounded-2xl border border-stone-200 px-5 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                >
+                  Vyčistit hledání
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="min-w-full divide-y divide-stone-200">
+                  <thead className="bg-stone-50/80 text-left text-xs uppercase tracking-[0.2em] text-stone-500">
                     <tr>
-                      <td colSpan={7} className="py-12 px-6 text-center">
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-br from-gray-50/60 to-white/40 rounded-2xl"></div>
-                          <div className="relative bg-white/60 backdrop-blur-sm p-8 rounded-2xl border border-gray-200/50">
-                            <div className="w-16 h-16 bg-gray-100/80 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                              </svg>
-                            </div>
-                            {searchTerm || filterVintage || filterAlcohol || filterBatch || filterRegion || filterDateFrom || filterDateTo ? (
-                              <p className="text-gray-600 text-lg mb-6">Nebyly nalezeny žádné výsledky pro zadané filtry.</p>
-                            ) : (
-                              <p className="text-gray-600 text-lg mb-6">Zatím nemáte přidána žádná vína.</p>
-                            )}
-                            <Link
-                              href="/dashboard/wines/new"
-                              className="group relative bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30"
-                            >
-                              <span className="flex items-center space-x-2">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                                <span>Přidat první víno</span>
-                                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
+                      <th className="px-6 py-4 font-medium">
+                        <button type="button" onClick={() => handleSort('name')} className="inline-flex items-center gap-2">
+                          Název
+                        </button>
+                      </th>
+                      <th className="px-6 py-4 font-medium">
+                        <button type="button" onClick={() => handleSort('vintage')} className="inline-flex items-center gap-2">
+                          Identifikace
+                        </button>
+                      </th>
+                      <th className="px-6 py-4 font-medium">
+                        <button type="button" onClick={() => handleSort('wineRegion')} className="inline-flex items-center gap-2">
+                          Etiketa
+                        </button>
+                      </th>
+                      <th className="px-6 py-4 font-medium">
+                        <button type="button" onClick={() => handleSort('updatedAt')} className="inline-flex items-center gap-2">
+                          Aktualizováno
+                        </button>
+                      </th>
+                      <th className="px-6 py-4 text-right font-medium">Akce</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-200/80">
+                    {currentWines.map((wine) => {
+                      const hasEssentials = Boolean(wine.alcoholContent) && Boolean(wine.ingredients);
+                      return (
+                        <tr key={wine.$id} className="transition hover:bg-stone-50/70">
+                          <td className="px-6 py-5 align-top">
+                            <div className="font-medium text-stone-900">{wine.name}</div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {wine.batch ? (
+                                <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+                                  Šarže {wine.batch}
+                                </span>
+                              ) : null}
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getLabelTone(hasEssentials)}`}>
+                                {hasEssentials ? 'Etiketa připravena' : 'Doplnit etiketu'}
                               </span>
-                            </Link>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 align-top text-sm text-stone-600">
+                            <p>{wine.vintage ? `Ročník ${wine.vintage}` : 'Ročník není uveden'}</p>
+                            <p className="mt-1">{formatAlcohol(wine.alcoholContent)}</p>
+                          </td>
+                          <td className="px-6 py-5 align-top text-sm text-stone-600">
+                            <p>{wine.wineRegion || 'Oblast není vyplněna'}</p>
+                            <p className="mt-1">{wine.winerySlug ? 'Veřejná etiketa aktivní' : 'Čeká na veřejnou URL'}</p>
+                          </td>
+                          <td className="px-6 py-5 align-top text-sm text-stone-600">
+                            <p>{formatDate(wine.updatedAt)}</p>
+                            <p className="mt-1 text-xs text-stone-400">Vytvořeno {formatDate(wine.createdAt)}</p>
+                          </td>
+                          <td className="px-6 py-5 align-top">
+                            <div className="flex justify-end gap-2">
+                              <Link
+                                href={`/dashboard/wines/${wine.$id}`}
+                                className="inline-flex items-center rounded-xl bg-[#8A1538] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#73102f]"
+                              >
+                                Detail
+                              </Link>
+                              <Link
+                                href={`/dashboard/qrcodes?wineId=${wine.$id}`}
+                                className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50"
+                              >
+                                QR
+                              </Link>
+                              <Link
+                                href={`/dashboard/wines/${wine.$id}/edit`}
+                                className="inline-flex items-center rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50"
+                              >
+                                Upravit
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteWine(wine.$id)}
+                                disabled={deletingId === wine.$id}
+                                className="inline-flex items-center rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {deletingId === wine.$id ? 'Mažu…' : 'Smazat'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="divide-y divide-stone-200 lg:hidden">
+                {currentWines.map((wine) => {
+                  const hasEssentials = Boolean(wine.alcoholContent) && Boolean(wine.ingredients);
+                  return (
+                    <article key={wine.$id} className="px-5 py-5 sm:px-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <Link href={`/dashboard/wines/${wine.$id}`} className="text-lg font-semibold text-stone-900">
+                            {wine.name}
+                          </Link>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {wine.vintage ? (
+                              <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+                                {wine.vintage}
+                              </span>
+                            ) : null}
+                            {wine.batch ? (
+                              <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+                                {wine.batch}
+                              </span>
+                            ) : null}
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getLabelTone(hasEssentials)}`}>
+                              {hasEssentials ? 'Připraveno' : 'Doplnit'}
+                            </span>
                           </div>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="mt-6 relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <div className="flex items-center justify-between">
-          <div className="flex flex-1 justify-between sm:hidden">
+                        <div className="text-right text-xs text-stone-400">
+                          <p>{formatDate(wine.updatedAt)}</p>
+                        </div>
+                      </div>
+
+                      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-2xl bg-stone-50 px-3 py-3">
+                          <dt className="text-xs uppercase tracking-[0.18em] text-stone-500">Alkohol</dt>
+                          <dd className="mt-1 font-medium text-stone-900">{formatAlcohol(wine.alcoholContent)}</dd>
+                        </div>
+                        <div className="rounded-2xl bg-stone-50 px-3 py-3">
+                          <dt className="text-xs uppercase tracking-[0.18em] text-stone-500">Region</dt>
+                          <dd className="mt-1 font-medium text-stone-900">{wine.wineRegion || 'Bez údaje'}</dd>
+                        </div>
+                      </dl>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <Link
+                          href={`/dashboard/wines/${wine.$id}`}
+                          className="inline-flex items-center justify-center rounded-2xl bg-[#8A1538] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#73102f]"
+                        >
+                          Otevřít detail
+                        </Link>
+                        <Link
+                          href={`/dashboard/qrcodes?wineId=${wine.$id}`}
+                          className="inline-flex items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                        >
+                          QR kód
+                        </Link>
+                        <Link
+                          href={`/dashboard/wines/${wine.$id}/edit`}
+                          className="inline-flex items-center justify-center rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                        >
+                          Upravit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteWine(wine.$id)}
+                          disabled={deletingId === wine.$id}
+                          className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingId === wine.$id ? 'Mažu…' : 'Smazat'}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {totalPages > 1 ? (
+        <div className="mt-6 flex flex-col gap-4 rounded-[2rem] border border-stone-200 bg-white/80 px-5 py-4 shadow-lg shadow-stone-200/30 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-sm text-stone-600">
+            Strana {currentPage} z {totalPages}
+          </p>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              type="button"
+              onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
               disabled={currentPage <= 1}
-              className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-2xl transition-all duration-200 ${currentPage <= 1 ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed' : 'bg-white/80 backdrop-blur-sm border border-gray-200/60 text-gray-700 hover:bg-white shadow-sm hover:shadow-md'}`}
+              className="rounded-2xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Předchozí
             </button>
             <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              type="button"
+              onClick={() => setCurrentPage((previous) => Math.min(totalPages, previous + 1))}
               disabled={currentPage >= totalPages}
-              className={`relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium rounded-2xl transition-all duration-200 ${currentPage >= totalPages ? 'bg-gray-100/80 text-gray-400 cursor-not-allowed' : 'bg-white/80 backdrop-blur-sm border border-gray-200/60 text-gray-700 hover:bg-white shadow-sm hover:shadow-md'}`}
+              className="rounded-2xl border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Další
             </button>
           </div>
-          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Zobrazeno <span className="font-medium">{currentWines.length}</span> z <span className="font-medium">{totalItems}</span> výsledků
-              </p>
-            </div>
-            <div>
-              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage <= 1}
-                  className={`relative inline-flex items-center rounded-l-2xl px-3 py-2 text-gray-500 ring-1 ring-inset ring-gray-200/50 backdrop-blur-sm transition-all duration-200 focus:z-20 focus:outline-offset-0 ${currentPage <= 1 ? 'opacity-50 cursor-not-allowed bg-gray-50/80' : 'bg-white/60 hover:bg-white/80'}`}
-                >
-                  <span className="sr-only">Předchozí</span>
-                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                
-                {/* Show page numbers */}
-                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                  // Calculate page number to show
-                  let pageNumber;
-                  if (totalPages <= 5) {
-                    // If <= 5 pages, show all pages
-                    pageNumber = i + 1;
-                  } else if (currentPage <= 3) {
-                    // If current page is <= 3, show pages 1-5
-                    pageNumber = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    // If current page is near the end, show last 5 pages
-                    pageNumber = totalPages - 4 + i;
-                  } else {
-                    // Otherwise, show 2 pages before and 2 pages after current page
-                    pageNumber = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNumber}
-                      onClick={() => setCurrentPage(pageNumber)}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                        pageNumber === currentPage
-                          ? 'z-10 bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                          : 'text-gray-700 bg-white/60 backdrop-blur-sm ring-1 ring-inset ring-gray-200/50 hover:bg-white/80 focus:outline-offset-0'
-                      }`}
-                    >
-                      {pageNumber}
-                    </button>
-                  );
-                })}
-                
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage >= totalPages}
-                  className={`relative inline-flex items-center rounded-r-2xl px-3 py-2 text-gray-500 ring-1 ring-inset ring-gray-200/50 backdrop-blur-sm transition-all duration-200 focus:z-20 focus:outline-offset-0 ${currentPage >= totalPages ? 'opacity-50 cursor-not-allowed bg-gray-50/80' : 'bg-white/60 hover:bg-white/80'}`}
-                >
-                  <span className="sr-only">Další</span>
-                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          </div>
-            </div>
-          </div>
         </div>
-      )}
-      
-      {/* Backup/Import Modal */}
-      {showBackupModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div ref={modalRef} className="relative max-w-2xl w-full mx-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 rounded-3xl"></div>
-            <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-2xl overflow-hidden">
-              <div className="px-8 py-6 border-b border-gray-200/50 flex justify-between items-center">
-                <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  Záloha a import
-                </h3>
-                <button 
-                  onClick={() => setShowBackupModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-2xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                >
-                  <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="p-8">
-                <ImportExportWines />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -29,11 +29,6 @@ export default function MembershipStatusWidget() {
 
   useEffect(() => {
     const fetchStatus = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
       try {
         const response = await authFetch('/api/membership/status', token);
         if (response.ok) {

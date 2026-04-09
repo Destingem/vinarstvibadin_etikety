@@ -1,12 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { clearSessionCookie } from '@/server/auth/session';
 
-export async function GET(request: NextRequest) {
-  // With localStorage, the server doesn't need to do anything for logout
-  // The client will clear localStorage
-  
-  // Just return a success response
-  return NextResponse.json({ 
+export async function POST() {
+  const response = NextResponse.json({
     success: true,
-    message: 'Logged out successfully'
+    message: 'Odhlášení proběhlo úspěšně',
   });
+  clearSessionCookie(response);
+  return response;
+}
+
+export async function GET() {
+  return POST();
 }

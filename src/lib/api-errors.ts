@@ -126,7 +126,7 @@ function getErrorType(code: ApiErrorCode): string {
 export const CommonErrors = {
   missingApiKey: () => createErrorResponse(
     ApiErrorCode.MISSING_API_KEY,
-    'Přístup k API vyžaduje platný API klíč v hlavičce X-API-Key',
+    'Přístup k API vyžaduje platný API klíč v hlavičce Authorization',
     401
   ),
 

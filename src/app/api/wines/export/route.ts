@@ -1,64 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
-import { adminDatabases, DB_ID, WINES_COLLECTION_ID, Query } from '@/lib/appwrite-client';
 import { obfuscateData } from '@/lib/encryption';
+import { requireSessionUser } from '@/server/http/require-session-user';
+import { exportOwnedWines } from '@/server/services/api-wines';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const session = await requireSessionUser(request);
+
+    if (session.response) {
+      return session.response;
+    }
+
+    const exportResult = await exportOwnedWines(session.user.id);
+
+    if (!exportResult) {
       return NextResponse.json(
-        { message: 'Uživatel není přihlášen' },
-        { status: 401 }
+        { message: 'Účet nebyl nalezen' },
+        { status: 404 }
       );
     }
-    
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      const userId = decoded.userId;
-      
-      // Get all wines for this winery from Appwrite
-      const response = await adminDatabases.listDocuments(
-        DB_ID,
-        WINES_COLLECTION_ID,
-        [Query.equal('userId', userId)]
-      );
-      
-      // Convert documents to appropriate format
-      const wines = response.documents;
-      
-      // Create export data structure
-      const exportData = {
-        wines: wines,
-        exportDate: new Date().toISOString(),
-        version: '1.0',
-        metadata: {
-          totalWines: wines.length,
-          userId: userId
-        }
-      };
-      
-      // Obfuscate the data
-      const obfuscatedData = obfuscateData(exportData);
-      
-      // Return the obfuscated data
-      return NextResponse.json({
-        data: obfuscatedData,
-        exportDate: new Date().toISOString(),
-        totalWines: wines.length,
-        message: 'Export úspěšně vytvořen'
-      });
-    } catch (tokenError) {
-      console.error('Token error:', tokenError);
-      return NextResponse.json(
-        { message: 'Neplatný token nebo vypršela platnost přihlášení' },
-        { status: 401 }
-      );
-    }
+
+    return NextResponse.json({
+      data: obfuscateData(exportResult.payload),
+      exportDate: exportResult.exportDate,
+      totalWines: exportResult.totalWines,
+      message: 'Export úspěšně vytvořen',
+    });
   } catch (error) {
     console.error('Data export error:', error);
     return NextResponse.json(

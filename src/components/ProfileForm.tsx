@@ -1,43 +1,101 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/lib/auth-context';
-import { account } from '@/lib/appwrite-client';
 
 const profileSchema = z.object({
-  name: z.string().min(1, { message: 'Název vinařství je povinný' }),
-  email: z.string().email({ message: 'Zadejte platný email' }),
-  slug: z.string().min(1, { message: 'Slug je povinný' })
-    .regex(/^[a-z0-9-]+$/, { message: 'Slug může obsahovat pouze malá písmena, číslice a pomlčky' }),
+  name: z.string().min(1, { message: 'Nazev vinarstvi je povinny' }),
+  email: z.string().email({ message: 'Zadejte platny email' }),
+  slug: z
+    .string()
+    .min(1, { message: 'Slug je povinny' })
+    .regex(/^[a-z0-9-]+$/, {
+      message: 'Slug muze obsahovat pouze mala pismena, cislice a pomlcky',
+    }),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
+function SurfaceMessage({
+  tone,
+  children,
+}: {
+  tone: 'error' | 'success';
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border px-4 py-3 text-sm ${
+        tone === 'error'
+          ? 'border-red-200 bg-red-50 text-red-700'
+          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionActionButton({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#8A1538] px-6 text-sm font-semibold text-white transition hover:bg-[#73102f] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function ProfileForm() {
+  const { user, refreshSession } = useAuth();
   const [isNameSubmitting, setIsNameSubmitting] = useState(false);
   const [isSlugSubmitting, setIsSlugSubmitting] = useState(false);
-  const [isEmailSubmitting, setIsEmailSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [lastWineryNameUpdate, setLastWineryNameUpdate] = useState<string | null>(null);
   const [lastWinerySlugUpdate, setLastWinerySlugUpdate] = useState<string | null>(null);
-  const { user } = useAuth();
 
-  // Check if 6 months have passed since last name update
+  const {
+    register,
+    setValue,
+    getValues,
+    watch,
+    formState: { errors },
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+  });
+  const watchedSlug = watch('slug');
+
   const canUpdateWineryName = () => {
-    if (!lastWineryNameUpdate) return true;
+    if (!lastWineryNameUpdate) {
+      return true;
+    }
+
     const lastUpdateDate = new Date(lastWineryNameUpdate);
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     return lastUpdateDate <= sixMonthsAgo;
   };
 
-  // Check if 6 months have passed since last slug update
   const canUpdateWinerySlug = () => {
-    if (!lastWinerySlugUpdate) return true;
+    if (!lastWinerySlugUpdate) {
+      return true;
+    }
+
     const lastUpdateDate = new Date(lastWinerySlugUpdate);
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -45,7 +103,10 @@ export default function ProfileForm() {
   };
 
   const getNextAllowedNameDate = () => {
-    if (!lastWineryNameUpdate) return null;
+    if (!lastWineryNameUpdate) {
+      return null;
+    }
+
     const lastUpdateDate = new Date(lastWineryNameUpdate);
     const nextAllowedDate = new Date(lastUpdateDate);
     nextAllowedDate.setMonth(nextAllowedDate.getMonth() + 6);
@@ -53,58 +114,65 @@ export default function ProfileForm() {
   };
 
   const getNextAllowedSlugDate = () => {
-    if (!lastWinerySlugUpdate) return null;
+    if (!lastWinerySlugUpdate) {
+      return null;
+    }
+
     const lastUpdateDate = new Date(lastWinerySlugUpdate);
     const nextAllowedDate = new Date(lastUpdateDate);
     nextAllowedDate.setMonth(nextAllowedDate.getMonth() + 6);
     return nextAllowedDate;
   };
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
-  });
-
   useEffect(() => {
-    if (user) {
-      setValue('name', user.name);
-      setValue('email', user.email);
-      setValue('slug', user.slug || '');
+    if (!user) {
+      return;
     }
-  }, [user, setValue]);
 
-  // Fetch last winery update timestamps
+    setValue('name', user.name);
+    setValue('email', user.email);
+    setValue('slug', user.slug || '');
+  }, [setValue, user]);
+
   useEffect(() => {
-    const fetchLastUpdates = async () => {
+    const fetchProfileState = async () => {
       try {
-        const prefs = await account.getPrefs();
-        setLastWineryNameUpdate(prefs.lastWineryNameUpdate || null);
-        setLastWinerySlugUpdate(prefs.lastWinerySlugUpdate || null);
-      } catch (error) {
-        console.error('Error fetching preferences:', error);
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        setLastWineryNameUpdate(data.profile?.settings?.lastWineryNameUpdate || null);
+        setLastWinerySlugUpdate(data.profile?.settings?.lastWinerySlugUpdate || null);
+      } catch (fetchError) {
+        console.error('Error fetching profile settings:', fetchError);
       }
     };
 
     if (user) {
-      fetchLastUpdates();
+      fetchProfileState();
     }
   }, [user]);
 
   const updateName = async () => {
     if (!user) {
-      setError('Nejste přihlášeni');
+      setError('Nejste prihlaseni');
       return;
     }
 
     if (!canUpdateWineryName()) {
       const nextDate = getNextAllowedNameDate();
-      setError(`Název vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od ${nextDate?.toLocaleDateString('cs-CZ')}`);
+      setError(
+        `Nazev vinarstvi lze zmenit pouze jednou za 6 mesicu. Dalsi zmena bude mozna od ${nextDate?.toLocaleDateString(
+          'cs-CZ'
+        )}`
+      );
       return;
     }
 
@@ -114,88 +182,29 @@ export default function ProfileForm() {
 
     try {
       const name = getValues('name');
-      
-      // First try to update the name directly using client-side API
-      try {
-        await account.updateName(name);
-        console.log('Name updated successfully using client-side API');
-        
-        // Now also update in server preferences for backup/compatibility
-        const response = await fetch('/api/auth/update-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
-          },
-          body: JSON.stringify({
-            name,
-            email: user.email,
-            slug: user.slug || '',
-            updateField: 'name'
-          }),
-        });
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          displayName: name,
+          updateField: 'name',
+        }),
+      });
 
-        if (!response.ok) {
-          console.warn('Server-side profile update failed, but client-side succeeded');
-          // Still show success since the primary update worked
-          setSuccess('Jméno bylo úspěšně aktualizováno');
-          
-          // Update local storage manually
-          const updatedUser = {
-            ...user,
-            name: name
-          };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          
-          // Force refresh to update context
-          window.location.reload();
-          return;
-        }
+      const result = await response.json();
 
-        const result = await response.json();
-        setSuccess(result.message || 'Jméno bylo úspěšně aktualizováno');
-        
-        // Update local storage with new user data
-        if (result.user) {
-          localStorage.setItem('user', JSON.stringify(result.user));
-          // Force refresh the page to update context with new user data
-          window.location.reload();
-        }
-      } catch (clientError) {
-        console.error('Client-side name update failed, falling back to server method:', clientError);
-        
-        // Fall back to server method if client-side fails
-        const response = await fetch('/api/auth/update-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
-          },
-          body: JSON.stringify({
-            name,
-            email: user.email,
-            slug: user.slug || '',
-            updateField: 'name'
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Aktualizace jména selhala');
-        }
-
-        const result = await response.json();
-        setSuccess(result.message || 'Jméno bylo úspěšně aktualizováno');
-        
-        // Update local storage with new user data
-        if (result.user) {
-          localStorage.setItem('user', JSON.stringify(result.user));
-          // Force refresh the page to update context with new user data
-          window.location.reload();
-        }
+      if (!response.ok) {
+        throw new Error(result.message || 'Aktualizace nazvu selhala');
       }
+
+      setSuccess(result.message || 'Nazev byl uspesne aktualizovan');
+      setLastWineryNameUpdate(result.profile?.settings?.lastWineryNameUpdate || null);
+      await refreshSession();
     } catch (err: any) {
-      setError(err.message || 'Nastala chyba při aktualizaci jména');
+      setError(err.message || 'Nastala chyba pri aktualizaci nazvu');
     } finally {
       setIsNameSubmitting(false);
     }
@@ -203,13 +212,17 @@ export default function ProfileForm() {
 
   const updateSlug = async () => {
     if (!user) {
-      setError('Nejste přihlášeni');
+      setError('Nejste prihlaseni');
       return;
     }
 
     if (!canUpdateWinerySlug()) {
       const nextDate = getNextAllowedSlugDate();
-      setError(`Slug vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od ${nextDate?.toLocaleDateString('cs-CZ')}`);
+      setError(
+        `Slug vinarstvi lze zmenit pouze jednou za 6 mesicu. Dalsi zmena bude mozna od ${nextDate?.toLocaleDateString(
+          'cs-CZ'
+        )}`
+      );
       return;
     }
 
@@ -219,67 +232,29 @@ export default function ProfileForm() {
 
     try {
       const slug = getValues('slug');
-      
-      // Try to update directly via client-side prefs API
-      try {
-        // First get current preferences
-        const currentPrefs = await account.getPrefs();
-        
-        // Update slug in preferences
-        const updatedPrefs = {
-          ...currentPrefs,
-          slug: slug
-        };
-        
-        // Save updated preferences
-        await account.updatePrefs(updatedPrefs);
-        console.log('Slug updated successfully using client-side API');
-        setSuccess('Slug byl úspěšně aktualizován');
-        
-        // Update local storage manually
-        const updatedUser = {
-          ...user,
-          slug: slug
-        };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        
-        // Force refresh to update context
-        window.location.reload();
-      } catch (clientError) {
-        console.error('Client-side slug update failed, falling back to server method:', clientError);
-        
-        // Fall back to server method
-        const response = await fetch('/api/auth/update-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
-          },
-          body: JSON.stringify({
-            name: user.name,
-            email: user.email,
-            slug,
-            updateField: 'slug'
-          }),
-        });
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slug,
+          updateField: 'slug',
+        }),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Aktualizace slugu selhala');
-        }
+      const result = await response.json();
 
-        const result = await response.json();
-        setSuccess(result.message || 'Slug byl úspěšně aktualizován');
-        
-        // Update local storage with new user data
-        if (result.user) {
-          localStorage.setItem('user', JSON.stringify(result.user));
-          // Force refresh the page to update context with new user data
-          window.location.reload();
-        }
+      if (!response.ok) {
+        throw new Error(result.message || 'Aktualizace slugu selhala');
       }
+
+      setSuccess(result.message || 'Verejna adresa byla uspesne aktualizovana');
+      setLastWinerySlugUpdate(result.profile?.settings?.lastWinerySlugUpdate || null);
+      await refreshSession();
     } catch (err: any) {
-      setError(err.message || 'Nastala chyba při aktualizaci slugu');
+      setError(err.message || 'Nastala chyba pri aktualizaci verejne adresy');
     } finally {
       setIsSlugSubmitting(false);
     }
@@ -287,154 +262,181 @@ export default function ProfileForm() {
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="p-4 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-700 rounded-2xl">
-          {error}
-        </div>
-      )}
+      <section className="rounded-[28px] border border-stone-200 bg-[linear-gradient(135deg,rgba(255,249,243,0.98),rgba(248,239,232,0.92))] p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8A1538]/70">
+              Account identity
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#2b1f1a]">
+              Profil vinarstvi a verejna adresa
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6b5a54]">
+              Udrzujte na jednom miste jmeno vinarstvi, kontakt a verejnou adresu. Formulare jsou ted
+              rozdelené podle toho, co ovlivnuje dashboard a co ovlivnuje verejnou etiketu.
+            </p>
+          </div>
 
-      {success && (
-        <div className="p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 text-green-700 rounded-2xl">
-          {success}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-stone-200 bg-white/75 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Identita</div>
+              <div className="mt-2 text-sm font-medium text-[#2b1f1a]">{user?.name || 'Neuvedeno'}</div>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-white/75 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Verejna URL</div>
+              <div className="mt-2 text-sm font-medium text-[#2b1f1a]">etiketa.wine/{user?.slug || 'slug'}</div>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-white/75 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Kontakt</div>
+              <div className="mt-2 text-sm font-medium text-[#2b1f1a]">{user?.email || 'Neuvedeno'}</div>
+            </div>
+          </div>
         </div>
-      )}
+      </section>
+
+      {error ? <SurfaceMessage tone="error">{error}</SurfaceMessage> : null}
+      {success ? <SurfaceMessage tone="success">{success}</SurfaceMessage> : null}
 
       <form className="space-y-6">
-        {/* Name Field */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-3">
-              Název vinařství
-            </label>
-            <div className="flex gap-3">
-              <input
-                id="name"
-                type="text"
-                {...register('name')}
-                className="flex-1 px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-              />
-              <button
-                type="button"
-                onClick={updateName}
-                disabled={isNameSubmitting || !canUpdateWineryName()}
-                className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        <section className="grid gap-4 rounded-[28px] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label htmlFor="name" className="text-sm font-semibold text-[#2b1f1a]">
+                Nazev vinarstvi
+              </label>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  canUpdateWineryName()
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border border-amber-200 bg-amber-50 text-amber-700'
+                }`}
               >
-                {isNameSubmitting ? 'Ukládám...' : 'Uložit'}
-              </button>
+                {canUpdateWineryName() ? 'Lze upravit' : 'Docasne uzamceno'}
+              </span>
             </div>
-            {errors.name && (
-              <p className="mt-2 text-sm text-red-600">{errors.name.message}</p>
-            )}
-            {!canUpdateWineryName() && (
-              <div className="mt-3 p-3 bg-amber-50/80 backdrop-blur-sm border border-amber-200/50 text-amber-700 rounded-xl text-sm">
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div>
-                    <p className="font-medium">Omezení změn názvu</p>
-                    <p>Název vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od {getNextAllowedNameDate()?.toLocaleDateString('cs-CZ')}.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Email Field (read-only) */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-3">
-              Email
-            </label>
+            <p className="mt-2 text-sm leading-6 text-[#6b5a54]">
+              Propisuje se do dashboardu i na verejnou etiketu. Drzime delsi interval zmen, aby identita
+              vinarstvi zustala stabilni.
+            </p>
             <input
-              id="email"
-              type="email"
-              {...register('email')}
-              className="w-full px-4 py-3 bg-gray-100/60 backdrop-blur-sm border border-gray-200/60 rounded-2xl text-gray-600 cursor-not-allowed"
-              readOnly
+              id="name"
+              type="text"
+              {...register('name')}
+              className="mt-4 w-full rounded-2xl border border-stone-300 bg-[#fffdfb] px-4 py-3 text-[#2b1f1a] outline-none transition focus:border-[#8A1538] focus:ring-2 focus:ring-[#ead8cf]"
+              placeholder="Napr. Vinarstvi Novy Dvur"
             />
-            <p className="mt-2 text-xs text-gray-500">
-              Změna e-mailu není momentálně podporována.
-            </p>
+            {errors.name ? <p className="mt-2 text-sm text-red-600">{errors.name.message}</p> : null}
+            {!canUpdateWineryName() ? (
+              <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                Nazev lze menit jednou za 6 mesicu. Dalsi zmena bude mozna od{' '}
+                {getNextAllowedNameDate()?.toLocaleDateString('cs-CZ')}.
+              </p>
+            ) : null}
           </div>
-        </div>
+          <SectionActionButton onClick={updateName} disabled={isNameSubmitting || !canUpdateWineryName()}>
+            {isNameSubmitting ? 'Ukladam identitu...' : 'Ulozit zmenu nazvu'}
+          </SectionActionButton>
+        </section>
 
-        {/* Slug Field */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-gray-200/50">
-            <label htmlFor="slug" className="block text-sm font-semibold text-gray-700 mb-3">
-              Slug pro URL
-            </label>
-            <div className="flex gap-3">
-              <div className="flex flex-1">
-                <span className="inline-flex items-center px-4 text-gray-500 bg-gray-100/60 backdrop-blur-sm rounded-l-2xl border border-r-0 border-gray-200/60">
-                  /
+        <section className="rounded-[28px] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor="slug" className="text-sm font-semibold text-[#2b1f1a]">
+                  Verejna adresa
+                </label>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    canUpdateWinerySlug()
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border border-amber-200 bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  {canUpdateWinerySlug() ? 'Lze upravit' : 'Docasne uzamceno'}
                 </span>
-                <input
-                  id="slug"
-                  type="text"
-                  {...register('slug')}
-                  className="flex-1 px-4 py-3 bg-white/60 backdrop-blur-sm border border-gray-200/60 rounded-r-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-300 placeholder:text-gray-500"
-                />
               </div>
-              <button
-                type="button"
-                onClick={updateSlug}
-                disabled={isSlugSubmitting || !canUpdateWinerySlug()}
-                className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-2xl font-semibold transition-all duration-300 hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSlugSubmitting ? 'Ukládám...' : 'Uložit'}
-              </button>
+              <p className="mt-2 text-sm leading-6 text-[#6b5a54]">
+                Slug urcuje verejnou adresu vinarstvi. Pracujte s nim opatrne, protoze je zaklad pro QR a sdilene odkazy.
+              </p>
             </div>
-            {errors.slug && (
-              <p className="mt-2 text-sm text-red-600">{errors.slug.message}</p>
-            )}
-            {!canUpdateWinerySlug() && (
-              <div className="mt-3 p-3 bg-amber-50/80 backdrop-blur-sm border border-amber-200/50 text-amber-700 rounded-xl text-sm">
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <div>
-                    <p className="font-medium">Omezení změn slugu</p>
-                    <p>Slug vinařství lze změnit pouze jednou za 6 měsíců. Další změna bude možná od {getNextAllowedSlugDate()?.toLocaleDateString('cs-CZ')}.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <p className="mt-2 text-xs text-gray-500">
-              Upozornění: Změna slugu ovlivní pouze nově vytvořená vína, existující QR kódy zůstanou funkční.
-            </p>
+            <SectionActionButton onClick={updateSlug} disabled={isSlugSubmitting || !canUpdateWinerySlug()}>
+              {isSlugSubmitting ? 'Ukladam adresu...' : 'Ulozit verejnou adresu'}
+            </SectionActionButton>
           </div>
-        </div>
+
+          <div className="mt-5 rounded-[24px] border border-stone-200 bg-[#fbf7f3] p-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Preview URL</div>
+            <div className="mt-2 text-sm font-medium text-[#2b1f1a]">etiketa.wine/{watchedSlug || user?.slug || 'slug'}</div>
+          </div>
+
+          <div className="mt-4 flex">
+            <span className="inline-flex items-center rounded-l-2xl border border-r-0 border-stone-300 bg-stone-100 px-4 text-sm text-stone-500">
+              etiketa.wine/
+            </span>
+            <input
+              id="slug"
+              type="text"
+              {...register('slug')}
+              className="w-full rounded-r-2xl border border-stone-300 bg-[#fffdfb] px-4 py-3 text-[#2b1f1a] outline-none transition focus:border-[#8A1538] focus:ring-2 focus:ring-[#ead8cf]"
+              placeholder="napr-slunce-vinice"
+            />
+          </div>
+          {errors.slug ? <p className="mt-2 text-sm text-red-600">{errors.slug.message}</p> : null}
+          {!canUpdateWinerySlug() ? (
+            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+              Slug lze menit jednou za 6 mesicu. Dalsi zmena bude mozna od{' '}
+              {getNextAllowedSlugDate()?.toLocaleDateString('cs-CZ')}.
+            </p>
+          ) : null}
+          <p className="mt-3 text-sm leading-6 text-[#6b5a54]">
+            Zmena slugu se projevi u novych verejnych odkazu. Existujici QR kody zustavaji podle backend logiky funkcni.
+          </p>
+        </section>
+
+        <section className="rounded-[28px] border border-stone-200 bg-white/80 p-5 shadow-[0_18px_60px_rgba(58,34,27,0.08)] sm:p-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <label htmlFor="email" className="text-sm font-semibold text-[#2b1f1a]">
+                Kontaktni email
+              </label>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6b5a54]">
+                E-mail je primarni identita uctu. Samoobsluzna zmena neni v tomhle releasu otevrena, aby se nemichaly auth
+                a provozni zmeny do jednoho kroku.
+              </p>
+            </div>
+            <div className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+              Pouze pro cteni
+            </div>
+          </div>
+
+          <input
+            id="email"
+            type="email"
+            {...register('email')}
+            className="mt-4 w-full cursor-not-allowed rounded-2xl border border-stone-200 bg-stone-100 px-4 py-3 text-stone-500"
+            readOnly
+          />
+
+          <div className="mt-4 rounded-[24px] border border-[#eadfd8] bg-[#fbf7f3] p-4 text-sm leading-6 text-[#6b5a54]">
+            Pokud potrebujete zmenu kontaktniho e-mailu, je potreba ji resit pres support spolu se zmenou prihlasovacich udaju.
+          </div>
+        </section>
       </form>
 
-      {/* Information about restrictions */}
-      <div className="mt-6 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 rounded-2xl"></div>
-        <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-blue-200/50">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Omezení změn vinařství</h3>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>• <strong>Název vinařství</strong> lze změnit jednou za 6 měsíců</p>
-                <p>• <strong>Slug (URL vinařství)</strong> lze změnit jednou za 6 měsíců</p>
-                <p>• Změny jsou nezávislé - můžete změnit název i slug v rámci 6 měsíců, ale každý pouze jednou</p>
-                <p className="text-blue-700 font-medium">Toto omezení pomáhá zabránit zneužití systému více vinařstvími na jednom účtu.</p>
-              </div>
-            </div>
+      <section className="rounded-[28px] border border-[#e7d9d1] bg-[#fbf7f3] p-5 shadow-[0_18px_60px_rgba(58,34,27,0.06)] sm:p-6">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8A1538]">Provozni pravidla</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[#eadfd8] bg-white/80 p-4 text-sm leading-6 text-[#6b5a54]">
+            Nazev vinarstvi lze zmenit jednou za 6 mesicu.
+          </div>
+          <div className="rounded-2xl border border-[#eadfd8] bg-white/80 p-4 text-sm leading-6 text-[#6b5a54]">
+            Verejnou adresu lze zmenit jednou za 6 mesicu, nezavisle na nazvu.
+          </div>
+          <div className="rounded-2xl border border-[#eadfd8] bg-white/80 p-4 text-sm leading-6 text-[#6b5a54]">
+            Cilem je udrzet stabilni verejne URL a omezit sdileni jednoho uctu mezi vice vinarstvi.
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

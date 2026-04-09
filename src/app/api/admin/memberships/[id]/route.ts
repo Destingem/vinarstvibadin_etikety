@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken, getUserById } from '@/lib/auth-server';
 import { updateMembership, getMembershipByUserId } from '@/lib/appwrite';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 const ADMIN_EMAILS = [
   'admin@etiketa.wine',
@@ -24,21 +24,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json({ error: 'No authorization token provided' }, { status: 401 });
     }
-    
-    const verifiedToken = verifyJwtToken(token);
-    if (!verifiedToken) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-    
-    const user = await getUserById(verifiedToken.userId);
-    if (!user || !(await isAdmin(user.email))) {
+
+    if (!(await isAdmin(sessionUser.email))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -80,21 +72,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json({ error: 'No authorization token provided' }, { status: 401 });
     }
-    
-    const verifiedToken = verifyJwtToken(token);
-    if (!verifiedToken) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-    
-    const user = await getUserById(verifiedToken.userId);
-    if (!user || !(await isAdmin(user.email))) {
+
+    if (!(await isAdmin(sessionUser.email))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

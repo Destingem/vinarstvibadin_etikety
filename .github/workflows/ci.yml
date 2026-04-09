@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: test
+      APPWRITE_ENDPOINT: https://appwrite.example/v1
+      APPWRITE_PROJECT_ID: ci-project
+      APPWRITE_KEY: ci-key
+      NEXT_PUBLIC_APPWRITE_ENDPOINT: https://appwrite.example/v1
+      NEXT_PUBLIC_APPWRITE_PROJECT_ID: ci-project
+      NEXT_PUBLIC_APPWRITE_PROJECT_NAME: etiketa.wine
+      NEXT_PUBLIC_APP_URL: http://localhost:3232
+      JWT_SECRET: ci-jwt-secret
+      CRON_SECRET: ci-cron-secret
+      ENCRYPTION_KEY: ci-encryption-key
+      IP_INFO_KEY: ci-ip-info-key
+      ADMIN_EMAILS: ci@example.com
+      DEMO_USER_ID: ci-demo-user
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build

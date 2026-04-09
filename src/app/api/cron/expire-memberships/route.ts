@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllMemberships, updateMembership } from '@/lib/appwrite';
+import { requireCronAuth } from '@/server/http/cron-auth';
 
 // This endpoint can be called by a cron service to handle expired memberships
 export async function GET(request: NextRequest) {
   try {
-    // Verify the request is from an authorized source using URL parameter
-    const { searchParams } = new URL(request.url);
-    const providedKey = searchParams.get('key');
-    const expectedToken = process.env.CRON_SECRET || 'default-cron-secret';
-    
-    if (providedKey !== expectedToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const unauthorizedResponse = requireCronAuth(request);
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
     }
     
     console.log('Cron job triggered: Checking for expired memberships...');

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDatabases, ANALYTICS_DB_ID, Query } from '@/lib/appwrite-client';
-import { env } from '@/lib/env';
+import { requireCronAuth } from '@/server/http/cron-auth';
 
 // Collection IDs
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
@@ -332,25 +332,10 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authorization
-    const body = await request.json().catch(() => ({}));
-    const authHeader = request.headers.get('authorization');
-    const providedKey = body.key || authHeader?.replace('Bearer ', '');
-    
-    const expectedKey = env.CRON_SECRET;
-    
-    if (!expectedKey) {
-      return NextResponse.json(
-        { error: 'CRON_SECRET not configured' },
-        { status: 500 }
-      );
-    }
-    
-    if (providedKey !== expectedKey) {
-      return NextResponse.json(
-        { error: 'Unauthorized - invalid or missing secret key' },
-        { status: 401 }
-      );
+    const unauthorizedResponse = requireCronAuth(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
     }
     
     console.log('Data cleanup triggered via API');

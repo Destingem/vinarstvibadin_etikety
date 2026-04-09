@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDatabases, ID, ANALYTICS_DB_ID, Query } from '@/lib/appwrite-client';
+import { requireCronAuth } from '@/server/http/cron-auth';
 
 // Collection IDs
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
@@ -549,13 +550,10 @@ async function createWineRankings(
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify the request is from an authorized source using URL parameter
-    const { searchParams } = new URL(request.url);
-    const providedKey = searchParams.get('key');
-    const expectedToken = process.env.CRON_SECRET || 'default-cron-secret';
-    
-    if (providedKey !== expectedToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const unauthorizedResponse = requireCronAuth(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
     }
     
     console.log('Analytics processing triggered via cron...');

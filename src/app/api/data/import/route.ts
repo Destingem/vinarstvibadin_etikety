@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
 import { getWinesByUserId, createWine } from '@/lib/appwrite-client';
 import { z } from 'zod';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // Schema for a single wine
 const wineSchema = z.object({
@@ -22,11 +22,9 @@ const importSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
@@ -48,62 +46,49 @@ export async function POST(request: NextRequest) {
     
     const { data } = result.data;
     
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      const wineryId = decoded.userId;
-      
-      // Process each wine
-      const importResults = {
-        total: data.wines.length,
-        imported: 0,
-        skipped: 0,
-        errors: [] as string[]
-      };
-      
-      // Get existing wines to check for duplicates
-      const existingWines = await getWinesByUserId(wineryId);
-      
-      for (const wine of data.wines) {
-        try {
-          // Check if wine with the same name and vintage already exists
-          const duplicateWine = existingWines.find(existing => 
-            existing.name === wine.name && 
-            existing.vintage === (wine.vintage ? parseInt(wine.vintage) : null)
-          );
-          
-          if (duplicateWine) {
-            importResults.skipped++;
-            continue;
-          }
-          
-          // Create new wine
-          await createWine({
+    const wineryId = sessionUser.id;
+    const importResults = {
+      total: data.wines.length,
+      imported: 0,
+      skipped: 0,
+      errors: [] as string[],
+    };
+
+    const existingWines = await getWinesByUserId(wineryId);
+
+    for (const wine of data.wines) {
+      try {
+        const duplicateWine = existingWines.find((existing) =>
+          existing.name === wine.name &&
+          existing.vintage === (wine.vintage ? parseInt(wine.vintage) : null)
+        );
+
+        if (duplicateWine) {
+          importResults.skipped++;
+          continue;
+        }
+
+        await createWine(
+          {
             name: wine.name,
             vintage: wine.vintage ? parseInt(wine.vintage) : null,
             batch: wine.batch || null,
-            additionalInfo: wine.description || ''
-          }, wineryId);
-          
-          importResults.imported++;
-        } catch (wineError: any) {
-          console.error('Error importing wine:', wineError);
-          importResults.errors.push(`Chyba při importu vína ${wine.name}: ${wineError.message}`);
-        }
+            additionalInfo: wine.description || '',
+          },
+          wineryId
+        );
+
+        importResults.imported++;
+      } catch (wineError: any) {
+        console.error('Error importing wine:', wineError);
+        importResults.errors.push(`Chyba při importu vína ${wine.name}: ${wineError.message}`);
       }
-      
-      // Return import results
-      return NextResponse.json({
-        message: `Import dokončen. Importováno: ${importResults.imported}, přeskočeno: ${importResults.skipped}${importResults.errors.length > 0 ? ', chyby: ' + importResults.errors.length : ''}`,
-        results: importResults
-      });
-    } catch (tokenError) {
-      console.error('Token error:', tokenError);
-      return NextResponse.json(
-        { message: 'Neplatný token nebo vypršela platnost přihlášení' },
-        { status: 401 }
-      );
     }
+
+    return NextResponse.json({
+      message: `Import dokončen. Importováno: ${importResults.imported}, přeskočeno: ${importResults.skipped}${importResults.errors.length > 0 ? ', chyby: ' + importResults.errors.length : ''}`,
+      results: importResults,
+    });
   } catch (error) {
     console.error('Data import error:', error);
     return NextResponse.json(

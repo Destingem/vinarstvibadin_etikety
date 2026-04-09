@@ -1,7 +1,5 @@
 "use client";
 
-import { getStoredAuthUser } from '@/lib/auth-storage';
-
 /**
  * Helper function for making authenticated API requests
  * Automatically adds the auth token to the request
@@ -21,66 +19,18 @@ export async function authFetch(
   token: string | null,
   options: RequestInit = {}
 ): Promise<Response> {
-  if (!token) {
-    throw new Error('No authentication token provided');
-  }
-  
-  // Create headers if they don't exist
   const headers = options.headers || {};
-  
-  // Add Authorization header with token
-  // Use type assertion to allow string indexing
   const updatedHeaders: Record<string, string> = {
-    ...headers as Record<string, string>,
-    'Authorization': `Bearer ${token}`
+    ...(headers as Record<string, string>),
   };
-  
-  // Add user data if available (from localStorage)
-  try {
-    const storedUser = getStoredAuthUser();
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      if (user) {
-        // Format the user's name to look better (capitalize first letters, handle dots)
-        let displayName = user.name;
-        
-        // If the name has dots (like "ondrej.zaplatilek"), format it to look better
-        if (displayName.includes('.')) {
-          displayName = displayName.split('.')
-            .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(' ');
-        } else if (displayName.includes('-')) {
-          // If the name has hyphens, also format it to look better
-          displayName = displayName.split('-')
-            .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(' ');
-        }
-        
-        // Add user data header for API use with formatted name - but encode it to avoid non-ASCII issues
-        // Headers must contain only ISO-8859-1 characters
-        const userData = {
-          name: displayName, // Use formatted name
-          id: user.id,
-          email: user.email,
-          // Use existing slug or create from original name
-          slug: user.slug || user.name.toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '')
-        };
-        
-        // Use encodeURIComponent to ensure only ASCII characters are in the header
-        updatedHeaders['X-User-Data'] = encodeURIComponent(JSON.stringify(userData));
-      }
-    }
-  } catch (e) {
-    console.error('Error adding user data to headers:', e);
+
+  if (token && token !== 'session') {
+    updatedHeaders.Authorization = `Bearer ${token}`;
   }
-  
-  // Return fetch with updated headers
+
   return fetch(url, {
     ...options,
-    headers: updatedHeaders
+    credentials: 'same-origin',
+    headers: updatedHeaders,
   });
 }

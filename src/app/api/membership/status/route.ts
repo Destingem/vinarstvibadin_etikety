@@ -1,30 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken } from '@/lib/auth-server';
 import { getMembershipByUserId, checkWineLimit } from '@/lib/appwrite';
+import { getRequestSessionToken, getRequestSessionUser } from '@/server/auth/session';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+    const token = getRequestSessionToken(request);
+
+    if (!sessionUser && !token) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    const verifiedToken = verifyJwtToken(token);
-    
-    if (!verifiedToken) {
+
+    let userId = sessionUser?.id;
+
+    if (!userId && token) {
+      let verifiedToken;
+
+      try {
+        verifiedToken = verifyJwtToken(token);
+      } catch {
+        verifiedToken = null;
+      }
+
+      if (!verifiedToken) {
+        return NextResponse.json(
+          { message: 'Neplatný token' },
+          { status: 401 }
+        );
+      }
+
+      userId = verifiedToken.userId;
+    }
+
+    if (!userId) {
       return NextResponse.json(
         { message: 'Neplatný token' },
         { status: 401 }
       );
     }
-    
-    const userId = verifiedToken.userId;
     
     // Get user's membership
     const membership = await getMembershipByUserId(userId);

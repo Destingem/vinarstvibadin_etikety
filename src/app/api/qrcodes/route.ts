@@ -1,32 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken, getUserById, updateUserPrefs } from '@/lib/auth-server';
+import { getUserById, updateUserPrefs } from '@/lib/auth-server';
 import { generateQRCode, createWineQRCodeUrl, QRCodeOptions, QRCodePreset } from '@/lib/qr-code';
 import { getWineById } from '@/lib/appwrite-client';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // Supported HTTP methods
 export async function GET(request: NextRequest) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    const verifiedToken = verifyJwtToken(token);
-    
-    if (!verifiedToken) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = verifiedToken.userId;
+
+    const userId = sessionUser.id;
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -154,27 +144,16 @@ export async function GET(request: NextRequest) {
 // POST endpoint for saving QR code presets
 export async function POST(request: NextRequest) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    const verifiedToken = verifyJwtToken(token);
-    
-    if (!verifiedToken) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = verifiedToken.userId;
+
+    const userId = sessionUser.id;
     
     // Get the preset from the request body
     const body = await request.json();

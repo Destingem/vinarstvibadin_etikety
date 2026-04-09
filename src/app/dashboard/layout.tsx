@@ -1,15 +1,28 @@
-"use client";
-
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { useRequireAuth } from '@/lib/auth-context';
+import { AuthProvider } from '@/lib/auth-context';
+import { getCookieSessionUser } from '@/server/auth/session';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  // This will automatically redirect to /login if not authenticated
-  const { isLoading } = useRequireAuth();
-  
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+export const metadata: Metadata = {
+  title: 'Dashboard | etiketa.wine',
+  description: 'Pracovní prostor pro správu katalogu vín, QR výstupů a provozu etiketa.wine.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const user = await getCookieSessionUser();
+
+  if (!user) {
+    redirect('/login');
   }
-  
-  return <DashboardLayout>{children}</DashboardLayout>;
+
+  return (
+    <AuthProvider initialUser={user} initialToken="session">
+      <DashboardLayout>{children}</DashboardLayout>
+    </AuthProvider>
+  );
 }

@@ -1,46 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
-import { createApiKey, getApiKeysByUserId } from '@/lib/api-service';
+import { ApiScope, createApiKey, DEFAULT_API_KEY_SCOPES, getApiKeysByUserId } from '@/lib/api-service';
 import { z } from 'zod';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // Schema for creating a new API key
 const createApiKeySchema = z.object({
   name: z.string().min(1, { message: 'Název klíče je povinný' }).max(100),
-  expiresAt: z.string().optional().nullable()
+  expiresAt: z.string().optional().nullable(),
+  scopes: z.array(z.nativeEnum(ApiScope)).min(1).optional(),
 });
 
 // GET /api/api-keys - Get all API keys for the authenticated user
 export async function GET(request: NextRequest) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    let verifiedToken;
-    try {
-      verifiedToken = verifyJwtToken(token);
-    } catch (error) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    if (!verifiedToken) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = verifiedToken.userId;
+
+    const userId = sessionUser.id;
     
     // Get all API keys for the user
     const apiKeys = await getApiKeysByUserId(userId);
@@ -58,35 +40,16 @@ export async function GET(request: NextRequest) {
 // POST /api/api-keys - Create a new API key
 export async function POST(request: NextRequest) {
   try {
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    let verifiedToken;
-    try {
-      verifiedToken = verifyJwtToken(token);
-    } catch (error) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    if (!verifiedToken) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = verifiedToken.userId;
+
+    const userId = sessionUser.id;
     
     // Parse and validate request body
     const body = await request.json();
@@ -103,7 +66,8 @@ export async function POST(request: NextRequest) {
     const apiKey = await createApiKey(
       userId,
       result.data.name,
-      result.data.expiresAt || null
+      result.data.expiresAt || null,
+      result.data.scopes?.length ? result.data.scopes : DEFAULT_API_KEY_SCOPES
     );
     
     return NextResponse.json(

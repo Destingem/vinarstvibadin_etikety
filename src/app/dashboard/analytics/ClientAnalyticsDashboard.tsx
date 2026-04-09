@@ -1,55 +1,31 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { 
-  ArrowUpIcon, 
-  ArrowDownIcon, 
-  CalendarIcon, 
-  GlobeAltIcon as GlobeIcon, 
-  DevicePhoneMobileIcon, 
-  DeviceTabletIcon, 
+import Link from 'next/link';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ChartBarIcon,
+  ClockIcon,
   ComputerDesktopIcon,
+  DevicePhoneMobileIcon,
+  DeviceTabletIcon,
+  GlobeAltIcon as GlobeIcon,
   LanguageIcon,
-  ClockIcon
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { 
-  TimeSeriesChart, 
-  PieChart, 
-  BarChart, 
-  HorizontalBarChart,
-  HourDistributionChart
-} from './components/charts';
 
-/**
- * Maps language codes to their human-readable names
- */
-function getLanguageName(code: string): string {
-  const languageMap: Record<string, string> = {
-    'cs': 'Čeština',
-    'en': 'Angličtina',
-    'de': 'Němčina',
-    'sk': 'Slovenština',
-    'pl': 'Polština',
-    'fr': 'Francouzština',
-    'it': 'Italština',
-    'es': 'Španělština',
-    'ru': 'Ruština',
-    'uk': 'Ukrajinština',
-    'hu': 'Maďarština',
-    'ro': 'Rumunština',
-    'nl': 'Nizozemština',
-    'pt': 'Portugalština',
-    'zh': 'Čínština',
-    'ja': 'Japonština',
-    'ko': 'Korejština',
-    'ar': 'Arabština',
-    'unknown': 'Neznámý jazyk'
-  };
-  
-  return languageMap[code.toLowerCase()] || code;
-}
+import { useRequireAuth } from '@/lib/auth-context';
+import { authFetch } from '@/lib/api-helpers';
+import { Badge } from '@/components/ui/badge';
+import { SecondaryButton } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { MetricCard } from '@/components/ui/metric-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { Surface } from '@/components/ui/surface';
+import { cn } from '@/components/ui/cn';
+import WorldMap from './components/WorldMap';
 
-// Define API response types
 interface AnalyticsSummary {
   totalScans: number;
   totalUniqueVisitors: number;
@@ -98,523 +74,762 @@ interface AnalyticsSummary {
     date: string;
     scanCount: number;
   }>;
-  isSampleData?: boolean; // Flag to indicate if data is sample data
 }
 
-// Date range type
 type DateRange = '7days' | '30days' | '90days' | 'year';
+type GeoView = 'map' | 'list';
 
-import { useAuth, useRequireAuth } from '@/lib/auth-context';
+const RANGE_OPTIONS: Array<{ value: DateRange; label: string }> = [
+  { value: '7days', label: '7 dní' },
+  { value: '30days', label: '30 dní' },
+  { value: '90days', label: '90 dní' },
+  { value: 'year', label: 'Rok' },
+];
+
+const RANGE_DAY_COUNTS: Record<DateRange, number> = {
+  '7days': 7,
+  '30days': 30,
+  '90days': 90,
+  year: 365,
+};
 
 export default function ClientAnalyticsDashboard() {
-  // Use the auth context to get user info and enforce authentication
   const { user, isLoading } = useRequireAuth();
   const [dateRange, setDateRange] = useState<DateRange>('30days');
+  const [geoView, setGeoView] = useState<GeoView>('map');
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [width, setWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
-  
-  // Track window size for responsive charts
-  useEffect(() => {
-    function handleResize() {
-      setWidth(window.innerWidth);
-    }
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
+
   useEffect(() => {
     async function fetchAnalytics() {
-      // Don't fetch if user isn't loaded yet
-      if (isLoading || !user) return;
-      
+      if (isLoading || !user) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      
+
       try {
-        const response = await fetch(`/api/analytics/dashboard?userId=${user.id}&range=${dateRange}`);
-        
+        const response = await authFetch(`/api/analytics/dashboard?range=${dateRange}`, null, {
+          cache: 'no-store',
+        });
+
         if (!response.ok) {
           throw new Error('Failed to fetch analytics data');
         }
-        
-        const data = await response.json();
+
+        const data = (await response.json()) as AnalyticsSummary;
         setAnalytics(data);
-      } catch (err) {
-        console.error('Error fetching analytics:', err);
-        setError('Nepodařilo se načíst analytická data');
+      } catch (fetchError) {
+        console.error('Error fetching analytics:', fetchError);
+        setError('Nepodařilo se načíst analytická data.');
       } finally {
         setLoading(false);
       }
     }
-    
+
     fetchAnalytics();
-  }, [user, isLoading, dateRange]);
-  
-  // Show loading if auth is still loading or data is loading
+  }, [dateRange, isLoading, user]);
+
+  const derived = useMemo(() => {
+    if (!analytics) {
+      return null;
+    }
+
+    const totalScans = analytics.totalScans || 0;
+    const periodDays = RANGE_DAY_COUNTS[dateRange];
+    const averagePerDay = Math.round(totalScans / Math.max(periodDays, 1));
+    const leadingRegion = analytics.topRegions[0] ?? null;
+    const topWines = analytics.topWines.slice(0, 5);
+    const topRegions = analytics.topRegions.slice(0, 8);
+    const languages = analytics.languages.slice(0, 5);
+    const systems = analytics.operatingSystems?.slice(0, 4) ?? [];
+    const internationalShare = Math.round(
+      analytics.topRegions
+        .filter((region) => region.countryCode !== 'CZ')
+        .reduce((sum, region) => sum + region.percentage, 0),
+    );
+    const mobileShare = getPercentage(analytics.scansByDevice.mobile, totalScans);
+    const byHour = new Map(analytics.timeDistribution.map((item) => [item.hour, item.scanCount]));
+    const hourlySeries = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      scanCount: byHour.get(hour) ?? 0,
+    }));
+    const peakHour =
+      hourlySeries.length > 0
+        ? hourlySeries.reduce((best, current) =>
+            current.scanCount > best.scanCount ? current : best,
+          )
+        : null;
+    const highestDay =
+      analytics.dailyScans.length > 0
+        ? analytics.dailyScans.reduce((best, current) =>
+            current.scanCount > best.scanCount ? current : best,
+          )
+        : null;
+    const deviceRows = [
+      {
+        label: 'Mobil',
+        value: analytics.scansByDevice.mobile,
+        icon: <DevicePhoneMobileIcon className="h-4 w-4" />,
+      },
+      {
+        label: 'Desktop',
+        value: analytics.scansByDevice.desktop,
+        icon: <ComputerDesktopIcon className="h-4 w-4" />,
+      },
+      {
+        label: 'Tablet',
+        value: analytics.scansByDevice.tablet,
+        icon: <DeviceTabletIcon className="h-4 w-4" />,
+      },
+    ];
+
+    return {
+      averagePerDay,
+      deviceRows,
+      highestDay,
+      hourlySeries,
+      internationalShare,
+      languages,
+      leadingRegion,
+      mobileShare,
+      peakHour,
+      systems,
+      topRegions,
+      topWines,
+    };
+  }, [analytics, dateRange]);
+
   if (isLoading || (loading && user)) {
     return <LoadingDisplay />;
   }
-  
-  // If authentication is done but no user, the redirect will happen via useRequireAuth
+
   if (!user) {
     return <LoadingDisplay />;
   }
-  
+
   if (error) {
     return <ErrorDisplay message={error} />;
   }
-  
-  if (!analytics) {
-    return <NoDataDisplay />;
-  }
-  
-  return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">
-          Analytika QR kódů
-        </h1>
-        <p className="text-gray-600 text-lg leading-relaxed">
-          Na této stránce najdete anonymní statistiky o načítání QR kódů vašich vín. Data jsou aktualizována denně a poskytují přehled o tom, jak zákazníci interagují s vašimi produkty.
-        </p>
-      </div>
-      
-      {/* Sample data notification */}
-      {analytics.isSampleData && (
-        <div className="mb-8 relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/80 to-yellow-50/60 rounded-3xl"></div>
-          <div className="relative bg-white/70 backdrop-blur-xl p-6 rounded-3xl border border-amber-200/50 shadow-lg">
-            <div className="flex items-start">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-2xl flex items-center justify-center mr-4 flex-shrink-0">
-                <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-amber-800 mb-2">Ukázková data</h3>
-                <p className="text-amber-700 leading-relaxed">
-                  Toto jsou ukázková data vygenerovaná pro demonstrační účely. Skutečná data se začnou zobrazovat, 
-                  jakmile budou zaznamenány první skeny QR kódů vašich vín.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Date range selector */}
-      <div className="flex justify-end mb-8">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-2xl"></div>
-          <div className="relative bg-white/60 backdrop-blur-sm p-2 rounded-2xl border border-gray-200/50 shadow-lg">
-            <div className="inline-flex" role="group">
-              <button
-                onClick={() => setDateRange('7days')}
-                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  dateRange === '7days'
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-white/80 hover:text-gray-900'
-                }`}
-              >
-                7 dní
-              </button>
-              <button
-                onClick={() => setDateRange('30days')}
-                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  dateRange === '30days'
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-white/80 hover:text-gray-900'
-                }`}
-              >
-                30 dní
-              </button>
-              <button
-                onClick={() => setDateRange('90days')}
-                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  dateRange === '90days'
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-white/80 hover:text-gray-900'
-                }`}
-              >
-                90 dní
-              </button>
-              <button
-                onClick={() => setDateRange('year')}
-                className={`px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  dateRange === 'year'
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-white/80 hover:text-gray-900'
-                }`}
-              >
-                Rok
-              </button>
+  if (!analytics || analytics.totalScans === 0 || !derived) {
+    return <NoDataDisplay rangeLabel={getRangeLabel(dateRange)} />;
+  }
+
+  const trendBadge =
+    analytics.scanTrend.percentChange === 0
+      ? 'Bez změny'
+      : `${analytics.scanTrend.isPositive ? '+' : '-'}${Math.abs(
+          analytics.scanTrend.percentChange,
+        )}%`;
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Dashboard / Analytics"
+          title="Provozní analytika etiket"
+          description="Přehled návštěv veřejných stránek vín podle vybraného období. Zobrazujeme jen dostupné provozní údaje: skeny, regiony, zařízení a jazyky."
+          meta={
+            <>
+              <Badge tone="burgundy">{getRangeLabel(dateRange)}</Badge>
+              <Badge>{formatNumber(derived.averagePerDay)} / den</Badge>
+            </>
+          }
+          actions={
+            <div className="inline-flex flex-wrap gap-2 rounded-full border border-stone-200 bg-white/90 p-1">
+              {RANGE_OPTIONS.map((option) => (
+                <RangeButton
+                  key={option.value}
+                  active={dateRange === option.value}
+                  onClick={() => setDateRange(option.value)}
+                >
+                  {option.label}
+                </RangeButton>
+              ))}
             </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Summary metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Total scans card */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4 flex-1">
-                <dt className="text-sm font-medium text-gray-600">
-                  Celkem načtení QR kódů
-                </dt>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <dd className="text-3xl font-bold text-gray-900">
-                    {analytics.totalScans.toLocaleString()}
-                  </dd>
-                  {analytics.scanTrend.percentChange > 0 ? (
-                    <div className="inline-flex items-center text-sm text-green-600">
-                      <ArrowUpIcon className="h-4 w-4 mr-1" />
-                      {analytics.scanTrend.percentChange}%
-                    </div>
+          }
+        />
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Celkem skenů"
+            value={formatNumber(analytics.totalScans)}
+            detail="Součet všech načtení QR kódů ve vybraném období."
+            icon={<ChartBarIcon className="h-5 w-5" />}
+            tone="accent"
+            badge={trendBadge}
+          />
+          <MetricCard
+            label="Unikátní návštěvníci"
+            value={formatNumber(analytics.totalUniqueVisitors)}
+            detail="Odhad odlišných návštěv veřejných etiket."
+            icon={<UserGroupIcon className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Průměr za den"
+            value={formatNumber(derived.averagePerDay)}
+            detail={
+              derived.highestDay
+                ? `Nejsilnější den: ${formatShortDate(derived.highestDay.date)}`
+                : 'Denní průměr v rámci zvoleného období.'
+            }
+            icon={<ClockIcon className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Podíl mimo ČR"
+            value={`${derived.internationalShare}%`}
+            detail={
+              derived.leadingRegion
+                ? `Nejsilnější země: ${derived.leadingRegion.countryName}`
+                : 'Zatím bez regionálního rozlišení.'
+            }
+            icon={<GlobeIcon className="h-5 w-5" />}
+          />
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+          <Panel
+            title="Vývoj skenů"
+            description="Denní objem načtení v čase. Křivka slouží jako čistý provozní přehled bez odhadů a doporučení."
+          >
+            <ScanTrendChart data={analytics.dailyScans} />
+            <div className="grid gap-3 border-t border-stone-200/80 pt-4 text-sm text-stone-600 sm:grid-cols-3">
+              <StatRow
+                label="Nejvyšší den"
+                value={
+                  derived.highestDay
+                    ? `${formatShortDate(derived.highestDay.date)} · ${formatNumber(
+                        derived.highestDay.scanCount,
+                      )}`
+                    : 'Bez dat'
+                }
+              />
+              <StatRow
+                label="Trend"
+                value={
+                  analytics.scanTrend.percentChange === 0 ? (
+                    'Bez změny oproti předchozímu období'
                   ) : (
-                    analytics.scanTrend.percentChange < 0 ? (
-                      <div className="inline-flex items-center text-sm text-red-600">
-                        <ArrowDownIcon className="h-4 w-4 mr-1" />
-                        {Math.abs(analytics.scanTrend.percentChange)}%
-                      </div>
-                    ) : null
-                  )}
-                </div>
-                <p className="text-sm text-gray-500 mt-1">Oproti předchozímu období</p>
-              </div>
+                    <span className="inline-flex items-center gap-1">
+                      {analytics.scanTrend.isPositive ? (
+                        <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-amber-700" />
+                      )}
+                      {trendBadge} oproti předchozímu období
+                    </span>
+                  )
+                }
+              />
+              <StatRow
+                label="Špička dne"
+                value={
+                  derived.peakHour && derived.peakHour.scanCount > 0
+                    ? `${padHour(derived.peakHour.hour)}:00`
+                    : 'Bez hodinového rozlišení'
+                }
+              />
             </div>
-          </div>
-        </div>
-        
-        {/* Unique visitors card */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-purple-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4 flex-1">
-                <dt className="text-sm font-medium text-gray-600">
-                  Unikátní návštěvníci
-                </dt>
-                <dd className="mt-1 text-3xl font-bold text-gray-900">
-                  {analytics.totalUniqueVisitors.toLocaleString()}
-                </dd>
-                <p className="text-sm text-gray-500 mt-1">Odhadovaný počet různých zákazníků</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Device and OS breakdown cards */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-6 rounded-3xl border border-green-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center mb-4">
-              <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mr-3">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Rozdělení podle zařízení</h3>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <DevicePhoneMobileIcon className="h-5 w-5 mr-3 text-blue-600" />
-                  <span className="text-sm font-medium text-gray-700">Mobilní telefony</span>
-                </div>
-                <span className="text-sm font-bold text-gray-900">{analytics.scansByDevice.mobile.toLocaleString()} ({Math.round(analytics.scansByDevice.mobile / analytics.totalScans * 100)}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <DeviceTabletIcon className="h-5 w-5 mr-3 text-indigo-600" />
-                  <span className="text-sm font-medium text-gray-700">Tablety</span>
-                </div>
-                <span className="text-sm font-bold text-gray-900">{analytics.scansByDevice.tablet.toLocaleString()} ({Math.round(analytics.scansByDevice.tablet / analytics.totalScans * 100)}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <ComputerDesktopIcon className="h-5 w-5 mr-3 text-purple-600" />
-                  <span className="text-sm font-medium text-gray-700">Počítače</span>
-                </div>
-                <span className="text-sm font-bold text-gray-900">{analytics.scansByDevice.desktop.toLocaleString()} ({Math.round(analytics.scansByDevice.desktop / analytics.totalScans * 100)}%)</span>
-              </div>
-            </div>
-            
-            {/* OS Stats */}
-            {analytics.operatingSystems && analytics.operatingSystems.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-gray-200/50">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">Operační systémy</h4>
-                <div className="space-y-2">
-                  {analytics.operatingSystems.map((os, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <span className="truncate max-w-[70%] text-sm text-gray-700">{os.name}</span>
-                      <span className="font-medium text-sm text-gray-900">{os.percentage}%</span>
+          </Panel>
+
+          <Panel
+            title="Top vína"
+            description="Veřejné etikety s nejvyšším počtem otevření v aktuálním období."
+          >
+            {derived.topWines.length > 0 ? (
+              <div className="space-y-3">
+                {derived.topWines.map((wine) => (
+                  <Link
+                    key={wine.wineId}
+                    href={`/dashboard/wines/${wine.wineId}`}
+                    className="flex items-start gap-4 rounded-2xl border border-stone-200/80 bg-stone-50/70 px-4 py-3 transition hover:border-[#7c2332]/25 hover:bg-white"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#7c2332]/10 text-sm font-semibold text-[#6f1d2b]">
+                      {wine.rank}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-stone-900">
+                            {wine.wineName}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {wine.wineVintage ? <Badge>{wine.wineVintage}</Badge> : null}
+                            {wine.wineBatch ? <Badge>Šarže {wine.wineBatch}</Badge> : null}
+                          </div>
+                        </div>
+                        <p className="text-sm font-semibold text-[#6f1d2b]">
+                          {formatNumber(wine.scanCount)}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <InlineEmptyState title="Zatím bez top položek" />
+            )}
+          </Panel>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,1fr)]">
+          <Panel
+            title="Regiony"
+            description="Země, odkud návštěvníci otevírají veřejné etikety. Přepnout lze mezi mapou a seznamem."
+            actions={
+              <div className="inline-flex gap-1 rounded-full border border-stone-200 bg-stone-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setGeoView('map')}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-sm font-medium transition',
+                    geoView === 'map'
+                      ? 'bg-[#6f1d2b] text-white'
+                      : 'text-stone-600 hover:text-stone-900',
+                  )}
+                >
+                  Mapa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGeoView('list')}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-sm font-medium transition',
+                    geoView === 'list'
+                      ? 'bg-[#6f1d2b] text-white'
+                      : 'text-stone-600 hover:text-stone-900',
+                  )}
+                >
+                  Seznam
+                </button>
+              </div>
+            }
+          >
+            {derived.topRegions.length > 0 ? (
+              <div className="space-y-5">
+                {geoView === 'map' ? (
+                  <WorldMap data={derived.topRegions} />
+                ) : (
+                  <CountryList regions={derived.topRegions} />
+                )}
+
+                <div className="grid gap-3 border-t border-stone-200/80 pt-4 sm:grid-cols-2">
+                  <StatRow
+                    label="Vedoucí země"
+                    value={
+                      derived.leadingRegion
+                        ? `${derived.leadingRegion.countryName} · ${derived.leadingRegion.percentage}%`
+                        : 'Bez dat'
+                    }
+                  />
+                  <StatRow
+                    label="Podíl mimo ČR"
+                    value={`${derived.internationalShare}% všech skenů`}
+                  />
+                </div>
+              </div>
+            ) : (
+              <InlineEmptyState title="Regionální data zatím nejsou k dispozici" />
+            )}
+          </Panel>
+
+          <Panel
+            title="Publikum a technika"
+            description="Rozdělení návštěv podle zařízení, jazyka a prostředí klienta."
+          >
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-stone-900">Zařízení</h3>
+                  <Badge>{derived.mobileShare}% mobil</Badge>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {derived.deviceRows.map((device) => (
+                    <DataRow
+                      key={device.label}
+                      icon={device.icon}
+                      label={device.label}
+                      value={formatNumber(device.value)}
+                      meta={`${getPercentage(device.value, analytics.totalScans)}%`}
+                    />
                   ))}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Main charts and statistics */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-        {/* Time trend chart */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-blue-200/50 shadow-2xl">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4">
-                <CalendarIcon className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Časový trend načítání</h3>
-            </div>
-            
-            <div className="h-64 bg-white/40 backdrop-blur-sm rounded-2xl border border-gray-200/50 p-4">
-              <TimeSeriesChart 
-                data={analytics.dailyScans.map(item => ({ date: item.date, value: item.scanCount }))}
-                width={600}
-                height={240}
-              />
-            </div>
-          </div>
-        </div>
-        
-        {/* Regional map */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-green-200/50 shadow-2xl">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mr-4">
-                <GlobeIcon className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Regionální statistiky</h3>
-            </div>
-            
-            {/* Regional stats container with tabs */}
-            <div className="mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/20 rounded-xl"></div>
-                <div className="relative bg-white/60 backdrop-blur-sm p-1 rounded-xl border border-gray-200/50">
-                  <div className="flex">
-                    <button
-                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg shadow-lg"
-                      aria-current="page"
-                    >
-                      Graf
-                    </button>
-                    <button
-                      className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-white/60 rounded-lg transition-all duration-200"
-                    >
-                      Mapa
-                    </button>
+
+              <div className="border-t border-stone-200/80 pt-5">
+                <h3 className="text-sm font-semibold text-stone-900">Jazyky</h3>
+                {derived.languages.length > 0 ? (
+                  <div className="mt-3 space-y-3">
+                    {derived.languages.map((language) => (
+                      <DataRow
+                        key={language.languageCode}
+                        icon={<LanguageIcon className="h-4 w-4" />}
+                        label={getLanguageLabel(language)}
+                        value={formatNumber(language.scanCount)}
+                        meta={`${language.percentage}%`}
+                      />
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <p className="mt-3 text-sm text-stone-500">Jazyková data zatím nejsou dostupná.</p>
+                )}
               </div>
-            </div>
-            
-            {/* Current graph view */}
-            <div className="h-64 bg-white/40 backdrop-blur-sm rounded-2xl border border-gray-200/50 p-4 mb-6">
-              <HorizontalBarChart 
-                data={analytics.topRegions.map(region => ({
-                  label: region.countryName,
-                  value: region.scanCount,
-                  color: '#22c55e'  // Green color for regions
-                }))}
-                width={600}
-                height={240}
-                xLabel="Počet načtení"
-              />
-            </div>
-            
-            {/* Top countries list */}
-            <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Top regiony</h4>
-              <div className="space-y-3">
-                {analytics.topRegions.map((region, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white/50 backdrop-blur-sm rounded-xl border border-gray-200/50">
-                    <div className="flex items-center">
-                      <div className="w-12 h-6 mr-3 bg-gray-100/80 border border-gray-200/60 rounded-lg flex items-center justify-center text-xs font-bold uppercase text-gray-700">
-                        {region.countryCode}
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">{region.countryName}</span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900">{region.scanCount.toLocaleString()} ({region.percentage}%)</span>
+
+              <div className="border-t border-stone-200/80 pt-5">
+                <h3 className="text-sm font-semibold text-stone-900">Operační systémy</h3>
+                {derived.systems.length > 0 ? (
+                  <div className="mt-3 space-y-3">
+                    {derived.systems.map((system) => (
+                      <DataRow
+                        key={system.name}
+                        icon={<ComputerDesktopIcon className="h-4 w-4" />}
+                        label={system.name}
+                        value={formatNumber(system.count)}
+                        meta={`${system.percentage}%`}
+                      />
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="mt-3 text-sm text-stone-500">
+                    Operační systémy backend pro toto období nevrátil.
+                  </p>
+                )}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Additional analytics sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Top wines */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-red-200/50 shadow-2xl">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mr-4">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Nejoblíbenější vína</h3>
-            </div>
-            
-            <div className="space-y-4">
-              {analytics.topWines.map((wine, index) => (
-                <div key={wine.wineId} className="flex items-center p-4 bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-200/50 hover:bg-white/70 transition-all duration-200">
-                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 mr-4 text-sm font-bold text-white">
-                    {wine.rank}
-                  </div>
-                  <div className="flex-1">
-                    <a 
-                      href={`/dashboard/wines/${wine.wineId}`} 
-                      className="text-sm font-semibold text-red-700 hover:text-red-800 hover:underline truncate block"
-                    >
-                      {wine.wineName}
-                    </a>
-                    <div className="flex items-center gap-2 mt-2">
-                      {wine.wineVintage && (
-                        <span className="inline-flex items-center bg-blue-50/80 text-blue-700 px-2 py-1 rounded-lg text-xs font-medium">
-                          {wine.wineVintage}
-                        </span>
-                      )}
-                      {wine.wineBatch && (
-                        <span className="inline-flex items-center bg-gray-50/80 text-gray-700 px-2 py-1 rounded-lg text-xs font-medium">
-                          Šarže: {wine.wineBatch}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2 font-medium">{wine.scanCount.toLocaleString()} načtení</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* Language stats */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-indigo-200/50 shadow-2xl">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mr-4">
-                <LanguageIcon className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Jazykové preference</h3>
-            </div>
-            
-            <div className="space-y-4">
-              {analytics.languages && analytics.languages.length > 0 ? (
-                analytics.languages.map((lang, index) => {
-                  // Format language display
-                  const languageCode = lang.language || lang.languageCode || 'unknown';
-                  const languageName = getLanguageName(languageCode);
-                  const percentage = typeof lang.percentage !== 'undefined' 
-                    ? lang.percentage 
-                    : Math.round((lang.scanCount / analytics.totalScans) * 100);
-                  
-                  return (
-                    <div key={index} className="flex justify-between items-center p-4 bg-white/50 backdrop-blur-sm rounded-2xl border border-gray-200/50">
-                      <div className="flex items-center">
-                        <div className="w-10 h-6 mr-4 flex items-center justify-center text-xs font-bold uppercase bg-indigo-100/80 text-indigo-700 rounded-lg border border-indigo-200/50">
-                          {languageCode}
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">{languageName}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-gray-900">{percentage}%</span>
-                        <span className="text-xs text-gray-600 block">({lang.scanCount})</span>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="w-16 h-16 bg-gray-100/80 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <LanguageIcon className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <span className="text-gray-600">Žádná data k dispozici</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* Time of day stats */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/80 to-white/60 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-amber-200/50 shadow-2xl">
-            <div className="flex items-center mb-6">
-              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mr-4">
-                <ClockIcon className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Rozložení během dne</h3>
-            </div>
-            
-            <div className="h-52 w-full bg-white/40 backdrop-blur-sm rounded-2xl border border-gray-200/50 p-4 mb-6">
-              <HourDistributionChart 
-                data={analytics.timeDistribution}
-                width={width < 768 ? 300 : 400} // Wider on desktop
-                height={190}
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 gap-3">
-              <div className="p-3 bg-white/50 backdrop-blur-sm rounded-xl border border-gray-200/50">
-                <p className="text-sm text-gray-600">Nejaktivnější čas:</p>
-                <p className="font-bold text-gray-900">14:00 - 18:00</p>
-              </div>
-              <div className="p-3 bg-white/50 backdrop-blur-sm rounded-xl border border-gray-200/50">
-                <p className="text-sm text-gray-600">Nejméně aktivní:</p>
-                <p className="font-bold text-gray-900">03:00 - 06:00</p>
+          </Panel>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,1fr)]">
+          <Panel
+            title="Hodinová aktivita"
+            description="Rozložení skenů během dne. Slouží pro orientaci v tom, kdy jsou etikety nejčastěji otevírány."
+          >
+            <HourlyActivityChart data={derived.hourlySeries} />
+          </Panel>
+
+          <Panel
+            title="Práce s daty"
+            description="Navazující plochy a provozní poznámky k customer analytics."
+          >
+            <div className="space-y-4 text-sm leading-6 text-stone-600">
+              <p>
+                Přehled je vázaný na vybrané období a zobrazuje pouze data, která backend skutečně
+                vrátí pro vaše veřejné etikety.
+              </p>
+              <p>
+                Pro návaznou práci otevřete katalog vín nebo API Access. Exporty a technické
+                integrace řešte mimo tuto stránku.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <SecondaryButton href="/dashboard/wines">Otevřít katalog vín</SecondaryButton>
+                <SecondaryButton href="/dashboard/api">API Access</SecondaryButton>
               </div>
             </div>
-          </div>
-        </div>
+          </Panel>
+        </section>
       </div>
     </div>
   );
 }
 
+interface PanelProps {
+  title: string;
+  description: string;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+function Panel({ title, description, actions, children, className }: PanelProps) {
+  return (
+    <Surface className={cn('h-full', className)}>
+      <div className="flex h-full flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-lg font-semibold text-stone-900 sm:text-xl">{title}</h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">{description}</p>
+          </div>
+          {actions ? <div className="shrink-0">{actions}</div> : null}
+        </div>
+        {children}
+      </div>
+    </Surface>
+  );
+}
+
+interface RangeButtonProps {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}
+
+function RangeButton({ active, children, onClick }: RangeButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full px-4 py-2 text-sm font-medium transition',
+        active
+          ? 'bg-[#6f1d2b] text-white shadow-[0_12px_24px_rgba(111,29,43,0.16)]'
+          : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+interface DataRowProps {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  meta: string;
+}
+
+function DataRow({ icon, label, value, meta }: DataRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-stone-200/80 bg-stone-50/70 px-4 py-3">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-stone-600 shadow-sm">
+          {icon}
+        </span>
+        <span className="truncate text-sm font-medium text-stone-800">{label}</span>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-semibold text-stone-900">{value}</p>
+        <p className="text-xs text-stone-500">{meta}</p>
+      </div>
+    </div>
+  );
+}
+
+interface StatRowProps {
+  label: string;
+  value: ReactNode;
+}
+
+function StatRow({ label, value }: StatRowProps) {
+  return (
+    <div className="rounded-2xl bg-stone-50/70 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">{label}</p>
+      <div className="mt-2 text-sm font-medium text-stone-900">{value}</div>
+    </div>
+  );
+}
+
+function CountryList({
+  regions,
+}: {
+  regions: AnalyticsSummary['topRegions'];
+}) {
+  const maxCount = Math.max(...regions.map((region) => region.scanCount), 1);
+
+  return (
+    <div className="space-y-3">
+      {regions.map((region) => (
+        <div
+          key={region.countryCode}
+          className="rounded-2xl border border-stone-200/80 bg-stone-50/70 px-4 py-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-stone-900">{region.countryName}</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-stone-500">
+                {region.countryCode}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-semibold text-stone-900">
+                {formatNumber(region.scanCount)}
+              </p>
+              <p className="text-xs text-stone-500">{region.percentage}%</p>
+            </div>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-200">
+            <div
+              className="h-full rounded-full bg-[#6f1d2b]"
+              style={{
+                width: `${Math.max((region.scanCount / maxCount) * 100, 8)}%`,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScanTrendChart({
+  data,
+}: {
+  data: AnalyticsSummary['dailyScans'];
+}) {
+  if (data.length === 0) {
+    return <InlineEmptyState title="Vývoj skenů zatím není k dispozici" />;
+  }
+
+  const width = 720;
+  const height = 260;
+  const paddingX = 20;
+  const paddingTop = 18;
+  const paddingBottom = 28;
+  const maxValue = Math.max(...data.map((item) => item.scanCount), 1);
+  const chartHeight = height - paddingTop - paddingBottom;
+  const chartWidth = width - paddingX * 2;
+  const points = data.map((item, index) => {
+    const x =
+      data.length === 1
+        ? width / 2
+        : paddingX + (chartWidth * index) / Math.max(data.length - 1, 1);
+    const y = paddingTop + chartHeight - (item.scanCount / maxValue) * chartHeight;
+    return { x, y };
+  });
+  const line = points.map((point) => `${point.x},${point.y}`).join(' ');
+  const area = [
+    `${paddingX},${height - paddingBottom}`,
+    ...points.map((point) => `${point.x},${point.y}`),
+    `${width - paddingX},${height - paddingBottom}`,
+  ].join(' ');
+  const markers = [0, Math.floor((data.length - 1) / 2), data.length - 1].filter(
+    (index, position, list) => list.indexOf(index) === position,
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-[24px] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(250,245,239,0.95),rgba(255,255,255,0.96))] p-4">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[260px] w-full" role="img" aria-label="Vývoj skenů v čase">
+          <defs>
+            <linearGradient id="scan-trend-fill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="rgba(111,29,43,0.22)" />
+              <stop offset="100%" stopColor="rgba(111,29,43,0)" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.33, 0.66, 1].map((ratio) => {
+            const y = paddingTop + chartHeight * ratio;
+            return (
+              <line
+                key={ratio}
+                x1={paddingX}
+                x2={width - paddingX}
+                y1={y}
+                y2={y}
+                stroke="#e7ddd2"
+                strokeDasharray="5 7"
+              />
+            );
+          })}
+
+          <polygon points={area} fill="url(#scan-trend-fill)" />
+          <polyline
+            points={line}
+            fill="none"
+            stroke="#6f1d2b"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {points.map((point, index) => (
+            <circle key={`${data[index]?.date ?? index}-point`} cx={point.x} cy={point.y} r="4" fill="#6f1d2b">
+              <title>
+                {formatShortDate(data[index].date)}: {formatNumber(data[index].scanCount)}
+              </title>
+            </circle>
+          ))}
+        </svg>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 text-xs font-medium uppercase tracking-[0.14em] text-stone-500">
+        {markers.map((index) => (
+          <span key={`${data[index]?.date ?? index}-label`}>{formatShortDate(data[index].date)}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HourlyActivityChart({
+  data,
+}: {
+  data: Array<{ hour: number; scanCount: number }>;
+}) {
+  const maxValue = Math.max(...data.map((item) => item.scanCount), 1);
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[720px] grid-cols-[repeat(24,minmax(0,1fr))] gap-2">
+          {data.map((item) => (
+            <div
+              key={item.hour}
+              className="flex min-h-[180px] flex-col items-center justify-end gap-2"
+            >
+              <div className="flex h-[148px] w-full items-end rounded-full bg-stone-100 px-1.5 py-1.5">
+                <div
+                  className="w-full rounded-full bg-[linear-gradient(180deg,#c28b6b_0%,#6f1d2b_100%)]"
+                  style={{
+                    height: `${Math.max((item.scanCount / maxValue) * 100, item.scanCount > 0 ? 10 : 2)}%`,
+                  }}
+                  title={`${padHour(item.hour)}:00 — ${formatNumber(item.scanCount)} skenů`}
+                />
+              </div>
+              <span className="text-[11px] font-medium text-stone-500">{padHour(item.hour)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3 border-t border-stone-200/80 pt-4 sm:grid-cols-3">
+        <StatRow
+          label="Ráno"
+          value={formatNumber(sumHours(data, 6, 11))}
+        />
+        <StatRow
+          label="Odpoledne"
+          value={formatNumber(sumHours(data, 12, 17))}
+        />
+        <StatRow
+          label="Večer"
+          value={formatNumber(sumHours(data, 18, 23))}
+        />
+      </div>
+    </div>
+  );
+}
+
+function InlineEmptyState({ title }: { title: string }) {
+  return (
+    <EmptyState
+      title={title}
+      description="Jakmile backend vrátí data pro tuto část, objeví se zde konkrétní provozní přehled."
+      icon={<ChartBarIcon className="h-6 w-6" />}
+      className="border-stone-200 bg-stone-50/80"
+    />
+  );
+}
+
 function LoadingDisplay() {
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/80 to-white/60 rounded-3xl"></div>
-        <div className="relative bg-white/80 backdrop-blur-2xl p-12 rounded-3xl border border-gray-200/60 shadow-2xl text-center">
-          <div className="flex items-center justify-center space-x-4">
-            <svg className="animate-spin h-8 w-8 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span className="text-xl font-medium text-gray-700">Načítání analytických dat...</span>
-          </div>
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="animate-pulse space-y-6">
+        <Surface padding="lg" className="h-44" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Surface key={`metric-skeleton-${index}`} padding="sm" className="h-40" />
+          ))}
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+          <Surface padding="lg" className="h-[420px]" />
+          <Surface padding="lg" className="h-[420px]" />
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,1fr)]">
+          <Surface padding="lg" className="h-[460px]" />
+          <Surface padding="lg" className="h-[460px]" />
         </div>
       </div>
     </div>
@@ -623,60 +838,101 @@ function LoadingDisplay() {
 
 function ErrorDisplay({ message }: { message: string }) {
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-red-50/80 to-white/60 rounded-3xl"></div>
-        <div className="relative bg-white/80 backdrop-blur-2xl p-8 rounded-3xl border border-red-200/60 shadow-2xl">
-          <div className="flex items-center space-x-4 text-red-700 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-red-800">Chyba při načítání dat</h3>
-              <p className="text-red-600 mt-1">{message}</p>
-            </div>
-          </div>
-          <p className="text-red-600 mb-6">
-            Zkuste obnovit stránku nebo kontaktujte podporu, pokud problém přetrvává.
-          </p>
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-yellow-50/80 to-amber-50/60 rounded-2xl"></div>
-            <div className="relative bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-yellow-200/50">
-              <h4 className="text-lg font-semibold text-yellow-800 mb-3">Poznámka pro administrátory:</h4>
-              <p className="text-yellow-700">
-                Ujistěte se, že jsou v Appwrite správně nastavena oprávnění pro kolekce analytics. 
-                Viz soubor ANALYTICS_PERMISSIONS.md s pokyny.
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Dashboard / Analytics"
+          title="Analytiku se nepodařilo načíst"
+          description="Zkuste obnovit stránku nebo se vraťte později. Pokud problém přetrvá, zkontrolujte dostupnost backendu."
+        />
+        <Surface tone="muted">
+          <EmptyState
+            title="Načtení selhalo"
+            description={message}
+            icon={<ChartBarIcon className="h-6 w-6" />}
+            action={<SecondaryButton onClick={() => window.location.reload()}>Obnovit</SecondaryButton>}
+          />
+        </Surface>
       </div>
     </div>
   );
 }
 
-function NoDataDisplay() {
+function NoDataDisplay({ rangeLabel }: { rangeLabel: string }) {
   return (
-    <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/80 to-white/60 rounded-3xl"></div>
-        <div className="relative bg-white/80 backdrop-blur-2xl p-12 rounded-3xl border border-blue-200/60 shadow-2xl text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </div>
-          <h3 className="text-2xl font-bold text-blue-800 mb-4">Zatím nemáme dostatek dat</h3>
-          <p className="text-blue-600 mb-6 text-lg leading-relaxed">
-            Statistiky se začnou zobrazovat po prvních naskenovaných QR kódech vašich vín.
-          </p>
-          <p className="text-blue-700">
-            Zkontrolujte, že máte správně vygenerované QR kódy a že jsou dostupné zákazníkům.
-          </p>
-        </div>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Dashboard / Analytics"
+          title="Zatím bez analytických dat"
+          description="Jakmile začnou návštěvníci otevírat veřejné etikety, objeví se zde provozní přehled podle regionů, zařízení a času."
+          meta={<Badge tone="burgundy">{rangeLabel}</Badge>}
+        />
+        <Surface tone="muted">
+          <EmptyState
+            title="Ve vybraném období nejsou zaznamenané skeny"
+            description="Zkontrolujte veřejné odkazy u vín nebo se vraťte později po prvních reálných návštěvách."
+            icon={<GlobeIcon className="h-6 w-6" />}
+            action={<SecondaryButton href="/dashboard/wines">Otevřít katalog vín</SecondaryButton>}
+          />
+        </Surface>
       </div>
     </div>
   );
+}
+
+function getRangeLabel(range: DateRange) {
+  switch (range) {
+    case '7days':
+      return 'Posledních 7 dní';
+    case '30days':
+      return 'Posledních 30 dní';
+    case '90days':
+      return 'Posledních 90 dní';
+    default:
+      return 'Posledních 12 měsíců';
+  }
+}
+
+function getLanguageLabel(language: AnalyticsSummary['languages'][number]) {
+  return language.languageName || language.language || language.languageCode.toUpperCase();
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString('cs-CZ');
+}
+
+function getPercentage(value: number, total: number) {
+  if (!total) {
+    return 0;
+  }
+
+  return Math.round((value / total) * 100);
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString('cs-CZ', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+function padHour(hour: number) {
+  return hour.toString().padStart(2, '0');
+}
+
+function sumHours(data: Array<{ hour: number; scanCount: number }>, start: number, end: number) {
+  return data.reduce((sum, item) => {
+    if (item.hour >= start && item.hour <= end) {
+      return sum + item.scanCount;
+    }
+
+    return sum;
+  }, 0);
 }

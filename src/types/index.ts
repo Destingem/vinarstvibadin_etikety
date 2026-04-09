@@ -12,7 +12,7 @@ export interface Wine {
   // Using $id for Appwrite documents
   $id: string;
   name: string;
-  vintage?: number;
+  vintage?: number | null;
   batch?: string;
   alcoholContent?: number;
   energyValueKJ?: number;
@@ -60,7 +60,7 @@ export interface AuthResponse {
 
 export interface WineFormData {
   name: string;
-  vintage?: number;
+  vintage?: number | null;
   batch?: string;
   alcoholContent?: number;
   energyValueKJ?: number;

@@ -31,7 +31,7 @@ export const env = {
   IP_INFO_KEY: getEnv('IP_INFO_KEY', false),
   
   // Cron/Cleanup
-  CRON_SECRET: getEnv('CRON_SECRET', false, 'default-cron-secret'),
+  CRON_SECRET: getEnv('CRON_SECRET', false),
   
   // Add other environment variables as needed, e.g.:
   // NODE_ENV: getEnv('NODE_ENV', false, 'development'),

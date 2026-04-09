@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createUser, updateUserPrefs, createSlug } from '@/lib/auth-server';
-import { ID } from 'appwrite';
+import { createSlug, createUser } from '@/lib/auth-server';
+import {
+  assertWineryProfileSlugAvailable,
+  getWineryProfile,
+  serializeWineryProfileForAuth,
+  WineryProfileSlugConflictError,
+} from '@/server/services/winery-profiles';
 
 // Schema for registration validation
 const registerSchema = z.object({
@@ -29,10 +34,24 @@ export async function POST(request: NextRequest) {
     
     // Generate slug from winery name
     const slug = createSlug(name);
+
+    try {
+      await assertWineryProfileSlugAvailable(slug);
+    } catch (slugError) {
+      if (slugError instanceof WineryProfileSlugConflictError) {
+        return NextResponse.json(
+          { message: 'Slug vinařství je již obsazený' },
+          { status: 409 }
+        );
+      }
+
+      throw slugError;
+    }
     
     try {
       // Create user with Appwrite Auth (preferences now set in createUser)
       const user = await createUser(email, password, name);
+      const profile = await getWineryProfile(user.$id);
       
       return NextResponse.json(
         { 
@@ -40,7 +59,9 @@ export async function POST(request: NextRequest) {
           userId: user.$id,
           name: name,
           email: user.email,
-          slug: slug
+          slug: profile?.slug || slug,
+          user: profile ? serializeWineryProfileForAuth(profile) : null,
+          profile,
         },
         { status: 201 }
       );

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDatabases, ID, Query, ANALYTICS_DB_ID } from '@/lib/appwrite-client';
+import { requireCronAuth } from '@/server/http/cron-auth';
 
 // Collection IDs
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
@@ -691,6 +692,12 @@ async function updateWineRankings(
  */
 export async function POST(request: NextRequest) {
   try {
+    const unauthorizedResponse = requireCronAuth(request);
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     // Get the request data
     const data = await request.json();
     
@@ -722,9 +729,9 @@ export async function POST(request: NextRequest) {
  */
 export async function GET() {
   return NextResponse.json(
-    { 
+    {
       status: 'active',
-      message: 'Analytics aggregation service is running. Use POST with a date parameter to trigger aggregation.' 
+      message: 'Analytics aggregation service is running. Use POST with a bearer cron secret to trigger aggregation.'
     },
     { status: 200 }
   );

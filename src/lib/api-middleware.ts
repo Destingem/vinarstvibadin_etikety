@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateApiKey, ApiScope, hasScope } from './api-service';
-import { getServerUser, getUserById } from './auth-server';
+import { getServerUser, getUserById, getUserByIdStrict } from './auth-server';
 import { adminDatabases, API_DB_ID, ID } from './appwrite-client';
 import { checkRateLimit, getUserMembershipTier } from './rate-limiter';
 import { CommonErrors, generateRequestId } from './api-errors';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 export type ApiContext = {
   userId: string;
@@ -19,6 +20,14 @@ export type ApiContext = {
 
 // Collection for API usage analytics
 export const API_USAGE_COLLECTION_ID = 'api_usage';
+
+function extractBearerToken(headerValue: string | null) {
+  if (!headerValue) {
+    return null;
+  }
+
+  return headerValue.startsWith('Bearer ') ? headerValue.slice(7).trim() : null;
+}
 
 // Track API usage
 async function trackApiUsage(
@@ -63,14 +72,7 @@ export async function withApiAuth(
   let keyId = '';
   
   try {
-    // Get the API key from the header or URL parameter
-    let apiKey = req.headers.get('X-API-Key');
-    
-    // If no header, check URL parameter
-    if (!apiKey) {
-      const url = new URL(req.url);
-      apiKey = url.searchParams.get('key');
-    }
+    const apiKey = extractBearerToken(req.headers.get('Authorization'));
     
     if (!apiKey) {
       const response = CommonErrors.missingApiKey();
@@ -100,7 +102,7 @@ export async function withApiAuth(
     }
     
     // Get user information
-    const user = await getUserById(userId);
+    const user = await getUserByIdStrict(userId);
     
     if (!user) {
       const response = CommonErrors.userNotFound();
@@ -200,14 +202,7 @@ export async function withAnyAuth(
   handler: (req: NextRequest, ctx: ApiContext) => Promise<NextResponse>
 ): Promise<NextResponse> {
   try {
-    // Try API key first from header or URL parameter
-    let apiKey = req.headers.get('X-API-Key');
-    
-    // If no header, check URL parameter
-    if (!apiKey) {
-      const url = new URL(req.url);
-      apiKey = url.searchParams.get('key');
-    }
+    const apiKey = extractBearerToken(req.headers.get('Authorization'));
     
     if (apiKey) {
       // Validate the API key
@@ -215,7 +210,7 @@ export async function withAnyAuth(
       
       if (valid && userId && keyId) {
         // Get user information
-        const user = await getUserById(userId);
+        const user = await getUserByIdStrict(userId);
         
         if (user) {
           // Create context with user info
@@ -238,34 +233,22 @@ export async function withAnyAuth(
     }
     
     // If API key fails or is not present, try JWT token
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (token) {
-      try {
-        // Try to get server user from JWT token
-        const serverUser = await getServerUser();
-        
-        if (serverUser) {
-          // Create context with user info from JWT
-          const context: ApiContext = {
-            userId: serverUser.id,
-            keyId: '', // No key ID for JWT auth
-            requestId: generateRequestId(),
-            scopes: [ApiScope.ALL], // JWT auth gets all scopes
-            user: {
-              id: serverUser.id,
-              name: serverUser.name,
-              email: serverUser.email
-            }
-          };
-          
-          // Call the handler with the request and context
-          return handler(req, context);
-        }
-      } catch (tokenError) {
-        console.error('JWT validation error:', tokenError);
-      }
+    const serverUser = await getRequestSessionUser(req);
+
+    if (serverUser) {
+      const context: ApiContext = {
+        userId: serverUser.id,
+        keyId: '',
+        requestId: generateRequestId(),
+        scopes: [ApiScope.ALL],
+        user: {
+          id: serverUser.id,
+          name: serverUser.name,
+          email: serverUser.email,
+        },
+      };
+
+      return handler(req, context);
     }
     
     // If both auth methods fail

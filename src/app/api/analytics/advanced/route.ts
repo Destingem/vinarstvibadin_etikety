@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDatabases, ANALYTICS_DB_ID, Query } from '@/lib/appwrite-client';
+import { getRequestSessionUser } from '@/server/auth/session';
 import { 
   TrendAnalyzer, 
   PredictionEngine, 
@@ -353,104 +354,100 @@ function generateCompetitiveAnalysis(timeSeriesData: TimeSeriesDataPoint[]) {
   };
 }
 
+async function runAdvancedAnalysis(userId: string, range: string, analysisType: string) {
+  const { startDate, endDate } = getDateRange(range);
+
+  const timeSeriesData = await getTimeSeriesData(userId, startDate, endDate);
+
+  if (timeSeriesData.length < 7) {
+    return NextResponse.json(
+      {
+        error: 'Insufficient data for advanced analysis',
+        message: 'Potřebujeme alespoň 7 dní dat pro pokročilou analýzu.',
+        suggestion: 'Zkuste kratší časový rozsah nebo počkejte na více dat.'
+      },
+      { status: 400 }
+    );
+  }
+
+  const result: any = {};
+
+  if (analysisType === 'comprehensive' || analysisType === 'trends') {
+    try {
+      result.trends = TrendAnalyzer.analyzeTrends(timeSeriesData);
+    } catch (error) {
+      console.error('Error in trend analysis:', error);
+      result.trends = null;
+    }
+  }
+
+  if (analysisType === 'comprehensive' || analysisType === 'predictions') {
+    try {
+      result.predictions = PredictionEngine.predict(timeSeriesData);
+    } catch (error) {
+      console.error('Error in prediction:', error);
+      result.predictions = null;
+    }
+  }
+
+  if (analysisType === 'comprehensive' || analysisType === 'anomalies') {
+    try {
+      result.anomalies = AnomalyDetector.detect(timeSeriesData);
+    } catch (error) {
+      console.error('Error in anomaly detection:', error);
+      result.anomalies = null;
+    }
+  }
+
+  if (analysisType === 'comprehensive' || analysisType === 'geographic') {
+    try {
+      const geographicData = await getGeographicData(userId, startDate, endDate);
+      result.geographic = GeographicAnalyzer.analyzeGeographicData(geographicData);
+    } catch (error) {
+      console.error('Error in geographic analysis:', error);
+      result.geographic = null;
+    }
+  }
+
+  if (analysisType === 'comprehensive' || analysisType === 'intelligence') {
+    try {
+      const geographicData = await getGeographicData(userId, startDate, endDate);
+      result.marketIntelligence = generateMarketIntelligence(timeSeriesData, geographicData);
+      result.competitiveAnalysis = generateCompetitiveAnalysis(timeSeriesData);
+    } catch (error) {
+      console.error('Error in market intelligence:', error);
+      result.marketIntelligence = null;
+      result.competitiveAnalysis = null;
+    }
+  }
+
+  result.meta = {
+    dataPoints: timeSeriesData.length,
+    dateRange: { startDate, endDate },
+    analysisTimestamp: new Date().toISOString(),
+    confidence: timeSeriesData.length >= 30 ? 'high' : timeSeriesData.length >= 14 ? 'medium' : 'low'
+  };
+
+  return NextResponse.json(result);
+}
+
 /**
  * Advanced Analytics API endpoint
  */
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
-    const range = searchParams.get('range') || '90days';
-    const analysisType = searchParams.get('type') || 'comprehensive';
-    
-    if (!userId) {
+    const user = await getRequestSessionUser(request);
+
+    if (!user) {
       return NextResponse.json(
-        { error: 'Missing userId parameter' },
-        { status: 400 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
-    
-    const { startDate, endDate } = getDateRange(range);
-    
-    // Get data for analysis
-    const timeSeriesData = await getTimeSeriesData(userId, startDate, endDate);
-    
-    if (timeSeriesData.length < 7) {
-      return NextResponse.json(
-        { 
-          error: 'Insufficient data for advanced analysis',
-          message: 'Potřebujeme alespoň 7 dní dat pro pokročilou analýzu.',
-          suggestion: 'Zkuste kratší časový rozsah nebo počkejte na více dat.'
-        },
-        { status: 400 }
-      );
-    }
-    
-    const result: any = {};
-    
-    // Trend Analysis
-    if (analysisType === 'comprehensive' || analysisType === 'trends') {
-      try {
-        result.trends = TrendAnalyzer.analyzeTrends(timeSeriesData);
-      } catch (error) {
-        console.error('Error in trend analysis:', error);
-        result.trends = null;
-      }
-    }
-    
-    // Predictions
-    if (analysisType === 'comprehensive' || analysisType === 'predictions') {
-      try {
-        result.predictions = PredictionEngine.predict(timeSeriesData);
-      } catch (error) {
-        console.error('Error in prediction:', error);
-        result.predictions = null;
-      }
-    }
-    
-    // Anomaly Detection
-    if (analysisType === 'comprehensive' || analysisType === 'anomalies') {
-      try {
-        result.anomalies = AnomalyDetector.detect(timeSeriesData);
-      } catch (error) {
-        console.error('Error in anomaly detection:', error);
-        result.anomalies = null;
-      }
-    }
-    
-    // Geographic Analysis
-    if (analysisType === 'comprehensive' || analysisType === 'geographic') {
-      try {
-        const geographicData = await getGeographicData(userId, startDate, endDate);
-        result.geographic = GeographicAnalyzer.analyzeGeographicData(geographicData);
-      } catch (error) {
-        console.error('Error in geographic analysis:', error);
-        result.geographic = null;
-      }
-    }
-    
-    // Market Intelligence
-    if (analysisType === 'comprehensive' || analysisType === 'intelligence') {
-      try {
-        const geographicData = await getGeographicData(userId, startDate, endDate);
-        result.marketIntelligence = generateMarketIntelligence(timeSeriesData, geographicData);
-        result.competitiveAnalysis = generateCompetitiveAnalysis(timeSeriesData);
-      } catch (error) {
-        console.error('Error in market intelligence:', error);
-        result.marketIntelligence = null;
-        result.competitiveAnalysis = null;
-      }
-    }
-    
-    // Meta information
-    result.meta = {
-      dataPoints: timeSeriesData.length,
-      dateRange: { startDate, endDate },
-      analysisTimestamp: new Date().toISOString(),
-      confidence: timeSeriesData.length >= 30 ? 'high' : timeSeriesData.length >= 14 ? 'medium' : 'low'
-    };
-    
-    return NextResponse.json(result);
+    const range = request.nextUrl.searchParams.get('range') || '90days';
+    const analysisType = request.nextUrl.searchParams.get('type') || 'comprehensive';
+
+    return runAdvancedAnalysis(user.id, range, analysisType);
     
   } catch (error) {
     console.error('Error in advanced analytics endpoint:', error);
@@ -466,22 +463,16 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, range = '90days' } = body;
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Missing userId in request body' },
-        { status: 400 }
-      );
+    const user = await getRequestSessionUser(request);
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Trigger comprehensive analysis
-    const analysisResult = await GET(
-      new NextRequest(`${request.url}?userId=${userId}&range=${range}&type=comprehensive`)
-    );
-    
-    return analysisResult;
+
+    const body = await request.json();
+    const range = body.range || '90days';
+
+    return runAdvancedAnalysis(user.id, range, 'comprehensive');
     
   } catch (error) {
     console.error('Error in advanced analytics POST endpoint:', error);

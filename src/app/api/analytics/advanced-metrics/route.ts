@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDatabases, ANALYTICS_DB_ID, Query } from '@/lib/appwrite-client';
 import { getAdvancedMetrics } from '@/lib/analytics-fingerprint';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 const SCAN_EVENTS_COLLECTION_ID = 'scan_events';
 
@@ -40,14 +41,13 @@ function getDateRange(range: string): { startDate: string; endDate: string } {
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get('userId');
-    const range = searchParams.get('range') || '30days';
-    
-    if (!userId) {
+    const range = request.nextUrl.searchParams.get('range') || '30days';
+    const user = await getRequestSessionUser(request);
+
+    if (!user) {
       return NextResponse.json(
-        { error: 'Missing userId parameter' },
-        { status: 400 }
+        { error: 'Neautorizováno', message: 'Pro zobrazení analytiky se přihlaste' },
+        { status: 401 }
       );
     }
     
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         ANALYTICS_DB_ID,
         SCAN_EVENTS_COLLECTION_ID,
         [
-          Query.equal('wineryId', userId),
+          Query.equal('wineryId', user.id),
           Query.greaterThanEqual('date', startDate.split('T')[0]),
           Query.lessThanEqual('date', endDate.split('T')[0]),
           Query.limit(5000) // Increased limit for comprehensive analysis
@@ -67,7 +67,6 @@ export async function GET(request: NextRequest) {
       );
       
       if (scanEvents.documents.length === 0) {
-        // Return default metrics for no data
         return NextResponse.json({
           uniqueVisitors: 0,
           returnRate: 0,
@@ -100,13 +99,11 @@ export async function GET(request: NextRequest) {
       
     } catch (error) {
       console.error('Error fetching scan events for advanced metrics:', error);
-      
-      // Return estimated metrics if we can't access raw data
       return NextResponse.json({
-        uniqueVisitors: Math.floor(Math.random() * 50) + 10,
-        returnRate: Math.floor(Math.random() * 30) + 15,
-        avgSessionDuration: "2:45",
-        bounceRate: Math.floor(Math.random() * 40) + 30,
+        uniqueVisitors: 0,
+        returnRate: 0,
+        avgSessionDuration: "0:00",
+        bounceRate: 0,
         isRealData: false
       });
     }

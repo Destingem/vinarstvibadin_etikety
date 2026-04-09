@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { loginUser, createSlug, createJwtToken } from '@/lib/auth-server';
+import { createJwtToken } from '@/lib/auth-server';
 import { Client, Account } from 'appwrite';
-import { getAppwriteAdminHeaders, getAppwriteUrl, getPublicAppwriteEnv } from '@/lib/appwrite-env';
+import { applySessionCookie } from '@/server/auth/session';
+import {
+  getWineryProfile,
+  serializeWineryProfileForAuth,
+} from '@/server/services/winery-profiles';
+import { getPublicAppwriteEnv } from '@/lib/appwrite-env';
 
 // Schema for login validation
 const loginSchema = z.object({
@@ -83,63 +88,27 @@ export async function POST(request: NextRequest) {
       }
       console.log("Extracted user ID:", userId);
       
-      // We're still getting "missing scope" when trying to get user data via Account
-      // Let's create a fake user object with minimal data
-      // Appwrite will have set the session cookie, so the user will be authenticated
-      console.log("Skipping user data fetch due to permission issues");
-      
-      // Try to get the real user data from Appwrite
-      let userData;
-      try {
-        // Get user using the admin client with API key for full access
-        const userResponse = await fetch(getAppwriteUrl(`/users/${userId}`), {
-          headers: getAppwriteAdminHeaders()
-        });
-        
-        if (userResponse.ok) {
-          userData = await userResponse.json();
-          console.log("Successfully fetched user data from Appwrite API");
-        } else {
-          console.error("Failed to fetch user data from Appwrite API:", await userResponse.text());
-        }
-      } catch (userError) {
-        console.error("Error fetching user data:", userError);
+      const profile = await getWineryProfile(userId);
+
+      if (!profile) {
+        return NextResponse.json(
+          { message: 'Profil vinařství nebyl nalezen' },
+          { status: 404 }
+        );
       }
       
-      // Use the fetched data or fallback to basic info
-      const user = userData || {
-        $id: userId,
-        name: "Vinařství", // Use a better default name instead of the email prefix
-        email: email,
-        prefs: {} // Empty prefs
-      };
-      
-      // Step 4: Create a JWT token for our application's use
-      const token = createJwtToken(userId);
-      
-      console.log("Login successful for user:", userId);
-      
-      // Type assertion to avoid TypeScript errors and get preferences
-      const prefs = user.prefs as { slug?: string, displayName?: string } || {};
-      
-      // Get the name from preferences if available, otherwise use the Appwrite name
-      const displayName = prefs.displayName || user.name;
-      
-      // Create slug from the display name if no slug exists
-      const slug = prefs.slug || createSlug(displayName);
-      
-      // Return success response with token and user data
-      return NextResponse.json({
+      // Issue the real token only via HttpOnly session cookie.
+      const token = createJwtToken(userId, '7d');
+
+      const response = NextResponse.json({
         message: 'Přihlášení úspěšné',
-        user: {
-          id: user.$id,
-          name: displayName,
-          email: user.email,
-          slug: slug
-        },
-        token: token,
+        user: serializeWineryProfileForAuth(profile),
+        profile,
+        token: 'session',
         sessionId: session.$id
       });
+      applySessionCookie(response, token);
+      return response;
     } catch (error) {
       console.error('Auth error:', error);
       

@@ -30,13 +30,9 @@ ENCRYPTION_KEY=YOUR_GENERATED_KEY
 
 ### 3. Add the Key to Your Production Environment
 
-If you're deploying your application to a production environment (like Vercel, Netlify, etc.), make sure to add the same `ENCRYPTION_KEY` to your production environment variables as well.
+If you're deploying the application to a production environment, add the same `ENCRYPTION_KEY` to the runtime environment there as well.
 
-For Vercel, you can add environment variables in the project settings:
-1. Go to your Vercel project
-2. Click on "Settings"
-3. Click on "Environment Variables"
-4. Add a new environment variable named `ENCRYPTION_KEY` with your generated key
+For Coolify, set `ENCRYPTION_KEY` in the service environment variables before deploying.
 
 ### Important Notes
 

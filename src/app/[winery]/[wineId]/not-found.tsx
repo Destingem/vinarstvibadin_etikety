@@ -2,17 +2,26 @@ import Link from 'next/link';
 
 export default function WineNotFound() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-800 mb-4">404</h1>
-        <h2 className="text-2xl font-semibold text-gray-600 mb-6">Víno nenalezeno</h2>
-        <p className="text-gray-500 max-w-md mx-auto mb-8">
-          Omlouváme se, ale požadované víno se nepodařilo najít. Je možné, že bylo odstraněno nebo je zadána nesprávná URL adresa.
+    <main className="min-h-screen bg-[linear-gradient(180deg,#faf6f1_0%,#f6efe7_48%,#fbf8f4_100%)] px-4 py-10 text-stone-900 sm:px-6 lg:py-16">
+      <div className="mx-auto max-w-3xl rounded-[2rem] border border-[rgba(110,54,36,0.12)] bg-white/82 p-8 text-center shadow-[0_28px_80px_rgba(56,30,18,0.10)] backdrop-blur-xl sm:p-10">
+        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[rgb(112,24,42)]">
+          Digitalni etiketa
         </p>
-        <Link href="/" className="bg-indigo-600 text-white px-6 py-3 rounded-md font-medium hover:bg-indigo-700 transition">
-          Zpět na hlavní stránku
-        </Link>
+        <h1 className="mt-5 font-serif text-4xl text-stone-900 sm:text-5xl">Vino nenalezeno</h1>
+        <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-stone-600 sm:text-base">
+          Pozadovana verejna etiketa neni dostupna. Odkaz muze byt neplatny, vino uz nemusi byt
+          zverejnene nebo je v URL nespravny identifikator.
+        </p>
+
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-full bg-[rgb(112,24,42)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[rgb(92,18,35)]"
+          >
+            Zpet na uvod
+          </Link>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

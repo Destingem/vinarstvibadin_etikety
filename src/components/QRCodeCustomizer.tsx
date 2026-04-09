@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { authFetch } from '@/lib/api-helpers';
 import { QRCodeOptions, QRCodePreset } from '@/lib/qr-code';
@@ -30,24 +30,12 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // Load presets on mount
-  useEffect(() => {
-    fetchPresets();
-  }, [token]);
-  
-  // Generate QR code when wine changes
-  useEffect(() => {
-    if (wineId) {
-      generateQRCode();
-    }
-  }, [wineId]); // Only regenerate when wine changes, not when options change
-  
   /**
    * Fetch saved presets from the API
    */
-  const fetchPresets = async () => {
+  const fetchPresets = useCallback(async () => {
     if (!token) return;
-    
+
     try {
       const response = await authFetch('/api/qrcodes', token, {
         method: 'POST',
@@ -68,7 +56,7 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
     } catch (err: any) {
       console.error('Error fetching presets:', err);
     }
-  };
+  }, [token]);
   
   /**
    * Apply a selected preset to the QR code
@@ -210,12 +198,12 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
   /**
    * Generates a QR code with current options
    */
-  const generateQRCode = async (options?: QRCodeOptions) => {
+  const generateQRCode = useCallback(async (options?: QRCodeOptions) => {
     if (!token || !wineId) return;
-    
+
     setIsGenerating(true);
     setError(null);
-    
+
     try {
       // If options are provided, use them, otherwise use current state
       const qrOptions = options || {
@@ -253,7 +241,28 @@ export default function QRCodeCustomizer({ wineId, onQRCodeGenerated }: QRCodeCu
       setError(err.message || 'Nastala chyba při generování QR kódu');
       setIsGenerating(false);
     }
-  };
+  }, [
+    darkColor,
+    errorCorrectionLevel,
+    lightColor,
+    margin,
+    onQRCodeGenerated,
+    token,
+    width,
+    wineId,
+  ]);
+
+  // Load presets on mount
+  useEffect(() => {
+    fetchPresets();
+  }, [fetchPresets]);
+
+  // Generate QR code when wine changes
+  useEffect(() => {
+    if (wineId) {
+      generateQRCode();
+    }
+  }, [generateQRCode, wineId]); // Only regenerate when wine changes, not when options change
   
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden">

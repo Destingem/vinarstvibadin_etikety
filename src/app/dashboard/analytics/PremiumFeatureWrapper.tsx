@@ -1,46 +1,60 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
-import { authFetch } from '@/lib/api-helpers';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { useAuth } from '@/lib/auth-context';
+import { Badge } from '@/components/ui/badge';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
+import { Surface } from '@/components/ui/surface';
+
 interface PremiumFeatureWrapperProps {
-  children: React.ReactNode;
+  children: ReactNode;
   featureName: string;
 }
 
-export default function PremiumFeatureWrapper({ children, featureName }: PremiumFeatureWrapperProps) {
+export default function PremiumFeatureWrapper({
+  children,
+  featureName,
+}: PremiumFeatureWrapperProps) {
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [membershipPlan, setMembershipPlan] = useState<string>('');
-  const { token } = useAuth();
+  const [membershipPlan, setMembershipPlan] = useState('');
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     const checkAccess = async () => {
-      if (!token) {
+      if (isLoading) {
+        return;
+      }
+
+      if (!user) {
         setHasAccess(false);
         return;
       }
 
       try {
-        const response = await authFetch('/api/membership/status', token);
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.hasMembership && data.membership) {
-            const plan = data.membership.plan;
-            setMembershipPlan(plan);
-            
-            // Analytics and API access only for NEOMEZENĚ and ENTERPRISE
-            const isPremium = plan === 'NEOMEZENĚ' || plan === 'ENTERPRISE';
-            setHasAccess(isPremium);
-          } else {
-            setHasAccess(false);
-          }
-        } else {
+        const response = await fetch('/api/membership/status', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
           setHasAccess(false);
+          return;
         }
+
+        const data = await response.json();
+
+        if (data.hasMembership && data.membership) {
+          const plan = data.membership.plan;
+          setMembershipPlan(plan);
+          setHasAccess(plan === 'NEOMEZENĚ' || plan === 'ENTERPRISE');
+          return;
+        }
+
+        setHasAccess(false);
       } catch (error) {
         console.error('Error checking membership:', error);
         setHasAccess(false);
@@ -48,14 +62,23 @@ export default function PremiumFeatureWrapper({ children, featureName }: Premium
     };
 
     checkAccess();
-  }, [token]);
+  }, [isLoading, user]);
 
   if (hasAccess === null) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Ověřování přístupu...</p>
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Přístup"
+            title="Ověřování členství"
+            description="Kontrolujeme aktuální tarif a oprávnění pro tuto část dashboardu."
+          />
+          <Surface tone="muted" className="flex min-h-[220px] items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-12 w-12 animate-spin rounded-full border-2 border-stone-300 border-t-[#6f1d2b]" />
+              <p className="text-sm font-medium text-stone-600">Ověřování přístupu…</p>
+            </div>
+          </Surface>
         </div>
       </div>
     );
@@ -63,117 +86,44 @@ export default function PremiumFeatureWrapper({ children, featureName }: Premium
 
   if (!hasAccess) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-red-100">
-            <svg className="h-12 w-12 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-5V7a2 2 0 114 0v4m-4 0V7a2 2 0 114 0v4m-4 0h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6a2 2 0 012-2z" />
-            </svg>
-          </div>
-          
-          <h1 className="mt-6 text-3xl font-bold text-gray-900">
-            Prémiová funkce
-          </h1>
-          
-          <p className="mt-4 text-lg text-gray-600">
-            {featureName} je k dispozici pouze pro uživatele s tarifem <strong>NEOMEZENĚ</strong> nebo <strong>ENTERPRISE</strong>.
-          </p>
-          
-          {membershipPlan && (
-            <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-              Váš aktuální tarif: {membershipPlan}
-            </div>
-          )}
-          
-          <div className="mt-8 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Upgrade na prémiový tarif</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <h3 className="font-semibold text-lg text-gray-900">NEOMEZENĚ</h3>
-                <p className="text-3xl font-bold text-red-600 mt-2">6 990 Kč/rok</p>
-                <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Neomezené množství šarží
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <strong>Pokročilá analytika</strong>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <strong>API integrace</strong>
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Vlastní branding
-                  </li>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Přístup"
+            title={`${featureName} vyžaduje vyšší tarif`}
+            description="Tato část je dostupná od tarifu Neomezeně. Přístup řídíme podle aktivního členství účtu, ne podle samotné navigace."
+            meta={
+              membershipPlan ? <Badge>Aktuální tarif: {membershipPlan}</Badge> : <Badge>Bez prémiového přístupu</Badge>
+            }
+          />
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Surface>
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-stone-900">Co se odemkne</h2>
+                <ul className="space-y-3 text-sm leading-6 text-stone-600">
+                  <li>Rozsirene provozni nástroje pro monitoring, API přehledy a správu zákaznickych ploch.</li>
+                  <li>Vyssi limity a prémiové funkce podle konkretni sekce dashboardu.</li>
+                  <li>Stabilnejsi workflow pro integrace, reporting a týmovou práci.</li>
                 </ul>
               </div>
-              
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <h3 className="font-semibold text-lg text-gray-900">ENTERPRISE</h3>
-                <p className="text-3xl font-bold text-red-600 mt-2">Na dotaz</p>
-                <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Vše z NEOMEZENĚ tarifu
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Více vinařství
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Account manager
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    SLA garance
-                  </li>
-                </ul>
+            </Surface>
+
+            <Surface tone="muted">
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-stone-900">Další krok</h2>
+                <p className="text-sm leading-6 text-stone-600">
+                  Pokud tuto sekci potřebujete pro ostrý provoz, požádejte o aktivaci nebo napište
+                  na <a className="font-medium text-[#6f1d2b]" href="mailto:info@etiketa.wine"> info@etiketa.wine</a>.
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <PrimaryButton href="mailto:info@etiketa.wine">Pozadat o aktivaci</PrimaryButton>
+                  <SecondaryButton onClick={() => router.push('/dashboard')}>
+                    Zpět na dashboard
+                  </SecondaryButton>
+                </div>
               </div>
-            </div>
-            
-            <div className="mt-6">
-              <p className="text-sm text-gray-600 mb-4">
-                Pro upgrade kontaktujte náš tým:
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a 
-                  href="mailto:info@etiketa.wine" 
-                  className="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Kontaktovat email
-                </a>
-                <button 
-                  onClick={() => router.push('/dashboard')}
-                  className="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  Zpět na dashboard
-                </button>
-              </div>
-            </div>
+            </Surface>
           </div>
         </div>
       </div>

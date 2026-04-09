@@ -17,6 +17,14 @@ export enum ApiScope {
   ALL = '*'
 }
 
+export const DEFAULT_API_KEY_SCOPES: ApiScope[] = [
+  ApiScope.WINES_READ,
+  ApiScope.WINES_WRITE,
+  ApiScope.WINES_DELETE,
+  ApiScope.QRCODES_GENERATE,
+  ApiScope.ANALYTICS_READ,
+];
+
 // Interface for API key
 export interface ApiKey {
   $id?: string;  // Appwrite document ID
@@ -36,7 +44,7 @@ export async function createApiKey(
   userId: string, 
   name: string, 
   expiresAt: string | null = null,
-  scopes: ApiScope[] = [ApiScope.ALL]
+  scopes: ApiScope[] = DEFAULT_API_KEY_SCOPES
 ): Promise<ApiKey> {
   try {
     // Generate a new API key
@@ -161,7 +169,7 @@ export async function validateApiKey(key: string): Promise<{
       valid: true, 
       userId: apiKey.userId, 
       keyId: apiKey.$id || apiKey.id,
-      scopes: apiKey.scopes || [ApiScope.ALL]
+      scopes: apiKey.scopes?.length ? apiKey.scopes : DEFAULT_API_KEY_SCOPES
     };
   } catch (error) {
     console.error('Error validating API key:', error);

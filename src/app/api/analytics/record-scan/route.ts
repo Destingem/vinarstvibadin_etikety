@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UAParser } from 'ua-parser-js';
 import * as AnalyticsService from '@/lib/analytics-service';
+import { getWineById } from '@/lib/appwrite-client';
 import { env } from '@/lib/env';
 
 /**
@@ -114,12 +115,30 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     
     // Extract required fields
-    const { wineId, wineName, wineryId, wineryName, winerySlug, wineBatch, wineVintage } = data;
+    const { wineId } = data;
     
     // Validate required fields
-    if (!wineId || !wineryId) {
+    if (!wineId) {
       return NextResponse.json(
-        { error: 'Missing required fields: wineId and wineryId are required' },
+        { error: 'Missing required field: wineId is required' },
+        { status: 400 }
+      );
+    }
+
+    const wine = await getWineById(wineId);
+
+    if (!wine) {
+      return NextResponse.json(
+        { error: 'Wine not found' },
+        { status: 404 }
+      );
+    }
+
+    const wineryId = wine.userId || wine.wineryId;
+
+    if (!wineryId) {
+      return NextResponse.json(
+        { error: 'Wine owner could not be resolved' },
         { status: 400 }
       );
     }
@@ -162,12 +181,12 @@ export async function POST(request: NextRequest) {
       countryCode: '', // Will be filled by country lookup
       languageUsed: data.languageUsed || browserLanguage.substring(0, 2),
       wineId: wineId,
-      wineName: wineName || 'Unknown Wine',
-      wineBatch: wineBatch || '',
-      wineVintage: wineVintage ? String(wineVintage) : '',
+      wineName: wine.name || 'Unknown Wine',
+      wineBatch: wine.batch || '',
+      wineVintage: wine.vintage ? String(wine.vintage) : '',
       wineryId: wineryId,
-      wineryName: wineryName || 'Unknown Winery',
-      winerySlug: winerySlug || '',
+      wineryName: wine.wineryName || 'Unknown Winery',
+      winerySlug: wine.winerySlug || '',
     };
     
     // Get country code only (GDPR compliant)

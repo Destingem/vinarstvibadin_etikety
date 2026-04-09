@@ -1,134 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
 import { getWinesByUserId } from '@/lib/appwrite-client';
 import * as AnalyticsService from '@/lib/analytics-service';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the JWT token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    try {
-      // Verify JWT token
-      const decoded = verifyJwtToken(token);
-      const userId = decoded.userId;
-      
-      // Get query parameters
-      const searchParams = request.nextUrl.searchParams;
-      const exportType = searchParams.get('type') || 'wines'; // Default to wines
-      const startDate = searchParams.get('startDate') || '';
-      const endDate = searchParams.get('endDate') || '';
-      const format = searchParams.get('format') || 'json'; // Default to JSON
-      
-      // Set default dates if not provided (for analytics data)
-      const today = new Date();
-      const defaultEndDate = today.toISOString().split('T')[0];
-      
-      // Default start date is 30 days ago
-      const defaultStartDate = new Date(today);
-      defaultStartDate.setDate(defaultStartDate.getDate() - 30);
-      const defaultStartDateString = defaultStartDate.toISOString().split('T')[0];
-      
-      // Use provided dates or defaults
-      const effectiveStartDate = startDate || defaultStartDateString;
-      const effectiveEndDate = endDate || defaultEndDate;
-      
-      // Determine what to export based on exportType
-      if (exportType === 'wines') {
-        // Get all wines for this user
-        const wines = await getWinesByUserId(userId);
-        
-        if (format === 'csv') {
-          // Return CSV for wines
-          const csvContent = generateWineCsv(wines);
-          const fileName = `wines-export-${new Date().toISOString().split('T')[0]}.csv`;
-          
-          return new NextResponse(csvContent, {
-            headers: {
-              'Content-Type': 'text/csv; charset=utf-8',
-              'Content-Disposition': `attachment; filename=${fileName}`
-            }
-          });
-        } else {
-          // Return JSON for wines
-          return NextResponse.json({
-            wines: wines,
-            exportDate: new Date().toISOString(),
-            version: '1.0'
-          });
-        }
-      } else {
-        // Analytics data export
-        let data = [];
-        let csvContent = '';
-        let fileName = '';
-        
-        switch (exportType) {
-          case 'analytics-daily':
-            data = await AnalyticsService.getDailyScanStats(userId, effectiveStartDate, effectiveEndDate);
-            csvContent = generateDailyStatsCsv(data);
-            fileName = `daily-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
-            break;
-            
-          case 'analytics-regional':
-            data = await AnalyticsService.getRegionalStats(userId, effectiveStartDate, effectiveEndDate);
-            csvContent = generateRegionalStatsCsv(data);
-            fileName = `regional-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
-            break;
-            
-          case 'analytics-language':
-            data = await AnalyticsService.getLanguageStats(userId, effectiveStartDate, effectiveEndDate);
-            csvContent = generateLanguageStatsCsv(data);
-            fileName = `language-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
-            break;
-            
-          case 'analytics-hourly':
-            data = await AnalyticsService.getHourlyStats(userId, effectiveStartDate, effectiveEndDate);
-            csvContent = generateHourlyStatsCsv(data);
-            fileName = `hourly-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
-            break;
-            
-          case 'analytics-wines':
-            data = await AnalyticsService.getTopWines(userId, effectiveStartDate, effectiveEndDate);
-            csvContent = generateWineRankingsCsv(data);
-            fileName = `wine-rankings-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
-            break;
-            
-          default:
-            return NextResponse.json(
-              { message: 'Neplatný typ exportu' },
-              { status: 400 }
-            );
-        }
-        
-        // Return the data in the requested format
-        if (format === 'json') {
-          return NextResponse.json(data);
-        } else {
-          // CSV format
-          return new NextResponse(csvContent, {
-            headers: {
-              'Content-Type': 'text/csv; charset=utf-8',
-              'Content-Disposition': `attachment; filename=${fileName}`
-            }
-          });
-        }
+
+    const userId = sessionUser.id;
+    const searchParams = request.nextUrl.searchParams;
+    const exportType = searchParams.get('type') || 'wines';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+    const format = searchParams.get('format') || 'json';
+
+    const today = new Date();
+    const defaultEndDate = today.toISOString().split('T')[0];
+
+    const defaultStartDate = new Date(today);
+    defaultStartDate.setDate(defaultStartDate.getDate() - 30);
+    const defaultStartDateString = defaultStartDate.toISOString().split('T')[0];
+
+    const effectiveStartDate = startDate || defaultStartDateString;
+    const effectiveEndDate = endDate || defaultEndDate;
+
+    if (exportType === 'wines') {
+      const wines = await getWinesByUserId(userId);
+
+      if (format === 'csv') {
+        const csvContent = generateWineCsv(wines);
+        const fileName = `wines-export-${new Date().toISOString().split('T')[0]}.csv`;
+
+        return new NextResponse(csvContent, {
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename=${fileName}`,
+          },
+        });
       }
-    } catch (tokenError) {
-      console.error('Token error:', tokenError);
-      return NextResponse.json(
-        { message: 'Neplatný token nebo vypršela platnost přihlášení' },
-        { status: 401 }
-      );
+
+      return NextResponse.json({
+        wines,
+        exportDate: new Date().toISOString(),
+        version: '1.0',
+      });
     }
+
+    let data = [];
+    let csvContent = '';
+    let fileName = '';
+
+    switch (exportType) {
+      case 'analytics-daily':
+        data = await AnalyticsService.getDailyScanStats(userId, effectiveStartDate, effectiveEndDate);
+        csvContent = generateDailyStatsCsv(data);
+        fileName = `daily-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
+        break;
+      case 'analytics-regional':
+        data = await AnalyticsService.getRegionalStats(userId, effectiveStartDate, effectiveEndDate);
+        csvContent = generateRegionalStatsCsv(data);
+        fileName = `regional-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
+        break;
+      case 'analytics-language':
+        data = await AnalyticsService.getLanguageStats(userId, effectiveStartDate, effectiveEndDate);
+        csvContent = generateLanguageStatsCsv(data);
+        fileName = `language-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
+        break;
+      case 'analytics-hourly':
+        data = await AnalyticsService.getHourlyStats(userId, effectiveStartDate, effectiveEndDate);
+        csvContent = generateHourlyStatsCsv(data);
+        fileName = `hourly-stats-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
+        break;
+      case 'analytics-wines':
+        data = await AnalyticsService.getTopWines(userId, effectiveStartDate, effectiveEndDate);
+        csvContent = generateWineRankingsCsv(data);
+        fileName = `wine-rankings-${effectiveStartDate}-to-${effectiveEndDate}.csv`;
+        break;
+      default:
+        return NextResponse.json(
+          { message: 'Neplatný typ exportu' },
+          { status: 400 }
+        );
+    }
+
+    if (format === 'json') {
+      return NextResponse.json(data);
+    }
+
+    return new NextResponse(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename=${fileName}`,
+      },
+    });
   } catch (error) {
     console.error('Data export error:', error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJwtToken } from '@/lib/auth-server';
 import { deleteApiKey, getApiKeysByUserId } from '@/lib/api-service';
+import { getRequestSessionUser } from '@/server/auth/session';
 
 // DELETE /api/api-keys/[id] - Delete an API key
 export async function DELETE(
@@ -9,36 +9,17 @@ export async function DELETE(
 ) {
   try {
     const { id: keyId } = await params;
-    
-    // Get the token from the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
-    
-    if (!token) {
+
+    const sessionUser = await getRequestSessionUser(request);
+
+    if (!sessionUser) {
       return NextResponse.json(
         { message: 'Uživatel není přihlášen' },
         { status: 401 }
       );
     }
-    
-    let verifiedToken;
-    try {
-      verifiedToken = verifyJwtToken(token);
-    } catch (error) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    if (!verifiedToken) {
-      return NextResponse.json(
-        { message: 'Neplatný token' },
-        { status: 401 }
-      );
-    }
-    
-    const userId = verifiedToken.userId;
+
+    const userId = sessionUser.id;
     
     // Check if the API key belongs to the user
     const userKeys = await getApiKeysByUserId(userId);
