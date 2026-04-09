@@ -1,6 +1,7 @@
 import { sign, verify } from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { AuthResponse } from '@/types';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 
 // Browser-compatible simple hashing function using Web Crypto API
 export async function hashPasswordAsync(password: string, salt?: string): Promise<{ hash: string, salt: string }> {
@@ -76,7 +77,7 @@ export async function getAuthToken(): Promise<string | undefined> {
     // Check if we're in the browser environment
     if (typeof window !== 'undefined') {
       // Get token from localStorage in the browser
-      return localStorage.getItem('auth-token') || undefined;
+      return getStoredAuthToken() || undefined;
     } else {
       // For server-side, check request headers
       // Note: This won't be used directly, as we're using middleware for auth checks

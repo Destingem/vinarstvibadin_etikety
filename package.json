@@ -7,6 +7,7 @@
     "build": "next build --no-lint",
     "start": "next start -p 3232",
     "lint": "next lint",
+    "appwrite:migrate": "node scripts/migrate-appwrite.js",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "db:setup": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/setup.ts",
@@ -42,5 +43,6 @@
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

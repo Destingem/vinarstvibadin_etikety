@@ -32,7 +32,7 @@ Vytvořte soubor `.env` v kořenovém adresáři projektu s následujícím obsa
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/wine_qr_codes?schema=public"
 JWT_SECRET="vas-tajny-klic-zde"
-NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+NEXT_PUBLIC_BASE_URL="http://localhost:3232"
 ```
 
 Upravte připojení k databázi podle vašeho nastavení:
@@ -72,7 +72,7 @@ npm run db:setup
 ```
 
 Tento příkaz vytvoří administrátorský účet s následujícími údaji:
-- **Email**: admin@vinarstviqr.cz
+- **Email**: admin@etiketa.wine
 - **Heslo**: Admin123456
 
 Tyto údaje byste měli po prvním přihlášení změnit.

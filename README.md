@@ -50,7 +50,7 @@ VinařstvíQR je webová aplikace, která umožňuje vinařstvím vytvářet a s
    ```
    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/wine_qr_codes?schema=public"
    JWT_SECRET="vas-tajny-klic-zde"
-   NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+   NEXT_PUBLIC_BASE_URL="http://localhost:3232"
    ```
 
 4. Inicializujte databázi:
@@ -74,7 +74,7 @@ VinařstvíQR je webová aplikace, která umožňuje vinařstvím vytvářet a s
    npm run dev
    ```
 
-7. Otevřete [http://localhost:3000](http://localhost:3000) ve vašem prohlížeči.
+7. Otevřete [http://localhost:3232](http://localhost:3232) ve vašem prohlížeči.
 
 ## Struktura projektu
 

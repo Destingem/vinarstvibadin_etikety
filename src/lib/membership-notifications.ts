@@ -1,5 +1,6 @@
 // Utility functions for membership notifications
 // Note: This requires an email service like SendGrid, Resend, or similar
+import { getAppwriteAdminHeaders, getAppwriteUrl } from '@/lib/appwrite-env';
 
 interface Membership {
   $id: string;
@@ -24,11 +25,8 @@ export function isExpiringWithinDays(membership: Membership, days: number): bool
 // Get user details for notification
 export async function getUserDetails(appwriteUserId: string) {
   try {
-    const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${appwriteUserId}`, {
-      headers: {
-        'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-        'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-      }
+    const response = await fetch(getAppwriteUrl(`/users/${appwriteUserId}`), {
+      headers: getAppwriteAdminHeaders()
     });
     
     if (response.ok) {

@@ -3,8 +3,8 @@ const { Client, Databases } = require('node-appwrite');
 
 // Initialize the Appwrite client
 const client = new Client()
-  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-  .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
+  .setEndpoint(process.env.APPWRITE_ENDPOINT)
+  .setProject(process.env.APPWRITE_PROJECT_ID);
 
 // Set API key
 if (process.env.APPWRITE_KEY) {

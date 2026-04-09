@@ -1,57 +1,21 @@
-import { Client, Account, Databases, ID, Query, Permission, Role } from "appwrite";
+import { Account, Databases, ID, Query, Permission, Role } from "appwrite";
+import { createAdminAppwriteClient, createPublicAppwriteClient } from '@/lib/appwrite-env';
 
 // Initialize Appwrite client (browser-safe)
-// Important: For frontend usage, we use the NEXT_PUBLIC_ prefixed env vars
-const client = new Client()
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vinarstviqr');
-
-// Set endpoint explicitly
-if (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT) {
-  client.setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT);
-}
+const client = createPublicAppwriteClient();
 
 // Export Appwrite services
 export const account = new Account(client);
 export const databases = new Databases(client);
 
-// Initialize server-side admin client with API key for privileged operations
-// This is only used for server-side operations requiring admin access
-const adminClient = new Client()
-  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-  .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
-
-// Set API key for admin operations
-if (process.env.APPWRITE_KEY) {
-  try {
-    // In Appwrite SDK v17+, try the headers approach for API key
-    (adminClient as any).headers = {
-      ...((adminClient as any).headers || {}),
-      'X-Appwrite-Key': process.env.APPWRITE_KEY
-    };
-    console.log('✓ Appwrite API key set via headers for admin operations');
-  } catch (error) {
-    console.error('Error setting Appwrite API key via headers:', error);
-    
-    // Fallback: try setKey method
-    try {
-      if (typeof (adminClient as any).setKey === 'function') {
-        (adminClient as any).setKey(process.env.APPWRITE_KEY);
-        console.log('✓ Appwrite API key set via setKey method');
-      } else {
-        console.warn('WARNING: setKey method not available, using headers approach');
-      }
-    } catch (setKeyError) {
-      console.warn('Both headers and setKey approaches failed for API key');
-      console.warn('This will cause issues with analytics and other admin operations');
-    }
-  }
-} else {
-  console.warn('WARNING: APPWRITE_KEY environment variable not set');
-  console.warn('This will cause issues with analytics and other admin operations');
-}
+const adminClient = typeof window === 'undefined'
+  ? createAdminAppwriteClient()
+  : null;
 
 // Export admin services
-export const adminDatabases = new Databases(adminClient);
+export const adminDatabases = adminClient
+  ? new Databases(adminClient)
+  : (null as unknown as Databases);
 
 // Export helper functions
 export { ID, Query, Permission, Role };

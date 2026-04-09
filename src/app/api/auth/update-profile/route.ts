@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyJwtToken, getUserById, updateUserPrefs, createSlug } from '@/lib/auth-server';
 import { Client, Account } from 'appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl, getServerAppwriteEnv } from '@/lib/appwrite-env';
 
 // Schema for profile update validation
 const profileUpdateSchema = z.object({
@@ -92,16 +93,23 @@ export async function POST(request: NextRequest) {
       }
       
       // Create client for admin operations
+      const serverEnv = getServerAppwriteEnv();
       const client = new Client()
-        .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-        .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
+        .setEndpoint(serverEnv.endpoint)
+        .setProject(serverEnv.projectId);
       
       // Set API key for admin operations
-      if (process.env.APPWRITE_KEY) {
-        // Use type assertion to avoid TypeScript errors
+      if (serverEnv.apiKey) {
         const adminClient = client as any;
         if (typeof adminClient.setKey === 'function') {
-          adminClient.setKey(process.env.APPWRITE_KEY);
+          adminClient.setKey(serverEnv.apiKey);
+        } else if (typeof adminClient.setApiKey === 'function') {
+          adminClient.setApiKey(serverEnv.apiKey);
+        } else {
+          adminClient.headers = {
+            ...(adminClient.headers || {}),
+            'X-Appwrite-Key': serverEnv.apiKey,
+          };
         }
       }
       
@@ -116,12 +124,11 @@ export async function POST(request: NextRequest) {
         
         try {
           // Use direct API call to update the user name
-          const updateResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${user.$id}/name`, {
+          const updateResponse = await fetch(getAppwriteUrl(`/users/${user.$id}/name`), {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
-              'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-              'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
+              ...getAppwriteAdminHeaders(),
             },
             body: JSON.stringify({ 
               name: name 

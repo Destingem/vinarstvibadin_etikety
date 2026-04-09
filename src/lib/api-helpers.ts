@@ -1,5 +1,7 @@
 "use client";
 
+import { getStoredAuthUser } from '@/lib/auth-storage';
+
 /**
  * Helper function for making authenticated API requests
  * Automatically adds the auth token to the request
@@ -35,7 +37,7 @@ export async function authFetch(
   
   // Add user data if available (from localStorage)
   try {
-    const storedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+    const storedUser = getStoredAuthUser();
     if (storedUser) {
       const user = JSON.parse(storedUser);
       if (user) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -9,7 +10,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     // Check if auth token exists in localStorage
-    const token = localStorage.getItem('auth-token');
+    const token = getStoredAuthToken();
     
     if (!token) {
       // No token, redirect to login

@@ -37,8 +37,8 @@ Add to your `.env.local`:
 CRON_SECRET=your-secure-random-string
 
 # Appwrite credentials (should already exist)
-APPWRITE_ENDPOINT=https://fra.cloud.appwrite.io/v1
-APPWRITE_PROJECT_ID=vinarstviqr
+APPWRITE_ENDPOINT=https://appwrite.bytedev.cz/v1
+APPWRITE_PROJECT_ID=etiketawine
 APPWRITE_KEY=your-appwrite-api-key
 JWT_SECRET=your-jwt-secret
 ```

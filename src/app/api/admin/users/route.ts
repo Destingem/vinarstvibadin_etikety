@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken, getUserById } from '@/lib/auth-server';
+import { getAppwriteAdminHeaders, getAppwriteUrl } from '@/lib/appwrite-env';
 
 // Get admin emails from environment variables (more secure)
 function getAdminEmails(): string[] {
@@ -42,16 +43,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Fetch users from Appwrite
-    let url = `${process.env.APPWRITE_ENDPOINT}/users?limit=${limit}&offset=${offset}`;
+    let url = getAppwriteUrl(`/users?limit=${limit}&offset=${offset}`);
     if (search) {
       url += `&search=${encodeURIComponent(search)}`;
     }
 
     const response = await fetch(url, {
-      headers: {
-        'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-        'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-      }
+      headers: getAppwriteAdminHeaders()
     });
 
     if (!response.ok) {

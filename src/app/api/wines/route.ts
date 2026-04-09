@@ -3,6 +3,7 @@ import { verifyJwtToken, createSlug } from '@/lib/auth-server';
 import { z } from 'zod';
 import { createWine, getWinesByUserId, Query, adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
 import { Wine, checkWineLimit, incrementWineCount } from '@/lib/appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl } from '@/lib/appwrite-env';
 
 // Schema for creating/updating wine 
 // This matches exactly the Appwrite collection attributes
@@ -240,11 +241,8 @@ export async function POST(request: NextRequest) {
     if (!userName || !userSlug) {
       try {
         // Fetch directly from the API
-        const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
-          headers: {
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-            'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-          }
+        const response = await fetch(getAppwriteUrl(`/users/${userId}`), {
+          headers: getAppwriteAdminHeaders()
         });
         
         if (response.ok) {

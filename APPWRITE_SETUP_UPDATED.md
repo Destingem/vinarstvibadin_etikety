@@ -11,7 +11,7 @@ If you don't already have an Appwrite account:
 
 ## 2. Create a New Project
 
-1. Create a new project named "VinarstviQR"
+1. Create a new project named "etiketawine"
 2. Select the Web platform
 3. Enter your app's domain (e.g., localhost for development)
 4. Copy the project ID for the `.env` file
@@ -89,8 +89,8 @@ Update your `.env` file with the following values (the ones you already have):
 
 ```env
 # Appwrite
-APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
-APPWRITE_PROJECT_ID="vinarstviqr"
+APPWRITE_ENDPOINT="https://appwrite.bytedev.cz/v1"
+APPWRITE_PROJECT_ID="etiketawine"
 APPWRITE_KEY="your-api-key"
 
 # Optional JWT support (not needed with Appwrite sessions)

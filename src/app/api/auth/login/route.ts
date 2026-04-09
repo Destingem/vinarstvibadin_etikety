@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { loginUser, createSlug, createJwtToken } from '@/lib/auth-server';
 import { Client, Account } from 'appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl, getPublicAppwriteEnv } from '@/lib/appwrite-env';
 
 // Schema for login validation
 const loginSchema = z.object({
@@ -31,9 +32,10 @@ export async function POST(request: NextRequest) {
       
       // Create a client without API key - this is critical!
       // The API key gives us admin access which conflicts with user authentication
+      const publicEnv = getPublicAppwriteEnv();
       const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vinarstviqr');
+        .setEndpoint(publicEnv.endpoint)
+        .setProject(publicEnv.projectId);
       
       const account = new Account(client);
       
@@ -90,11 +92,8 @@ export async function POST(request: NextRequest) {
       let userData;
       try {
         // Get user using the admin client with API key for full access
-        const userResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
-          headers: {
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-            'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-          }
+        const userResponse = await fetch(getAppwriteUrl(`/users/${userId}`), {
+          headers: getAppwriteAdminHeaders()
         });
         
         if (userResponse.ok) {

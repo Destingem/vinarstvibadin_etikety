@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyJwtToken, getUserById } from '@/lib/auth-server';
 import { getAllMemberships, createMembership, getMembershipByUserId, updateMembership } from '@/lib/appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl } from '@/lib/appwrite-env';
 
 // Get admin emails from environment variables (more secure)
 function getAdminEmails(): string[] {
@@ -55,11 +56,8 @@ export async function GET(request: NextRequest) {
     const membershipsWithUsers = await Promise.all(
       memberships.map(async (membership) => {
         try {
-          const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${membership.appwriteUserId}`, {
-            headers: {
-              'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-              'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-            }
+          const response = await fetch(getAppwriteUrl(`/users/${membership.appwriteUserId}`), {
+            headers: getAppwriteAdminHeaders()
           });
           
           if (response.ok) {

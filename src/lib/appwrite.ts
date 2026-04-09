@@ -1,13 +1,8 @@
-import { Client, Account, Databases, Storage, ID, Query, Permission, Role } from 'appwrite';
+import { Account, Databases, Storage, ID, Query, Permission, Role } from 'appwrite';
 import { adminDatabases } from '@/lib/appwrite-client';
+import { createAdminAppwriteClient } from '@/lib/appwrite-env';
 
-// Initialize Appwrite client
-const client = new Client();
-
-// Set up client with Appwrite endpoint and project ID
-client
-  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-  .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
+const client = createAdminAppwriteClient();
 
 // Export Appwrite services
 export const account = new Account(client);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyJwtToken, getUserById } from '@/lib/auth-server';
 import { Client } from 'appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl, getServerAppwriteEnv } from '@/lib/appwrite-env';
 
 // Schema for password change validation
 const passwordChangeSchema = z.object({
@@ -47,12 +48,14 @@ export async function POST(request: NextRequest) {
       // First verify the current password by creating a session
       // This endpoint doesn't require JWT, just the credentials
       try {
+        const serverEnv = getServerAppwriteEnv();
+
         // We try to create a session to validate the current password
-        const sessionResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/account/sessions/email`, {
+        const sessionResponse = await fetch(getAppwriteUrl('/account/sessions/email'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
+            'X-Appwrite-Project': serverEnv.projectId,
           },
           body: JSON.stringify({
             email: user.email,
@@ -69,12 +72,11 @@ export async function POST(request: NextRequest) {
         }
         
         // Current password is correct, proceed to change password using direct API call
-        const updateResponse = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${user.$id}/password`, {
+        const updateResponse = await fetch(getAppwriteUrl(`/users/${user.$id}/password`), {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-            'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
+            ...getAppwriteAdminHeaders(),
           },
           body: JSON.stringify({ 
             password: newPassword 

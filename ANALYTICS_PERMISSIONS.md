@@ -28,8 +28,8 @@ The repository includes a script to automatically set up the correct permissions
 export APPWRITE_KEY="your-api-key-here"
 
 # Optional: Set endpoint and project ID if different from defaults
-export APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1"
-export APPWRITE_PROJECT_ID="vinarstviqr"
+export APPWRITE_ENDPOINT="https://appwrite.bytedev.cz/v1"
+export APPWRITE_PROJECT_ID="etiketawine"
 
 # Run the setup script
 node scripts/setup-analytics-permissions.js

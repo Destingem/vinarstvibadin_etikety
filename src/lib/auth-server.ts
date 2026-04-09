@@ -1,24 +1,13 @@
 import { Client, Account, ID } from 'appwrite';
 import { sign, verify } from 'jsonwebtoken';
+import {
+  createAdminAppwriteClient,
+  createPublicAppwriteClient,
+  getAppwriteAdminHeaders,
+  getAppwriteUrl,
+} from '@/lib/appwrite-env';
 
-// Create a server-side client (uses API key)
-const serverClient = new Client()
-  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-  .setProject(process.env.APPWRITE_PROJECT_ID || 'vinarstviqr');
-
-// Set API key for SDK v17+
-if (process.env.APPWRITE_KEY) {
-  // Use type assertion to avoid TypeScript errors
-  const client = serverClient as any;
-  
-  // Check if setApiKey exists on the client
-  if (typeof client.setApiKey === 'function') {
-    client.setApiKey(process.env.APPWRITE_KEY);
-  } else {
-    console.warn('Appwrite SDK method setApiKey not available - API key not set');
-    console.warn('This may cause some server-side operations to fail');
-  }
-}
+const serverClient = createAdminAppwriteClient();
 
 // Export the server account instance
 export const serverAccount = new Account(serverClient);
@@ -87,12 +76,11 @@ export async function updateUserPrefs(prefs: Record<string, any>, userId: string
     const requestBody = { prefs };
     
     // Use direct API call with the Appwrite key
-    const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}/prefs`, {
+    const response = await fetch(getAppwriteUrl(`/users/${userId}/prefs`), {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-        'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
+        ...getAppwriteAdminHeaders(),
       },
       body: JSON.stringify(requestBody),
     });
@@ -120,11 +108,8 @@ export async function getUserById(userId: string) {
     // Use Appwrite REST API directly with the API key for full access
     try {
       // Direct API call using fetch
-      const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
-        headers: {
-          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-          'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-        }
+      const response = await fetch(getAppwriteUrl(`/users/${userId}`), {
+        headers: getAppwriteAdminHeaders()
       });
       
       if (response.ok) {
@@ -253,10 +238,7 @@ export async function loginUser(email: string, password: string) {
     // We'll just create the session and manually fetch the user data
     
     // Create a session with provided credentials
-    const client = new Client()
-      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1')
-      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vinarstviqr');
-    
+    const client = createPublicAppwriteClient();
     const account = new Account(client);
     
     // Create the session - we won't fetch the user here because that requires client-side code
@@ -323,11 +305,8 @@ async function getUserByIdDirect(userId: string) {
     
     // Try to get the user data directly using the Appwrite API
     try {
-      const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
-        headers: {
-          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-          'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-        }
+      const response = await fetch(getAppwriteUrl(`/users/${userId}`), {
+        headers: getAppwriteAdminHeaders()
       });
       
       if (response.ok) {

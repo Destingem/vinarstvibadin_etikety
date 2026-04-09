@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { databases, DB_ID, WINES_COLLECTION_ID, ID, getWineById, adminDatabases } from '@/lib/appwrite-client';
 import { verifyJwtToken } from '@/lib/auth-server';
 import { checkWineLimit, incrementWineCount } from '@/lib/appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl } from '@/lib/appwrite-env';
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,11 +88,8 @@ export async function POST(request: NextRequest) {
     if (!wineryName || !winerySlug) {
       try {
         // Fetch the user data directly from the API
-        const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${userId}`, {
-          headers: {
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-            'X-Appwrite-Key': process.env.APPWRITE_KEY || ''
-          }
+        const response = await fetch(getAppwriteUrl(`/users/${userId}`), {
+          headers: getAppwriteAdminHeaders()
         });
         
         if (response.ok) {

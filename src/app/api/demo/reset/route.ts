@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createUser, updateUserPrefs } from '@/lib/auth-server';
 import { getMembershipByUserId, createMembership, updateMembership } from '@/lib/appwrite';
+import { getAppwriteAdminHeaders, getAppwriteUrl } from '@/lib/appwrite-env';
 
 const DEMO_EMAIL = 'demo@etiketa.wine';
 const DEMO_PASSWORD = 'demo123456';
@@ -15,11 +16,8 @@ export async function POST(request: NextRequest) {
     
     try {
       // Try to find existing demo user
-      const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users`, {
-        headers: {
-          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-          'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
-        }
+      const response = await fetch(getAppwriteUrl('/users'), {
+        headers: getAppwriteAdminHeaders(),
       });
       
       if (response.ok) {
@@ -32,12 +30,9 @@ export async function POST(request: NextRequest) {
           
           // Delete existing demo user to recreate fresh
           try {
-            await fetch(`${process.env.APPWRITE_ENDPOINT}/users/${demoUserId}`, {
+            await fetch(getAppwriteUrl(`/users/${demoUserId}`), {
               method: 'DELETE',
-              headers: {
-                'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-                'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
-              }
+              headers: getAppwriteAdminHeaders(),
             });
             console.log('Deleted existing demo user');
           } catch (deleteError) {
@@ -126,11 +121,8 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     // Find demo user
-    const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/users`, {
-      headers: {
-        'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || 'vinarstviqr',
-        'X-Appwrite-Key': process.env.APPWRITE_KEY || '',
-      }
+    const response = await fetch(getAppwriteUrl('/users'), {
+      headers: getAppwriteAdminHeaders(),
     });
     
     if (!response.ok) {

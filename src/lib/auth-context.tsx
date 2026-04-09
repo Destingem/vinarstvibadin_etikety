@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { account } from '@/lib/appwrite-client';
+import { clearStoredAuth, persistStoredAuth, readStoredAuth } from '@/lib/auth-storage';
 
 // Define types
 type User = {
@@ -34,8 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state from localStorage on client side
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth-token');
-    const storedUser = localStorage.getItem('user');
+    const { token: storedToken, user: storedUser, invalidated } = readStoredAuth();
     
     if (storedToken && storedUser) {
       setToken(storedToken);
@@ -44,6 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.error('Failed to parse user from localStorage');
       }
+    }
+
+    if (invalidated) {
+      console.log('Stored auth cleared because Appwrite context changed');
     }
     
     setIsLoading(false);
@@ -56,8 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
     
     // Save to localStorage
-    localStorage.setItem('auth-token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+    persistStoredAuth(newToken, JSON.stringify(newUser));
     
     console.log('Auth context: Login successful');
   };
@@ -76,8 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     
     // Clear localStorage
-    localStorage.removeItem('auth-token');
-    localStorage.removeItem('user');
+    clearStoredAuth();
     
     // Redirect to home page
     router.push('/');

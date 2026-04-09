@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiAuth } from '@/lib/api-middleware';
 import { adminDatabases, DB_ID, WINES_COLLECTION_ID } from '@/lib/appwrite-client';
 import { generateQRCodeSVG } from '@/lib/qr-code';
+import { getPublicAppwriteEnv } from '@/lib/appwrite-env';
 
 // GET /api/v1/qrcodes/wine/[wineId] - Generate QR code for a specific wine
 export async function GET(
@@ -34,7 +35,7 @@ export async function GET(
         const size = parseInt(searchParams.get('size') || '300');
         
         // Generate the URL for the QR code
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://etiketa.wine';
+        const baseUrl = getPublicAppwriteEnv().appUrl;
         const qrUrl = `${baseUrl}/${wine.winerySlug}/${wine.$id}`;
         
         // Generate QR code SVG

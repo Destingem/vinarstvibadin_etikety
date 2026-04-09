@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { account } from '@/lib/appwrite-client';
 import { z } from 'zod';
+import { getPublicAppwriteEnv } from '@/lib/appwrite-env';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: 'Neplatný email' }),
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Use Appwrite's built-in password recovery
-      const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password`;
+      const resetUrl = `${getPublicAppwriteEnv().appUrl}/reset-password`;
       
       await account.createRecovery(email, resetUrl);
 

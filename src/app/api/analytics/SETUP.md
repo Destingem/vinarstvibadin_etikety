@@ -147,7 +147,7 @@ Create the following collections in your Appwrite database:
 
 3. Run the aggregation endpoint manually to generate aggregate data:
    ```bash
-   curl -X POST http://localhost:3000/api/analytics/aggregate -H "Content-Type: application/json" -d '{"date":"2025-05-21"}'
+   curl -X POST http://localhost:3232/api/analytics/aggregate -H "Content-Type: application/json" -d '{"date":"2025-05-21"}'
    ```
 
 4. Visit the analytics dashboard at `/dashboard/analytics` to see the results.
