@@ -18,6 +18,7 @@ import {
 } from '@/server/schemas/internal-wines';
 import { type WineryProfile } from '@/server/schemas/winery-profile';
 import { type AppwriteWineWriteData } from '@/server/schemas/wine';
+import { ensureDemoCatalog } from '@/server/services/demo-catalog';
 import { getWineryProfile } from '@/server/services/winery-profiles';
 import { listWineryWines, normalizeWineRecord } from '@/server/services/wines';
 
@@ -178,18 +179,19 @@ export async function listApiWines(
   ownerUserId: string,
   query: ApiWineListQuery
 ) {
-  const [wineryProfile, wineResult] = await Promise.all([
-    getWineryProfile(ownerUserId),
-    listWineryWines(ownerUserId, {
-      limit: query.limit,
-      offset: (query.page - 1) * query.limit,
-      search: query.search,
-    }),
-  ]);
+  const wineryProfile = await getWineryProfile(ownerUserId);
 
   if (!wineryProfile) {
     return null;
   }
+
+  await ensureDemoCatalog(wineryProfile);
+
+  const wineResult = await listWineryWines(ownerUserId, {
+    limit: query.limit,
+    offset: (query.page - 1) * query.limit,
+    search: query.search,
+  });
 
   return {
     wines: wineResult.wines.map((wine) => serializeWineForApi(wine, wineryProfile)),

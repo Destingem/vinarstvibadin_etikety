@@ -2,20 +2,22 @@ import {
   DashboardOverviewSchema,
   type DashboardOverview,
 } from '@/server/schemas/dashboard-overview';
+import { ensureDemoCatalog } from '@/server/services/demo-catalog';
 import { getWineryProfile } from '@/server/services/winery-profiles';
 import { listWineryWines } from '@/server/services/wines';
 
 export async function getDashboardOverview(
   ownerUserId: string
 ): Promise<DashboardOverview | null> {
-  const [profile, wineResult] = await Promise.all([
-    getWineryProfile(ownerUserId),
-    listWineryWines(ownerUserId),
-  ]);
+  const profile = await getWineryProfile(ownerUserId);
 
   if (!profile) {
     return null;
   }
+
+  await ensureDemoCatalog(profile);
+
+  const wineResult = await listWineryWines(ownerUserId);
 
   return DashboardOverviewSchema.parse({
     profile,

@@ -4,6 +4,7 @@ import { createJwtToken } from '@/lib/auth-server';
 import { Client, Account } from 'appwrite';
 import { applySessionCookie } from '@/server/auth/session';
 import { getAppwriteSessionUserId } from '@/server/auth/appwrite-session';
+import { ensureDemoCatalog } from '@/server/services/demo-catalog';
 import {
   getWineryProfile,
   serializeWineryProfileForAuth,
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
+
+      await ensureDemoCatalog(profile);
       
       // Issue the real token only via HttpOnly session cookie.
       const token = createJwtToken(userId, '7d');

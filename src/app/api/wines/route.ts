@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkWineLimit, incrementWineCount } from '@/lib/appwrite';
 import {
-  ApiWineListQuerySchema,
   CreateApiWineInputSchema,
+  InternalApiWineListQuerySchema,
 } from '@/server/schemas/api-wines';
 import { requireSessionUser } from '@/server/http/require-session-user';
 import { createApiWine, listApiWines } from '@/server/services/api-wines';
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return session.response;
     }
 
-    const parsedQuery = ApiWineListQuerySchema.safeParse({
+    const parsedQuery = InternalApiWineListQuerySchema.safeParse({
       page: request.nextUrl.searchParams.get('page') ?? undefined,
       limit: request.nextUrl.searchParams.get('limit') ?? undefined,
       search: request.nextUrl.searchParams.get('search') ?? undefined,

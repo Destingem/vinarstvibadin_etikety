@@ -50,10 +50,19 @@ const nullableTextField = z
     return normalizedValue ? normalizedValue : undefined;
   });
 
+const pageField = z.coerce.number().int().min(1).default(1);
+const searchField = z.string().trim().default('');
+
 export const ApiWineListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
+  page: pageField,
   limit: z.coerce.number().int().min(1).max(100).default(10),
-  search: z.string().trim().default(''),
+  search: searchField,
+});
+
+export const InternalApiWineListQuerySchema = z.object({
+  page: pageField,
+  limit: z.coerce.number().int().min(1).max(1000).default(10),
+  search: searchField,
 });
 
 export const ApiWineBaseInputSchema = z.object({
@@ -86,5 +95,6 @@ export const UpdateApiWineInputSchema = ApiWineBaseInputSchema.partial().extend(
 });
 
 export type ApiWineListQuery = z.infer<typeof ApiWineListQuerySchema>;
+export type InternalApiWineListQuery = z.infer<typeof InternalApiWineListQuerySchema>;
 export type CreateApiWineInput = z.infer<typeof CreateApiWineInputSchema>;
 export type UpdateApiWineInput = z.infer<typeof UpdateApiWineInputSchema>;
