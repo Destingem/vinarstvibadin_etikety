@@ -364,7 +364,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      <div className="relative hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[19rem] lg:flex-col">
+      <div className="relative hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-[19rem] lg:flex-col">
         <aside className="flex h-full flex-col border-r border-[color:var(--border)] bg-[linear-gradient(180deg,rgba(255,251,247,0.92),rgba(248,241,233,0.9))] px-5 py-6 backdrop-blur-xl">
           <div className="rounded-[1.9rem] border border-[color:var(--border)] bg-white/72 p-5 shadow-[0_24px_80px_rgba(36,20,15,0.08)]">
             <Link href="/dashboard" className="flex items-center gap-3">
@@ -429,7 +429,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </aside>
       </div>
 
-      <div className="relative flex min-h-screen flex-col lg:pl-[19rem]">
+      <div className="relative flex min-h-screen flex-col lg:ml-[19rem]">
         <header className="sticky top-0 z-40 border-b border-[color:var(--border)] bg-[rgba(255,251,247,0.78)] backdrop-blur-xl">
           <div className="flex min-h-[4.5rem] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <button
