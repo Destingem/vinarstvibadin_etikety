@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":separateMultipleMajorReleases",
+    ":prConcurrentLimit10",
+    ":prHourlyLimit2"
+  ],
+  "timezone": "Europe/Prague",
+  "labels": ["dependencies", "security"],
+  "rangeStrategy": "bump",
+  "rebaseWhen": "conflicted",
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "dependencyDashboardApproval": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Automerge low-risk patch and digest updates after CI",
+      "matchUpdateTypes": ["patch", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false
+    },
+    {
+      "description": "Require manual approval for major updates",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group Docker base image updates",
+      "matchDatasources": ["docker"],
+      "groupName": "docker-images"
+    },
+    {
+      "description": "Hold risky runtime frameworks for manual review",
+      "matchPackageNames": ["next", "react", "react-dom", "@temporalio/**", "stripe"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}
